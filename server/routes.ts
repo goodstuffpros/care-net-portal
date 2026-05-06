@@ -267,11 +267,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
       inviteSentAt: new Date().toISOString(),
     }).where(eq(betaApplications.id, id)).run();
 
-    await sendEmail({
+    // Send email non-blocking — DB update already committed
+    sendEmail({
       to: app_.email,
       subject: "You're in — Care Net Portal Beta",
       html: emailApprovalTemplate(app_.name, inviteUrl),
-    });
+    }).catch((err) => console.error("[approve] email send failed:", err?.message));
 
     res.json({ success: true, message: `Approved and invite sent to ${app_.email}` });
   });
@@ -288,11 +289,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
       reviewNote: req.body.note || null,
     }).where(eq(betaApplications.id, id)).run();
 
-    await sendEmail({
+    // Send email non-blocking — DB update already committed
+    sendEmail({
       to: app_.email,
       subject: "Care Net Portal — Application Update",
       html: emailDenialTemplate(app_.name),
-    });
+    }).catch((err) => console.error("[deny] email send failed:", err?.message));
 
     res.json({ success: true });
   });
