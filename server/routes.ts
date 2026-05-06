@@ -14,7 +14,7 @@ import {
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
   emailVerifyTemplate, emailPasswordResetTemplate,
-  requireAuth, requireReAuth, type AuthRequest
+  requireAuth, requireAuthAccount, requireReAuth, type AuthRequest
 } from "./auth";
 
 export function registerRoutes(httpServer: Server, app: Express) {
@@ -295,43 +295,49 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ── Onboarding ─────────────────────────────────────────────────────────────
 
   // POST /api/onboarding/profile — save profile data + create user row for real auth users
-  app.post("/api/onboarding/profile", requireAuth, async (req: AuthRequest, res) => {
+  // Uses requireAuthAccount (not requireAuth) because userId is null until this route runs
+  app.post("/api/onboarding/profile", requireAuthAccount, async (req: AuthRequest, res) => {
     const { name, phone, role, city, state } = req.body;
     if (!name || !role) return res.status(400).json({ message: "Name and role are required" });
 
-    const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
-    if (!account) return res.status(401).json({ message: "Not authenticated" });
+    try {
+      const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+      if (!account) return res.status(401).json({ message: "Not authenticated" });
 
-    const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+      const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
 
-    if (account.userId) {
-      // Update existing user
-      db.update(users).set({
-        name,
-        phone: phone || null,
-        role,
-        avatarInitials: initials,
-      }).where(eq(users.id, account.userId)).run();
-      res.json({ success: true, userId: account.userId });
-    } else {
-      // Create new user row
-      const newUser = db.insert(users).values({
-        name,
-        role,
-        email: account.email,
-        phone: phone || null,
-        avatarInitials: initials,
-        isActive: true,
-        notificationPrefs: '{"all":true}',
-      }).returning().get();
-      // Link account to user
-      db.update(authAccounts).set({ userId: newUser.id }).where(eq(authAccounts.id, account.id)).run();
-      res.json({ success: true, userId: newUser.id });
+      if (account.userId) {
+        // Update existing user row
+        db.update(users).set({
+          name,
+          phone: phone || null,
+          role,
+          avatarInitials: initials,
+        }).where(eq(users.id, account.userId)).run();
+        res.json({ success: true, userId: account.userId });
+      } else {
+        // Create new user row (first-time onboarding)
+        const newUser = db.insert(users).values({
+          name,
+          role,
+          email: account.email,
+          phone: phone || null,
+          avatarInitials: initials,
+          isActive: true,
+          notificationPrefs: '{"all":true}',
+        }).returning().get();
+        // Link auth_account → users row
+        db.update(authAccounts).set({ userId: newUser.id }).where(eq(authAccounts.id, account.id)).run();
+        res.json({ success: true, userId: newUser.id });
+      }
+    } catch (err: any) {
+      console.error("[onboarding/profile] ERROR:", err?.message || err);
+      res.status(500).json({ message: err?.message || "Failed to save profile" });
     }
   });
 
   // POST /api/onboarding/complete — mark onboarding as done
-  app.post("/api/onboarding/complete", requireAuth, async (req: AuthRequest, res) => {
+  app.post("/api/onboarding/complete", requireAuthAccount, async (req: AuthRequest, res) => {
     const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
     if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
     db.update(users).set({ onboardingCompletedAt: new Date().toISOString() }).where(eq(users.id, account.userId)).run();

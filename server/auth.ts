@@ -217,6 +217,78 @@ export async function requireAuth(
 }
 
 /**
+ * requireAuthAccount — lighter version of requireAuth.
+ * Validates JWT + active session but does NOT require account.userId to be set.
+ * Use for onboarding routes where the user row doesn't exist yet.
+ */
+export async function requireAuthAccount(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): Promise<void> {
+  // DEMO MODE bypass
+  const demoUserId = req.headers["x-demo-user-id"];
+  if (process.env.DEMO_MODE === "true" && demoUserId) {
+    req.isDemoMode = true;
+    req.authUserId = parseInt(demoUserId as string, 10);
+    const u = db.select().from(users).where(eq(users.id, req.authUserId)).get();
+    req.authUserRole = u?.role || "caregiver";
+    return next();
+  }
+
+  const token = getTokenFromRequest(req);
+  if (!token) {
+    res.status(401).json({ message: "Not authenticated" });
+    return;
+  }
+
+  const payload = await verifyJWT(token);
+  if (!payload) {
+    clearSessionCookie(res);
+    res.status(401).json({ message: "Session expired" });
+    return;
+  }
+
+  // Check session is active and not revoked
+  const tokenHash = hashToken(payload.jti);
+  const session = db.select().from(authSessions).where(
+    and(
+      eq(authSessions.tokenHash, tokenHash),
+      eq(authSessions.authAccountId, payload.authAccountId)
+    )
+  ).get();
+
+  if (!session || session.revokedAt) {
+    clearSessionCookie(res);
+    res.status(401).json({ message: "Session revoked" });
+    return;
+  }
+
+  if (new Date(session.expiresAt) < new Date()) {
+    clearSessionCookie(res);
+    res.status(401).json({ message: "Session expired" });
+    return;
+  }
+
+  // Account must exist, but userId is NOT required (new users don't have it yet)
+  const account = db.select().from(authAccounts).where(eq(authAccounts.id, payload.authAccountId)).get();
+  if (!account) {
+    res.status(401).json({ message: "Account not found" });
+    return;
+  }
+
+  req.authAccountId = payload.authAccountId;
+  req.authJti = payload.jti;
+  // authUserId may be undefined here — that's fine for onboarding
+  if (account.userId) {
+    req.authUserId = account.userId;
+    const u = db.select().from(users).where(eq(users.id, account.userId)).get();
+    req.authUserRole = u?.role || "caregiver";
+  }
+  next();
+}
+
+/**
  * requireReAuth — for sensitive actions (doctor notes, med changes)
  * Checks X-Reauth-Password header against stored hash
  */
