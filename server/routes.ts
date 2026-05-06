@@ -93,7 +93,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
     const user = db.select().from(users).where(eq(users.id, account.userId)).get();
     if (!user) return res.status(401).json({ message: "User not found" });
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -296,6 +296,52 @@ export function registerRoutes(httpServer: Server, app: Express) {
       html: emailDenialTemplate(app_.name),
     }).catch((err) => console.error("[deny] email send failed:", err?.message));
 
+    res.json({ success: true });
+  });
+
+  // ── Onboarding ─────────────────────────────────────────────────────────────
+
+  // POST /api/onboarding/profile — save profile data + create user row for real auth users
+  app.post("/api/onboarding/profile", requireAuth, async (req: AuthRequest, res) => {
+    const { name, phone, role, city, state } = req.body;
+    if (!name || !role) return res.status(400).json({ message: "Name and role are required" });
+
+    const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+    if (!account) return res.status(401).json({ message: "Not authenticated" });
+
+    const initials = name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2);
+
+    if (account.userId) {
+      // Update existing user
+      db.update(users).set({
+        name,
+        phone: phone || null,
+        role,
+        avatarInitials: initials,
+      }).where(eq(users.id, account.userId)).run();
+      res.json({ success: true, userId: account.userId });
+    } else {
+      // Create new user row
+      const newUser = db.insert(users).values({
+        name,
+        role,
+        email: account.email,
+        phone: phone || null,
+        avatarInitials: initials,
+        isActive: true,
+        notificationPrefs: '{"all":true}',
+      }).returning().get();
+      // Link account to user
+      db.update(authAccounts).set({ userId: newUser.id }).where(eq(authAccounts.id, account.id)).run();
+      res.json({ success: true, userId: newUser.id });
+    }
+  });
+
+  // POST /api/onboarding/complete — mark onboarding as done
+  app.post("/api/onboarding/complete", requireAuth, async (req: AuthRequest, res) => {
+    const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+    if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
+    db.update(users).set({ onboardingCompletedAt: new Date().toISOString() }).where(eq(users.id, account.userId)).run();
     res.json({ success: true });
   });
 

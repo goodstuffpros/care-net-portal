@@ -14,6 +14,7 @@ export interface AuthUser {
   role: string;
   clientId: number | null;
   avatarInitials: string;
+  onboardingCompletedAt: string | null;
 }
 
 export interface AuthContextType {

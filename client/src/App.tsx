@@ -1,7 +1,7 @@
 import { Switch, Route, Router, useLocation } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient } from "@/lib/queryClient";
+import { queryClient, apiRequest } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AlarmEngine } from "@/components/AlarmEngine";
 import { createContext, useContext, useState, useEffect } from "react";
@@ -49,6 +49,9 @@ import ResetPasswordPage from "@/pages/ResetPassword";
 import TermsOfService from "@/pages/TermsOfService";
 import PrivacyPolicy from "@/pages/PrivacyPolicy";
 import BetaAgreement from "@/pages/BetaAgreement";
+
+// Onboarding wizard (real auth users only)
+import OnboardingWizard from "@/pages/Onboarding";
 
 // Layout
 import AppLayout from "@/components/AppLayout";
@@ -340,6 +343,47 @@ export default function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <AuthPage />
+      </QueryClientProvider>
+    );
+  }
+
+  return <RealAuthGate />;
+}
+
+/**
+ * RealAuthGate — checks if the user is logged in with a real session.
+ * If yes and onboarding not done → show OnboardingWizard.
+ * If yes and onboarding done → show MainApp.
+ * If no real session → show MainApp (demo mode takes over).
+ */
+function RealAuthGate() {
+  const [checking, setChecking] = useState(true);
+  const [realUser, setRealUser] = useState<{ email: string; onboardingCompletedAt: string | null } | null>(null);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+
+  useEffect(() => {
+    apiRequest("GET", "/api/auth/me")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.email && !data?.isDemoMode) {
+          setRealUser({ email: data.email, onboardingCompletedAt: data.onboardingCompletedAt ?? null });
+          if (data.onboardingCompletedAt) setOnboardingDone(true);
+        }
+      })
+      .catch(() => {})
+      .finally(() => setChecking(false));
+  }, []);
+
+  if (checking) return null; // brief flicker prevention
+
+  // Real user who hasn't completed onboarding
+  if (realUser && !onboardingDone) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <OnboardingWizard
+          email={realUser.email}
+          onComplete={() => setOnboardingDone(true)}
+        />
       </QueryClientProvider>
     );
   }
