@@ -14,8 +14,12 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff, Heart, AlertCircle } from "lucide-react";
 
 function getTokenFromHash(): string | null {
-  // Hash is like: #/complete-signup?token=abc123
-  const hash = window.location.hash; // e.g. #/complete-signup?token=abc
+  // Try query string first (email links use ?page=complete-signup&token=...)
+  const qParams = new URLSearchParams(window.location.search);
+  const fromQuery = qParams.get("token");
+  if (fromQuery) return fromQuery;
+  // Fallback: hash-based routing (#/complete-signup?token=...)
+  const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex === -1) return null;
   const params = new URLSearchParams(hash.slice(qIndex + 1));

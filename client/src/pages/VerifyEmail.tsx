@@ -11,6 +11,11 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Heart, CheckCircle2, AlertCircle } from "lucide-react";
 
 function getTokenFromHash(): string | null {
+  // Try query string first (email links use ?page=verify-email&token=...)
+  const qParams = new URLSearchParams(window.location.search);
+  const fromQuery = qParams.get("token");
+  if (fromQuery) return fromQuery;
+  // Fallback: hash-based routing (#/verify-email?token=...)
   const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex === -1) return null;

@@ -13,6 +13,11 @@ import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff, Heart, AlertCircle, CheckCircle2 } from "lucide-react";
 
 function getTokenFromHash(): string | null {
+  // Try query string first (email links use ?page=reset-password&token=...)
+  const qParams = new URLSearchParams(window.location.search);
+  const fromQuery = qParams.get("token");
+  if (fromQuery) return fromQuery;
+  // Fallback: hash-based routing
   const hash = window.location.hash;
   const qIndex = hash.indexOf("?");
   if (qIndex === -1) return null;
