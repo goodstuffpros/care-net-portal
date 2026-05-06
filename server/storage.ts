@@ -337,6 +337,8 @@ sqlite.exec(`
 
 // Safe migration: add onboarding_completed_at column if it doesn't exist yet
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch { /* column already exists */ }
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch { /* column already exists */ }
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch { /* column already exists */ }
 // Safe migration: schedule_events alarm columns
 try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_enabled INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_lead_minutes INTEGER DEFAULT 15`); } catch {}

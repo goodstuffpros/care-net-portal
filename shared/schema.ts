@@ -14,6 +14,8 @@ export const users = sqliteTable("users", {
   notificationPrefs: text("notification_prefs").default('{"all":true}'), // JSON string
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   onboardingCompletedAt: text("onboarding_completed_at"), // ISO date — null means not yet completed
+  mcSetupCompletedAt: text("mc_setup_completed_at"),     // ISO date — null means MC wizard not yet done
+  carePathChoice: text("care_path_choice"),               // 'has_caregiver' | 'self_managing'
   // Temporary caregiver fields
   tempAccessStart: text("temp_access_start"), // ISO date
   tempAccessEnd: text("temp_access_end"),   // ISO date

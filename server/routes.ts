@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients } from "@shared/schema";
 import { eq, and, lt } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
@@ -95,7 +95,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!account.userId) return res.json({ email: account.email, onboardingCompletedAt: null, needsProfile: true });
     const user = db.select().from(users).where(eq(users.id, account.userId)).get();
     if (!user) return res.status(401).json({ message: "User not found" });
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -342,6 +342,49 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
     db.update(users).set({ onboardingCompletedAt: new Date().toISOString() }).where(eq(users.id, account.userId)).run();
     res.json({ success: true });
+  });
+
+  // POST /api/mc/setup — MC wizard completion
+  // Creates the client (loved one) row, saves care path choice, marks setup done
+  app.post("/api/mc/setup", requireAuthAccount, async (req: AuthRequest, res) => {
+    const {
+      clientName, clientDob, clientCondition, clientNotes, clientRelationship,
+      carePathChoice, // 'has_caregiver' | 'self_managing'
+    } = req.body;
+
+    if (!clientName) return res.status(400).json({ message: "Loved one's name is required" });
+
+    try {
+      const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+      if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
+
+      const mcUser = db.select().from(users).where(eq(users.id, account.userId)).get();
+      if (!mcUser) return res.status(401).json({ message: "User not found" });
+
+      // Create the client (loved one) row
+      const newClient = db.insert(clients).values({
+        name: clientName,
+        dateOfBirth: clientDob || null,
+        primaryCondition: clientCondition || null,
+        notes: clientNotes || null,
+        caregiverId: mcUser.id, // MC is temporary "caregiver" until real CG connects
+        primaryContactId: mcUser.id,
+        isActive: true,
+        appMode: "caregiver",
+      }).returning().get();
+
+      // Link MC user to client + save care path
+      db.update(users).set({
+        clientId: newClient.id,
+        carePathChoice: carePathChoice || "self_managing",
+        mcSetupCompletedAt: new Date().toISOString(),
+      }).where(eq(users.id, mcUser.id)).run();
+
+      res.json({ success: true, clientId: newClient.id });
+    } catch (err: any) {
+      console.error("[mc/setup] ERROR:", err?.message || err);
+      res.status(500).json({ message: err?.message || "Setup failed" });
+    }
   });
 
   // ══════════════════════════════════════════════════════════════════════════

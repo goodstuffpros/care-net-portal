@@ -53,6 +53,7 @@ import BetaAgreement from "@/pages/BetaAgreement";
 // Onboarding wizard (real auth users only)
 import OnboardingWizard from "@/pages/Onboarding";
 import PreConnectionScreen from "@/pages/PreConnection";
+import MCSetupWizard from "@/pages/MCSetupWizard";
 
 // Layout
 import AppLayout from "@/components/AppLayout";
@@ -118,6 +119,8 @@ interface RealUser {
   email: string;
   clientId?: number | null;
   onboardingCompletedAt?: string | null;
+  mcSetupCompletedAt?: string | null;
+  carePathChoice?: string | null;
 }
 
 function MainApp({ realUser }: { realUser?: RealUser | null }) {
@@ -145,13 +148,17 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   // If a real auth user is in demo preview mode, suppress the OnboardingFlow overlay.
   const isRealUserDemoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
 
+  // Real MC who just completed setup — start in family portal mode
+  const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
+  const startPortalMode: PortalMode = isMCReal ? "family" : "dedicated";
+
   const [activeUser, setActiveUser] = useState<ActiveUser>(DEMO_USERS[0]);
   const [selectedClientId, setSelectedClientId] = useState(1);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
   const [colorTheme, setColorTheme] = useState<ColorTheme>("teal");
-  const [portalMode, setPortalModeState] = useState<PortalMode>("dedicated");
+  const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
 
   useEffect(() => {
@@ -411,6 +418,8 @@ function RealAuthGate() {
             email: data.email,
             clientId: data.clientId ?? null,
             onboardingCompletedAt: data.onboardingCompletedAt ?? null,
+            mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
+            carePathChoice: data.carePathChoice ?? null,
           });
           if (data.onboardingCompletedAt) setOnboardingDone(true);
         }
@@ -433,8 +442,23 @@ function RealAuthGate() {
     );
   }
 
+  // MC user who hasn't completed the setup wizard yet
+  const isMCRole = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
+  if (realUser && onboardingDone && isMCRole && !realUser.mcSetupCompletedAt) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <MCSetupWizard
+          name={realUser.name || ""}
+          email={realUser.email}
+          onComplete={() => window.location.reload()}
+        />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
   // Real user, onboarding done — pass user into MainApp.
-  // MainApp will show PreConnectionScreen if clientId is null,
+  // MainApp will show PreConnectionScreen if CG has no clientId yet,
   // unless they clicked through to demo preview.
   return <MainApp realUser={demoPreview ? null : realUser} />;
 }
