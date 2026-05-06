@@ -112,16 +112,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (app_.accountCreatedAt) return res.status(400).json({ message: "Account already created" });
 
     const passwordHash = await hashPassword(password);
-    const verifyToken = generateToken(24);
-    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
 
-    // Create auth account
+    // Invite-based signup: email already verified (they clicked link from their inbox)
     const newAccount = db.insert(authAccounts).values({
       email: app_.email,
       passwordHash,
-      emailVerified: false,
-      emailVerifyToken: verifyToken,
-      emailVerifyExpiry: verifyExpiry,
+      emailVerified: true,
       createdAt: new Date().toISOString(),
     }).returning().get();
 
@@ -131,16 +127,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
       .where(eq(betaApplications.id, app_.id))
       .run();
 
-    // Send verify email
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const verifyUrl = `${appUrl}/?page=verify-email&token=${verifyToken}`;
-    await sendEmail({
-      to: app_.email,
-      subject: "Verify your Care Net Portal email",
-      html: emailVerifyTemplate(app_.name, verifyUrl),
-    });
+    // Create session so they land in the app ready for onboarding
+    const sessionToken = await createSession(newAccount.id, req);
+    setSessionCookie(res, sessionToken);
 
-    res.json({ success: true, message: "Account created. Please check your email to verify." });
+    res.json({ success: true, message: "Account created." });
   });
 
   // POST /api/auth/verify-email

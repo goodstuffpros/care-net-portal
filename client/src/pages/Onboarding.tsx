@@ -89,7 +89,8 @@ export default function Onboarding({ email, onComplete }: OnboardingProps) {
     try {
       await apiRequest("POST", "/api/onboarding/complete", {});
     } catch {}
-    onComplete();
+    // Full reload so RealAuthGate re-checks session and enters the real app
+    window.location.href = "/";
   }
 
   return (
