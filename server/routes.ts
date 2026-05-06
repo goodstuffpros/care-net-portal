@@ -90,7 +90,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const payload = await verifyJWT(token);
     if (!payload) return res.status(401).json({ message: "Session expired" });
     const account = db.select().from(authAccounts).where(eq(authAccounts.id, payload.authAccountId)).get();
-    if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
+    if (!account) return res.status(401).json({ message: "Not authenticated" });
+    // No userId yet — account exists but profile not created (fresh signup, needs onboarding)
+    if (!account.userId) return res.json({ email: account.email, onboardingCompletedAt: null, needsProfile: true });
     const user = db.select().from(users).where(eq(users.id, account.userId)).get();
     if (!user) return res.status(401).json({ message: "User not found" });
     res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
