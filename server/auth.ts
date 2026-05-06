@@ -252,34 +252,27 @@ export async function requireReAuth(
   next();
 }
 
-// ── Email helper (Nodemailer / console fallback) ──────────────────────────
+// ── Email helper (Resend / console fallback) ─────────────────────────────
 
 export async function sendEmail(opts: {
   to: string;
   subject: string;
   html: string;
 }): Promise<void> {
-  if (process.env.SMTP_HOST) {
-    const nodemailer = await import("nodemailer");
-    const transporter = nodemailer.default.createTransport({
-      host: process.env.SMTP_HOST,
-      port: parseInt(process.env.SMTP_PORT || "587"),
-      secure: process.env.SMTP_SECURE === "true",
-      auth: {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS,
-      },
-      connectionTimeout: 10000,
-      greetingTimeout: 10000,
-      socketTimeout: 15000,
+  if (process.env.RESEND_API_KEY) {
+    const { Resend } = await import("resend");
+    const resend = new Resend(process.env.RESEND_API_KEY);
+    const from = process.env.SMTP_FROM || "Care Net Portal <onboarding@resend.dev>";
+    const result = await resend.emails.send({
+      from,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
     });
-    await transporter.sendMail({
-      from: process.env.SMTP_FROM || "Care Net Portal <hello@carenetportal.com>",
-      ...opts,
-    });
+    if (result.error) throw new Error(result.error.message);
   } else {
     // Dev fallback — log to console
-    console.log("\n📧 EMAIL (dev mode — no SMTP configured)");
+    console.log("\n📧 EMAIL (dev mode — no email service configured)");
     console.log(`  To: ${opts.to}`);
     console.log(`  Subject: ${opts.subject}`);
     console.log(`  Body: ${opts.html.replace(/<[^>]+>/g, "").substring(0, 300)}`);
