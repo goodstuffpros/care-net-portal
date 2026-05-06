@@ -1,0 +1,139 @@
+/**
+ * Login page — /login
+ * Email + password. Shows "Apply for Beta" link.
+ * In DEMO_MODE the form is not shown — a notice explains the demo state.
+ */
+
+import { useState } from "react";
+import { useLocation } from "wouter";
+import { apiRequest } from "@/lib/queryClient";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, Eye, EyeOff, Heart } from "lucide-react";
+
+export default function LoginPage() {
+  const [, navigate] = useLocation();
+  const { toast } = useToast();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [showPw, setShowPw] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    setLoading(true);
+    try {
+      const res = await apiRequest("POST", "/api/auth/login", { email: email.trim(), password });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(body.message || "Login failed");
+      }
+      // Success — hard reload so AppContext re-fetches auth state
+      window.location.hash = "/";
+      window.location.reload();
+    } catch (err: any) {
+      toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background px-4">
+      <div className="w-full max-w-md">
+        {/* Logo / brand */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 mb-4">
+            <Heart className="w-6 h-6 text-primary" />
+          </div>
+          <h1 className="text-xl font-semibold text-foreground">Care Net Portal</h1>
+          <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+        </div>
+
+        {/* Card */}
+        <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
+          <form onSubmit={handleSubmit} className="space-y-5" data-testid="form-login">
+            <div className="space-y-1.5">
+              <Label htmlFor="email">Email address</Label>
+              <Input
+                id="email"
+                type="email"
+                autoComplete="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                disabled={loading}
+                data-testid="input-email"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Password</Label>
+                <button
+                  type="button"
+                  onClick={() => navigate("/forgot-password")}
+                  className="text-xs text-primary hover:underline"
+                  data-testid="link-forgot-password"
+                >
+                  Forgot password?
+                </button>
+              </div>
+              <div className="relative">
+                <Input
+                  id="password"
+                  type={showPw ? "text" : "password"}
+                  autoComplete="current-password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  disabled={loading}
+                  className="pr-10"
+                  data-testid="input-password"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPw(v => !v)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  tabIndex={-1}
+                >
+                  {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading || !email.trim() || !password}
+              data-testid="button-submit-login"
+            >
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Signing in…</> : "Sign in"}
+            </Button>
+          </form>
+
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-sm text-muted-foreground">
+              Don't have access?{" "}
+              <button
+                onClick={() => navigate("/apply")}
+                className="text-primary hover:underline font-medium"
+                data-testid="link-apply"
+              >
+                Apply for beta
+              </button>
+            </p>
+          </div>
+        </div>
+
+        <p className="text-center text-xs text-muted-foreground mt-6">
+          Care Net Portal is currently in private beta.
+        </p>
+      </div>
+    </div>
+  );
+}

@@ -1,4 +1,5 @@
 import { useApp } from "@/App";
+import { useLang } from "@/lib/useLang";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { Client, ScheduleEvent, ActivityLog, Notification } from "@shared/schema";
@@ -6,12 +7,14 @@ import { PriorityBadge } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   AlertTriangle, Calendar, ClipboardCheck, Heart, MessageSquare,
-  Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell
+  Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell, Volume2,
+  Trophy, Star, BookOpen, Users, Bell, LayoutDashboard, NotebookPen, CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { speakText } from "@/lib/ttsUtils";
 
 function formatTime(isoString: string) {
   return new Date(isoString).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -35,8 +38,26 @@ const TYPE_ICONS: Record<string, typeof Calendar> = {
   other: Calendar,
 };
 
+const ALL_BADGES = [
+  { id: "med-streak", icon: "🏆", label: "7-Day Med Streak", color: "text-amber-600 dark:text-amber-400", bg: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900", desc: "Medications logged on time 7 days in a row", earned: "Apr 20, 2026" },
+  { id: "zero-missed", icon: "✅", label: "Zero Missed Entries", color: "text-emerald-600 dark:text-emerald-400", bg: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900", desc: "No missed daily logs this week", earned: "Apr 21, 2026" },
+  { id: "perfect-week", icon: "⭐", label: "Perfect Week", color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900", desc: "All tasks completed for 7 consecutive days", earned: "Apr 22, 2026" },
+  { id: "detailed-logger", icon: "📋", label: "Detailed Logger", color: "text-purple-600 dark:text-purple-400", bg: "bg-purple-50 dark:bg-purple-950/30 border-purple-200 dark:border-purple-900", desc: "Added notes to 20+ activity entries", earned: "Apr 18, 2026" },
+  { id: "team-player", icon: "🤝", label: "Team Player", color: "text-teal-600 dark:text-teal-400", bg: "bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-900", desc: "Responded to 10+ family messages", earned: "Apr 19, 2026" },
+  { id: "on-time", icon: "🔔", label: "Always On Time", color: "text-orange-600 dark:text-orange-400", bg: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-900", desc: "All medications logged within 15 min of scheduled time", earned: "Apr 23, 2026" },
+];
+
+// Badges earned per user id
+const USER_BADGES: Record<number, string[]> = {
+  1: ["med-streak", "zero-missed", "perfect-week", "detailed-logger", "team-player", "on-time"], // Becky — all 6
+  2: ["med-streak", "zero-missed", "detailed-logger"], // Marcus — 3
+  3: ["zero-missed"], // Diana — 1
+};
+
 export default function DashboardPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, portalMode } = useApp();
+  const isFamilyPortal = portalMode === "family";
+  const { t } = useLang();
 
   const { data: clients = [], isLoading: clientsLoading } = useQuery<Client[]>({
     queryKey: ["/api/clients"],
@@ -70,26 +91,46 @@ export default function DashboardPage() {
   const completedToday = todayEvents.filter(e => e.isCompleted).length;
   const pendingToday = todayEvents.filter(e => !e.isCompleted).length;
 
+  const [, navigate] = useLocation();
   const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family";
+  const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
+  const earnedBadgeIds = USER_BADGES[activeUser.id] || [];
+  const earnedBadges = ALL_BADGES.filter(b => earnedBadgeIds.includes(b.id));
+  const inProgressBadges = ALL_BADGES.filter(b => !earnedBadgeIds.includes(b.id));
 
   return (
-    <div className="p-6 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 max-w-6xl mx-auto space-y-6 w-full overflow-x-hidden">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
+      <div className="flex items-center gap-3 pb-2 border-b border-border">
+        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+          <LayoutDashboard size={20} className="text-primary" />
+        </div>
+        <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            Good {new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {activeUser.name.split(" ")[0]}
+            {new Date().getHours() < 12 ? t("dashboard.greeting.morning", { name: activeUser.name.split(" ")[0] }) : new Date().getHours() < 17 ? t("dashboard.greeting.afternoon", { name: activeUser.name.split(" ")[0] }) : t("dashboard.greeting.evening", { name: activeUser.name.split(" ")[0] })}
           </h1>
           {client ? (
             <p className="text-muted-foreground text-sm mt-1">
-              Viewing care updates for <span className="text-foreground font-medium">{client.name}</span>
+              {t("dashboard.viewing")} <span className="text-foreground font-medium">{client.name}</span>
             </p>
           ) : (
             <p className="text-muted-foreground text-sm mt-1">Care Net Portal — {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</p>
           )}
         </div>
-        <div className="text-sm text-muted-foreground hidden sm:block">
-          {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="text-xs text-muted-foreground hidden sm:block">
+            {new Date().toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}
+          </div>
+          <button
+            onClick={() => {
+              const summaryText = `Today's overview for ${client?.name || "your client"}. You have ${pendingToday} pending and ${completedToday} completed items today. ${urgentItems.length > 0 ? `There are ${urgentItems.length} urgent items requiring attention.` : "No urgent items at this time."} ${recentActivity.length > 0 ? `Recent activity: ${recentActivity[0]?.title}.` : ""}`;
+              speakText(summaryText);
+            }}
+            data-testid="dashboard-listen"
+            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5"
+          >
+            <Volume2 size={13} /> {t("dashboard.listen")}
+          </button>
         </div>
       </div>
 
@@ -99,58 +140,31 @@ export default function DashboardPage() {
           Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
         ) : (
           <>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 flex items-center justify-center">
-                    <CheckCircle2 size={18} className="text-emerald-600 dark:text-emerald-400" />
+            {[
+              { href: "/schedule",  icon: CheckCircle2, iconBg: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-emerald-600 dark:text-emerald-400", value: completedToday,       label: t("dashboard.doneToday") },
+              { href: "/schedule",  icon: CalendarDays,  iconBg: "bg-amber-50 dark:bg-amber-950/30",   iconColor: "text-amber-600 dark:text-amber-400",   value: pendingToday,          label: t("dashboard.pendingToday") },
+              ...(!isFamilyPortal ? [{ href: "/portal",   icon: AlertTriangle, iconBg: "bg-red-50 dark:bg-red-950/30", iconColor: "text-red-600 dark:text-red-400", value: urgentItems.length, label: t("dashboard.urgentFlags") }] : [{ href: "/messages", icon: MessageSquare, iconBg: "bg-primary/10", iconColor: "text-primary", value: recentActivity.filter(l => l.isEmergency).length, label: "Messages" }]),
+              { href: "/activity",  icon: NotebookPen,   iconBg: "bg-primary/10",                     iconColor: "text-primary",                         value: activityLogs.length,   label: t("dashboard.logEntries") },
+            ].map(({ href, icon: Icon, iconBg, iconColor, value, label }) => (
+              <Card
+                key={label}
+                onClick={() => navigate(href)}
+                className="border-border bg-card cursor-pointer hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm transition-all group"
+                data-testid={`stat-card-${href.replace("/", "")}`}
+              >
+                <CardContent className="pt-5">
+                  <div className="flex items-center gap-3">
+                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${iconBg}`}>
+                      <Icon size={18} className={iconColor} />
+                    </div>
+                    <div>
+                      <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{value}</div>
+                      <div className="text-xs text-muted-foreground">{label}</div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{completedToday}</div>
-                    <div className="text-xs text-muted-foreground">Done Today</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/30 flex items-center justify-center">
-                    <Clock size={18} className="text-amber-600 dark:text-amber-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{pendingToday}</div>
-                    <div className="text-xs text-muted-foreground">Pending Today</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-950/30 flex items-center justify-center">
-                    <AlertTriangle size={18} className="text-red-600 dark:text-red-400" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{urgentItems.length}</div>
-                    <div className="text-xs text-muted-foreground">Urgent Flags</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-            <Card className="border-border bg-card">
-              <CardContent className="pt-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Activity size={18} className="text-primary" />
-                  </div>
-                  <div>
-                    <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{activityLogs.length}</div>
-                    <div className="text-xs text-muted-foreground">Log Entries</div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            ))}
           </>
         )}
       </div>
@@ -160,8 +174,8 @@ export default function DashboardPage() {
         <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-              <span className="flex items-center gap-2"><Calendar size={16} /> Upcoming Schedule</span>
-              <Link href="/schedule"><a className="text-xs text-primary hover:underline font-normal">View all</a></Link>
+              <span className="flex items-center gap-2"><Calendar size={16} /> {t("dashboard.upcomingSchedule")}</span>
+              <Link href="/schedule" className="text-xs text-primary hover:underline font-normal">{t("dashboard.viewAll")}</Link>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -170,7 +184,7 @@ export default function DashboardPage() {
             ) : upcomingEvents.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground text-sm">
                 <Calendar size={32} className="mx-auto mb-2 opacity-30" />
-                <p>No upcoming events</p>
+                <p>{t("dashboard.noUpcoming")}</p>
               </div>
             ) : upcomingEvents.map(event => {
               const Icon = TYPE_ICONS[event.type] || Calendar;
@@ -180,10 +194,12 @@ export default function DashboardPage() {
                     <Icon size={14} className={event.priority === "red" ? "text-red-600" : event.priority === "yellow" ? "text-amber-600" : "text-emerald-600"} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="text-sm font-medium truncate">{event.title}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(event.scheduledAt)}</div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <div className="text-sm font-medium">{event.title}</div>
+                      <PriorityBadge priority={event.priority} />
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{formatDate(event.scheduledAt)}</div>
                   </div>
-                  <PriorityBadge priority={event.priority} />
                 </div>
               );
             })}
@@ -194,8 +210,8 @@ export default function DashboardPage() {
         <Card className="border-border">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center justify-between" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-              <span className="flex items-center gap-2"><ClipboardCheck size={16} /> Recent Activity</span>
-              <Link href="/activity"><a className="text-xs text-primary hover:underline font-normal">View all</a></Link>
+              <span className="flex items-center gap-2"><ClipboardCheck size={16} /> {t("dashboard.recentActivity")}</span>
+              <Link href="/activity" className="text-xs text-primary hover:underline font-normal">{t("dashboard.viewAll")}</Link>
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -210,23 +226,25 @@ export default function DashboardPage() {
               <div key={log.id} className="flex items-start gap-3 p-3 rounded-lg bg-muted/40 hover:bg-muted/70 transition-colors">
                 <div className={cn("w-2 h-2 rounded-full mt-2 flex-shrink-0", log.priority === "red" ? "bg-red-500" : log.priority === "yellow" ? "bg-amber-500" : "bg-emerald-500")} />
                 <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium truncate">{log.title}</div>
-                  {log.description && <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed">{log.description}</div>}
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <div className="text-sm font-medium">{log.title}</div>
+                    <PriorityBadge priority={log.priority} />
+                  </div>
+                  {log.description && <div className="text-xs text-muted-foreground line-clamp-2 leading-relaxed mt-0.5">{log.description}</div>}
                   <div className="text-xs text-muted-foreground mt-0.5">{formatTime(log.loggedAt)}</div>
                 </div>
-                <PriorityBadge priority={log.priority} />
               </div>
             ))}
           </CardContent>
         </Card>
 
-        {/* Urgent Flags */}
-        {urgentItems.length > 0 && (
+        {/* Urgent Flags — hidden in Family Care Portal */}
+        {urgentItems.length > 0 && !isFamilyPortal && (
           <Card className="border-red-200 dark:border-red-900/50 bg-red-50/30 dark:bg-red-950/10 md:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2 text-red-700 dark:text-red-400" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
                 <AlertTriangle size={16} />
-                Urgent Flags
+                {t("dashboard.urgentFlags")}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
@@ -249,7 +267,7 @@ export default function DashboardPage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center justify-between" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
                 <span className="flex items-center gap-2"><User size={16} /> {client.name}</span>
-                <Link href="/portal"><a className="text-xs text-primary hover:underline font-normal flex items-center gap-1">Full profile <ChevronRight size={12} /></a></Link>
+                <Link href="/portal" className="text-xs text-primary hover:underline font-normal flex items-center gap-1">Full profile <ChevronRight size={12} /></Link>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -281,6 +299,48 @@ export default function DashboardPage() {
           </Card>
         )}
       </div>
+
+      {/* Care Quality Badges */}
+      {showBadges && (
+        <Card className="border-border" data-testid="achievements-widget">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+              <Trophy size={16} className="text-amber-500" /> Your Achievements
+              <span className="ml-auto text-xs font-normal text-muted-foreground">{earnedBadges.length}/{ALL_BADGES.length} earned</span>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex gap-3 overflow-x-auto pb-2">
+              {earnedBadges.map(badge => (
+                <div
+                  key={badge.id}
+                  className={cn("flex-shrink-0 w-44 p-3 rounded-xl border", badge.bg)}
+                  data-testid={`badge-${badge.id}`}
+                >
+                  <div className="text-2xl mb-1">{badge.icon}</div>
+                  <div className={cn("text-xs font-bold", badge.color)}>{badge.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-tight">{badge.desc}</div>
+                  <div className="text-xs text-muted-foreground mt-1.5 flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-emerald-500" /> Earned {badge.earned}
+                  </div>
+                </div>
+              ))}
+              {inProgressBadges.map(badge => (
+                <div
+                  key={badge.id}
+                  className="flex-shrink-0 w-44 p-3 rounded-xl border border-border bg-muted/30 opacity-50"
+                  data-testid={`badge-pending-${badge.id}`}
+                >
+                  <div className="text-2xl mb-1 grayscale">{badge.icon}</div>
+                  <div className="text-xs font-bold text-muted-foreground">{badge.label}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5 leading-tight">{badge.desc}</div>
+                  <div className="text-xs text-muted-foreground mt-1.5">In progress...</div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

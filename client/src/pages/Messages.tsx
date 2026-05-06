@@ -1,4 +1,6 @@
 import { useApp } from "@/App";
+import { LessonLauncher } from "@/components/LessonLauncher";
+import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { ChatThread, Message } from "@shared/schema";
@@ -11,8 +13,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect } from "react";
-import { MessageSquare, Plus, Send, Mic, MicOff, Lock, Unlock, Users, ChevronRight } from "lucide-react";
+import { MessageSquare, Plus, Send, Mic, MicOff, Lock, Users, ChevronRight, CheckCircle2, Circle, Volume2, AlertTriangle, PhoneCall, UserPlus, UserMinus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { speakBecky } from "@/lib/ttsUtils";
 
 const DEMO_USERS: Record<number, { name: string; initials: string; role: string }> = {
   1: { name: "Becky M.", initials: "BM", role: "caregiver" },
@@ -32,13 +35,27 @@ function formatMsgTime(iso: string) {
 
 export default function MessagesPage() {
   const { activeUser, selectedClientId } = useApp();
+  const { t } = useLang();
   const { toast } = useToast();
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
+
+  // Voice: "Hey Care Net, message to Robert Johnson Jr" — auto-selects matching thread
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const { threadId } = (e as CustomEvent).detail || {};
+      if (threadId) setActiveThreadId(threadId);
+    };
+    window.addEventListener("voice:open-message", handler);
+    return () => window.removeEventListener("voice:open-message", handler);
+  }, []);
+
   const [msgText, setMsgText] = useState("");
   const [isRecording, setIsRecording] = useState(false);
   const [msgPriority, setMsgPriority] = useState("green");
   const [newThreadOpen, setNewThreadOpen] = useState(false);
   const [newThreadName, setNewThreadName] = useState("");
+  const [urgentPromptOpen, setUrgentPromptOpen] = useState(false);
+  const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { data: threads = [], isLoading: threadsLoading } = useQuery<ChatThread[]>({
@@ -61,10 +78,56 @@ export default function MessagesPage() {
       priority: msgPriority,
       sentAt: new Date().toISOString(),
       isRead: false,
+      readByUserIds: JSON.stringify([activeUser.id]),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/threads", activeThreadId, "messages"] });
       setMsgText("");
+      setUrgentPromptOpen(false);
+    },
+  });
+
+  // Family roles sending urgent/red messages get a pre-send prompt
+  const isFamilyRole = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
+
+  function handleSend() {
+    if (!msgText.trim()) return;
+    if (isFamilyRole && msgPriority === "red") {
+      setUrgentPromptOpen(true);
+    } else {
+      sendMutation.mutate();
+    }
+  }
+
+  const readReceiptMutation = useMutation({
+    mutationFn: (messageId: number) => apiRequest("PATCH", `/api/messages/${messageId}/read`, { userId: activeUser.id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/threads", activeThreadId, "messages"] });
+    },
+  });
+
+  // All users in the portal for this client (for adding members)
+  const ALL_PORTAL_USERS = [
+    { id: 1, name: "Becky M.", initials: "BM", role: "Primary Caregiver" },
+    { id: 2, name: "Marcus T.", initials: "MT", role: "Caregiver" },
+    { id: 3, name: "Diana P.", initials: "DP", role: "Temp Caregiver" },
+    { id: 4, name: "Robert Jr.", initials: "RJ", role: "Main Contact" },
+    { id: 5, name: "Linda J.", initials: "LJ", role: "Family Member" },
+  ];
+
+  const addMemberMutation = useMutation({
+    mutationFn: (userId: number) => apiRequest("PATCH", `/api/threads/${activeThreadId}/members/add`, { userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
+      toast({ title: "Member added", description: "They can now see and send messages in this thread." });
+    },
+  });
+
+  const removeMemberMutation = useMutation({
+    mutationFn: (userId: number) => apiRequest("PATCH", `/api/threads/${activeThreadId}/members/remove`, { userId }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
+      toast({ title: "Member removed" });
     },
   });
 
@@ -96,6 +159,13 @@ export default function MessagesPage() {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  // Mark unread messages as read when thread is opened
+  useEffect(() => {
+    if (!activeThreadId || messages.length === 0) return;
+    const unreadFromOthers = messages.filter(m => m.senderId !== activeUser.id && !m.isRead);
+    unreadFromOthers.forEach(m => readReceiptMutation.mutate(m.id));
+  }, [activeThreadId, messages.length]);
+
   const toggleVoice = () => {
     if (!isRecording && "webkitSpeechRecognition" in window) {
       const recognition = new (window as any).webkitSpeechRecognition();
@@ -119,12 +189,13 @@ export default function MessagesPage() {
     <div className="flex h-[calc(100vh-57px)] overflow-hidden">
       {/* Thread List */}
       <div className={cn("flex flex-col border-r border-border bg-background", activeThreadId ? "hidden md:flex w-72 flex-shrink-0" : "flex-1 md:w-72 md:flex-none")}>
-        <div className="p-4 border-b border-border flex items-center justify-between">
-          <h1 className="text-base font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Messages</h1>
+        <div className="p-4 border-b border-border">
+          <div className="flex items-center justify-between mb-2">
+          <h1 className="text-base font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
           <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-1.5 h-8" data-testid="new-thread-btn">
-                <Plus size={14} /> New
+              <Button size="sm" className="gap-1.5 h-8" data-testid="new-thread-btn">
+                <Plus size={14} /> {t("messages.newThread")}
               </Button>
             </DialogTrigger>
             <DialogContent>
@@ -140,6 +211,8 @@ export default function MessagesPage() {
               </div>
             </DialogContent>
           </Dialog>
+          </div>
+          <LessonLauncher pageKey="messages" />
         </div>
         <div className="flex-1 overflow-y-auto">
           {threadsLoading ? (
@@ -200,6 +273,32 @@ export default function MessagesPage() {
                 </div>
               )}
             </div>
+            {/* Listen to thread */}
+            <button
+              onClick={() => {
+                if (!messages.length) return;
+                const text = messages.map(m => {
+                  const sender = DEMO_USERS[m.senderId]?.name || "Someone";
+                  return `${sender} said: ${m.content}`;
+                }).join(". ");
+                speakBecky(text);
+              }}
+              data-testid="thread-listen"
+              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-2 py-1.5 rounded-md hover:bg-muted"
+            >
+              <Volume2 size={14} /> Listen
+            </button>
+            {/* Manage Members button — caregiver + primary_family only */}
+            {(activeUser.role === "caregiver" || activeUser.role === "primary_family") && activeThread?.isOpen && (
+              <Button
+                variant="ghost" size="sm"
+                onClick={() => setManageMembersOpen(o => !o)}
+                className={cn("text-xs gap-1.5", manageMembersOpen ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground")}
+                data-testid="manage-members-btn"
+              >
+                <Users size={13} /> Members
+              </Button>
+            )}
             {activeUser.role === "caregiver" && activeThread?.isOpen && (
               <Button
                 variant="ghost" size="sm"
@@ -207,10 +306,76 @@ export default function MessagesPage() {
                 className="text-xs gap-1.5 text-muted-foreground hover:text-foreground"
                 data-testid="close-thread-btn"
               >
-                <Lock size={13} /> Close Thread
+                <Lock size={13} /> Close
               </Button>
             )}
           </div>
+
+          {/* Manage Members Panel */}
+          {manageMembersOpen && activeThread && (() => {
+            const memberIds: number[] = JSON.parse(activeThread.members || "[]");
+            const nonMembers = ALL_PORTAL_USERS.filter(u => !memberIds.includes(u.id));
+            return (
+              <div className="border-b border-border bg-muted/30 px-4 py-3 space-y-3 flex-shrink-0">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-semibold text-foreground uppercase tracking-wide">Manage Members</span>
+                  <button onClick={() => setManageMembersOpen(false)} className="p-1 rounded hover:bg-muted"><X size={14} /></button>
+                </div>
+                {/* Current members */}
+                <div>
+                  <div className="text-xs text-muted-foreground mb-1.5">Current members</div>
+                  <div className="flex flex-wrap gap-2">
+                    {memberIds.map(id => {
+                      const user = ALL_PORTAL_USERS.find(u => u.id === id);
+                      if (!user) return null;
+                      const isMe = id === activeUser.id;
+                      const canRemove = (activeUser.role === "caregiver" || activeUser.role === "primary_family") && memberIds.length > 1;
+                      return (
+                        <div key={id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-background border border-border text-xs">
+                          <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary">{user.initials}</div>
+                          <span className="font-medium">{user.name}</span>
+                          <span className="text-muted-foreground">· {user.role}</span>
+                          {isMe && <span className="text-[10px] text-primary">(you)</span>}
+                          {canRemove && (
+                            <button
+                              onClick={() => removeMemberMutation.mutate(id)}
+                              disabled={removeMemberMutation.isPending}
+                              className="ml-1 text-muted-foreground hover:text-red-500 transition-colors"
+                              title={isMe ? "Leave thread" : "Remove"}
+                              data-testid={`remove-member-${id}`}
+                            >
+                              <UserMinus size={12} />
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+                {/* Add members */}
+                {nonMembers.length > 0 && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1.5">Add to thread</div>
+                    <div className="flex flex-wrap gap-2">
+                      {nonMembers.map(user => (
+                        <button
+                          key={user.id}
+                          onClick={() => addMemberMutation.mutate(user.id)}
+                          disabled={addMemberMutation.isPending}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border border-dashed border-primary/40 text-xs text-primary hover:bg-primary/5 transition-colors"
+                          data-testid={`add-member-${user.id}`}
+                        >
+                          <UserPlus size={11} />
+                          {user.name}
+                          <span className="text-muted-foreground">· {user.role}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Messages */}
           <div className="flex-1 overflow-y-auto p-4 space-y-3">
@@ -241,6 +406,20 @@ export default function MessagesPage() {
                     <div className="flex items-center gap-2 px-1">
                       <span className="text-xs text-muted-foreground">{formatMsgTime(msg.sentAt)}</span>
                       {msg.priority && msg.priority !== "green" && <PriorityBadge priority={msg.priority} />}
+                      {/* Read receipts — only show on sender's messages */}
+                      {isMe && (() => {
+                        const readers: number[] = JSON.parse(msg.readByUserIds || "[]");
+                        const readByOthers = readers.filter(id => id !== activeUser.id).length > 0;
+                        return readByOthers ? (
+                          <span title="Read" className="text-primary" data-testid={`read-receipt-${msg.id}`}>
+                            <CheckCircle2 size={12} />
+                          </span>
+                        ) : (
+                          <span title="Delivered" className="text-muted-foreground/50" data-testid={`unread-receipt-${msg.id}`}>
+                            <Circle size={12} />
+                          </span>
+                        );
+                      })()}
                     </div>
                   </div>
                 </div>
@@ -265,17 +444,17 @@ export default function MessagesPage() {
                           "bg-transparent border-amber-400": p === "yellow" && msgPriority !== "yellow",
                           "bg-transparent border-red-400": p === "red" && msgPriority !== "red",
                         })}
-                        title={p === "green" ? "Routine" : p === "yellow" ? "Important" : "Urgent"}
+                        title={p === "green" ? t("messages.priority.green") : p === "yellow" ? t("messages.priority.yellow") : t("messages.priority.red")}
                         data-testid={`priority-dot-${p}`}
                       />
                     ))}
-                    <span className="text-xs text-muted-foreground ml-1">{msgPriority === "red" ? "Urgent" : msgPriority === "yellow" ? "Important" : "Routine"}</span>
+                    <span className="text-xs text-muted-foreground ml-1">{msgPriority === "red" ? t("messages.priority.red") : msgPriority === "yellow" ? t("messages.priority.yellow") : t("messages.priority.green")}</span>
                   </div>
                   <Input
                     value={msgText}
                     onChange={e => setMsgText(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && msgText.trim() && sendMutation.mutate()}
-                    placeholder="Type a message or use voice..."
+                    onKeyDown={e => e.key === "Enter" && !e.shiftKey && msgText.trim() && handleSend()}
+                    placeholder={t("messages.typeMessage")}
                     className="rounded-xl"
                     data-testid="message-input"
                   />
@@ -287,15 +466,54 @@ export default function MessagesPage() {
                 >
                   {isRecording ? <MicOff size={17} /> : <Mic size={17} />}
                 </button>
-                <Button onClick={() => msgText.trim() && sendMutation.mutate()} disabled={!msgText.trim() || sendMutation.isPending} className="h-10 rounded-xl px-4 flex-shrink-0" data-testid="send-btn">
-                  <Send size={16} />
+                <Button onClick={() => handleSend()} disabled={!msgText.trim() || sendMutation.isPending} className="h-10 rounded-xl px-4 flex-shrink-0" data-testid="send-btn">
+                  <Send size={16} /> {t("messages.send")}
                 </Button>
               </div>
             </div>
           )}
           {activeThread && !activeThread.isOpen && (
             <div className="p-4 border-t border-border text-center text-sm text-muted-foreground flex items-center justify-center gap-2">
-              <Lock size={13} /> This thread has been closed
+              <Lock size={13} /> {t("messages.closed")}
+            </div>
+          )}
+
+          {/* Urgent message pre-send dialog */}
+          {urgentPromptOpen && (
+            <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+              <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
+                    <AlertTriangle size={20} className="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div>
+                    <div className="font-semibold text-sm">{t("messages.urgent.title")}</div>
+                    <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                      {t("messages.urgent.body")}
+                    </p>
+                  </div>
+                </div>
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-xl p-3 text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                  <strong>{t("messages.urgent.preview")}:</strong> "{msgText.length > 80 ? msgText.slice(0, 80) + "..." : msgText}"
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setUrgentPromptOpen(false)}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl border border-border text-sm font-medium hover:bg-muted transition-colors"
+                    data-testid="urgent-cancel-btn"
+                  >
+                    {t("messages.urgent.cancel")}
+                  </button>
+                  <button
+                    onClick={() => sendMutation.mutate()}
+                    disabled={sendMutation.isPending}
+                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-medium transition-colors"
+                    data-testid="urgent-send-btn"
+                  >
+                    <Send size={14} /> {t("messages.urgent.send")}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>

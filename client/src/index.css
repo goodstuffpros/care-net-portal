@@ -13,7 +13,7 @@
     --card: 0 0% 100%;
     --card-foreground: 220 25% 14%;
 
-    --popover: 0 0% 100%;
+    --popover: 0 0% 99%;
     --popover-foreground: 220 25% 14%;
 
     /* Soft calming teal — clinical but warm */
@@ -47,6 +47,7 @@
     --radius: 0.5rem;
 
     /* Sidebar */
+    --sidebar: 220 28% 12%;
     --sidebar-background: 220 28% 12%;
     --sidebar-foreground: 210 20% 85%;
     --sidebar-primary: 175 55% 55%;
@@ -93,6 +94,7 @@
     --input: 220 20% 22%;
     --ring: 175 45% 48%;
 
+    --sidebar: 220 30% 8%;
     --sidebar-background: 220 30% 8%;
     --sidebar-foreground: 210 20% 78%;
     --sidebar-primary: 175 45% 52%;
@@ -109,6 +111,10 @@
     @apply border-border;
     box-sizing: border-box;
   }
+  html, body {
+    overflow-x: hidden;
+    max-width: 100vw;
+  }
   body {
     @apply bg-background text-foreground;
     font-family: 'DM Sans', 'Inter', system-ui, sans-serif;
@@ -119,6 +125,91 @@
     font-family: 'Cabinet Grotesk', 'DM Sans', system-ui, sans-serif;
     line-height: 1.2;
   }
+}
+
+/* ========== COLOR THEMES ========== */
+/* Warm Sand theme */
+[data-color-theme="sand"] {
+  --primary: 25 65% 38%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 25 45% 90%;
+  --accent-foreground: 25 65% 28%;
+  --ring: 25 65% 38%;
+  --sidebar: 25 30% 12%;
+  --sidebar-background: 25 30% 12%;
+  --sidebar-primary: 25 65% 58%;
+  --sidebar-accent: 25 25% 18%;
+  --sidebar-border: 25 20% 20%;
+  --sidebar-ring: 25 65% 58%;
+}
+[data-color-theme="sand"].dark {
+  --primary: 25 60% 52%;
+  --accent: 25 35% 20%;
+  --accent-foreground: 25 65% 70%;
+}
+/* Slate/Navy theme */
+[data-color-theme="navy"] {
+  --primary: 220 60% 42%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 220 40% 90%;
+  --accent-foreground: 220 60% 30%;
+  --ring: 220 60% 42%;
+  --sidebar: 220 35% 10%;
+  --sidebar-background: 220 35% 10%;
+  --sidebar-primary: 220 60% 62%;
+  --sidebar-accent: 220 30% 16%;
+  --sidebar-border: 220 25% 18%;
+  --sidebar-ring: 220 60% 62%;
+}
+[data-color-theme="navy"].dark {
+  --primary: 220 55% 58%;
+  --accent: 220 35% 18%;
+  --accent-foreground: 220 60% 72%;
+}
+/* Lavender theme */
+[data-color-theme="lavender"] {
+  --primary: 265 45% 48%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 265 35% 92%;
+  --accent-foreground: 265 45% 35%;
+  --ring: 265 45% 48%;
+  --sidebar: 265 30% 12%;
+  --sidebar-background: 265 30% 12%;
+  --sidebar-primary: 265 45% 65%;
+  --sidebar-accent: 265 25% 18%;
+  --sidebar-border: 265 20% 20%;
+  --sidebar-ring: 265 45% 65%;
+}
+[data-color-theme="lavender"].dark {
+  --primary: 265 42% 60%;
+  --accent: 265 28% 18%;
+  --accent-foreground: 265 45% 72%;
+}
+/* Rose/Mauve theme — Family Care Portal */
+[data-color-theme="rose"] {
+  --primary: 345 52% 36%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 345 40% 92%;
+  --accent-foreground: 345 52% 26%;
+  --ring: 345 52% 36%;
+  --sidebar: 345 32% 11%;
+  --sidebar-background: 345 32% 11%;
+  --sidebar-primary: 345 52% 58%;
+  --sidebar-accent: 345 26% 17%;
+  --sidebar-border: 345 22% 19%;
+  --sidebar-ring: 345 52% 58%;
+}
+[data-color-theme="rose"].dark {
+  --primary: 345 48% 55%;
+  --accent: 345 30% 18%;
+  --accent-foreground: 345 52% 72%;
+}
+/* ========== END COLOR THEMES ========== */
+
+/* Upgrade transition pulse dots */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 0.4; transform: scale(0.8); }
+  50% { opacity: 1; transform: scale(1.2); }
 }
 
 /* Priority badge system */
@@ -170,6 +261,14 @@
   flex-shrink: 0;
 }
 
+/* Force all Radix dropdown/select/popover content to be fully opaque */
+[data-radix-popper-content-wrapper] > * {
+  background-color: white !important;
+}
+.dark [data-radix-popper-content-wrapper] > * {
+  background-color: hsl(220 25% 12%) !important;
+}
+
 /* Smooth transitions */
 * {
   transition-property: color, background-color, border-color, opacity;
@@ -182,6 +281,15 @@
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground) / 0.5); }
+
+/* Emergency card pulsing border */
+@keyframes emergency-border-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4), inset 0 0 0 2px rgba(239, 68, 68, 0.6); }
+  50% { box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.15), inset 0 0 0 2px rgba(239, 68, 68, 0.9); }
+}
+.emergency-pulse-border {
+  animation: emergency-border-pulse 1.8s ease-in-out infinite;
+}
 
 /* Voice recording pulse animation */
 @keyframes pulse-record {

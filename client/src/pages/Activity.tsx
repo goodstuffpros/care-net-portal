@@ -1,7 +1,9 @@
 import { useApp } from "@/App";
+import { LessonLauncher } from "@/components/LessonLauncher";
+import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ActivityLog } from "@shared/schema";
+import type { ActivityLog, Client } from "@shared/schema";
 import { PriorityBadge } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,8 +14,10 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
-import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, AlertTriangle, Pill, Utensils, Heart, Activity, Stethoscope } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2 } from "lucide-react";
+import { speakBecky } from "@/lib/ttsUtils";
+import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
 
 const CATEGORY_ICONS: Record<string, typeof ClipboardList> = {
@@ -34,6 +38,18 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 
+// Simulated seen-by data for demo
+const SEEN_BY_DEMO: Record<number, string[]> = {
+  1: ["Robert Jr.", "Linda J."],
+  2: ["Robert Jr."],
+  3: [],
+  4: ["Linda J."],
+  5: ["Robert Jr.", "Linda J."],
+};
+function getSeenBy(logId: number): string[] {
+  return SEEN_BY_DEMO[logId % 5 + 1] || [];
+}
+
 function formatTime(iso: string) {
   const d = new Date(iso);
   const today = new Date();
@@ -45,21 +61,98 @@ function formatTime(iso: string) {
 
 export default function ActivityPage() {
   const { activeUser, selectedClientId } = useApp();
+  const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+
+  // Voice: "Hey Care Net, open new care log entry" — auto-opens the form
+  useEffect(() => {
+    const handler = () => setAddOpen(true);
+    window.addEventListener("voice:open-log", handler);
+    return () => window.removeEventListener("voice:open-log", handler);
+  }, []);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [discussingId, setDiscussingId] = useState<number | null>(null);
+  const [excuseDialogId, setExcuseDialogId] = useState<number | null>(null);
+  const [excuseNote, setExcuseNote] = useState("");
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
+
+  const toggleExpanded = (id: number) => {
+    setExpandedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Helper: extract first sentence from a description
+  const firstSentence = (text: string): string => {
+    const match = text.match(/^[^.!?]*[.!?]/);
+    return match ? match[0].trim() : text.slice(0, 80).trim() + (text.length > 80 ? "…" : "");
+  };
   const canEdit = activeUser.role === "caregiver";
+  const isFamilyPrimary = activeUser.role === "primary_family";
+  const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
   const [form, setForm] = useState({
     title: "", description: "", priority: "green", category: "general",
+  });
+
+  // MC Log Entry state
+  const [mcLogOpen, setMcLogOpen] = useState(false);
+  const [mcLogForm, setMcLogForm] = useState({
+    title: "",
+    description: "",
+    priority: "green",
+    category: "general",
+    isEmergency: false,
+    emergencyType: "fall",
+    notes: "",
+  });
+
+  const mcLogMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/activity`, {
+      title: mcLogForm.title,
+      description: mcLogForm.description,
+      priority: mcLogForm.isEmergency ? "red" : mcLogForm.priority,
+      category: mcLogForm.category,
+      loggedByRole: activeUser.role,
+      loggedByUserId: activeUser.id,
+      isEmergency: mcLogForm.isEmergency,
+      emergencyType: mcLogForm.isEmergency ? mcLogForm.emergencyType : null,
+      notes: mcLogForm.notes,
+      loggedAt: new Date().toISOString(),
+      isChecked: false,
+    }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
+      setMcLogOpen(false);
+      setMcLogForm({ title: "", description: "", priority: "green", category: "general", isEmergency: false, emergencyType: "fall", notes: "" });
+      toast({
+        title: mcLogForm.isEmergency ? "🚨 Emergency entry logged" : "Entry logged",
+        description: mcLogForm.isEmergency
+          ? "Caregiver has been urgently notified. An emergency thread has been created."
+          : "Your log entry has been added. The caregiver has been notified.",
+      });
+    },
+    onError: () => {
+      toast({ title: "Error", description: "Could not save entry. Please try again.", variant: "destructive" });
+    },
   });
 
   const { data: logs = [], isLoading } = useQuery<ActivityLog[]>({
     queryKey: ["/api/clients", selectedClientId, "activity"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/activity`).then(r => r.json()),
   });
+
+  const { data: clients = [] } = useQuery<Client[]>({
+    queryKey: ["/api/clients"],
+    queryFn: () => apiRequest("GET", "/api/clients").then(r => r.json()),
+  });
+  const client = clients.find(c => c.id === selectedClientId);
 
   const addMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/activity`, {
@@ -81,6 +174,53 @@ export default function ActivityPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] }),
   });
 
+  const excuseMutation = useMutation({
+    mutationFn: ({ id, note }: { id: number; note: string }) =>
+      apiRequest("POST", `/api/activity/${id}/excuse`, { excuseNote: note, excusedByUserId: activeUser.id }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
+      setExcuseDialogId(null);
+      setExcuseNote("");
+      toast({ title: "Flag excused", description: "This late entry has been marked as excused and will not affect the caregiver rating." });
+    },
+  });
+
+  const discussMutation = useMutation({
+    mutationFn: async (log: ActivityLog) => {
+      // 1. Create a new thread named after the entry
+      const threadRes = await apiRequest("POST", `/api/clients/${selectedClientId}/threads`, {
+        name: `Discuss: ${log.title}`,
+        members: JSON.stringify([activeUser.id]),
+        createdByUserId: activeUser.id,
+        isOpen: true,
+        createdAt: new Date().toISOString(),
+      });
+      const thread = await threadRes.json();
+      // 2. Post the quoted entry as the first message
+      await apiRequest("POST", `/api/threads/${thread.id}/messages`, {
+        senderId: activeUser.id,
+        content: `📋 Re: "${log.title}"\n\n${log.description ? log.description + "\n\n" : ""}Logged by caregiver${log.loggedAt ? " at " + new Date(log.loggedAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}. What are your thoughts?`,
+        messageType: "text",
+        priority: log.priority || "green",
+        sentAt: new Date().toISOString(),
+        isRead: false,
+        readByUserIds: JSON.stringify([activeUser.id]),
+      });
+      return thread;
+    },
+    onSuccess: (thread) => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
+      setDiscussingId(null);
+      toast({ title: "Thread created", description: "Opening the new discussion in Messages." });
+      // Navigate to messages — the new thread will appear at the top
+      window.location.hash = "#/messages";
+    },
+    onError: () => {
+      setDiscussingId(null);
+      toast({ title: "Error", description: "Could not create thread. Please try again.", variant: "destructive" });
+    },
+  });
+
   const toggleVoice = (field: "title" | "description") => {
     if (!isRecording && "webkitSpeechRecognition" in window) {
       const recognition = new (window as any).webkitSpeechRecognition();
@@ -99,7 +239,7 @@ export default function ActivityPage() {
   };
 
   const filtered = logs.filter(l =>
-    (filterPriority === "all" || l.priority === filterPriority) &&
+    (filterPriority === "all" || (filterPriority === "checked" ? l.isChecked : l.priority === filterPriority)) &&
     (filterCategory === "all" || l.category === filterCategory)
   );
 
@@ -111,17 +251,182 @@ export default function ActivityPage() {
   };
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Activity Log</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Daily care entries, notes, and task completions</p>
+    <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
+      {/* Page Header */}
+      <div className="pb-3 border-b border-border space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-orange-100 dark:bg-orange-950/40 flex items-center justify-center flex-shrink-0">
+            <ClipboardList size={20} className="text-orange-600 dark:text-orange-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("activity.title")}</h1>
+            <p className="text-xs text-muted-foreground truncate">{t("activity.subtitle")}</p>
+          </div>
+          <LessonLauncher pageKey="activity" />
         </div>
+        {/* MC Log Entry Button */}
+        {isFamilyPrimary && (
+          <Dialog open={mcLogOpen} onOpenChange={setMcLogOpen}>
+            <DialogTrigger asChild>
+              <Button
+                size="sm"
+                variant="outline"
+                className="gap-1.5 w-full border-violet-400 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                data-testid="mc-add-log-btn"
+              >
+                <Plus size={16} /> Add Family Log Entry
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <UserRound size={16} className="text-violet-600" /> Family Log Entry
+                </DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                {/* Emergency Banner */}
+                {mcLogForm.isEmergency && (
+                  <div className="rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 px-3 py-2.5 flex items-start gap-2">
+                    <Siren size={16} className="text-red-600 flex-shrink-0 mt-0.5" />
+                    <div className="text-xs text-red-700 dark:text-red-400 leading-relaxed">
+                      <span className="font-semibold block">Emergency mode active</span>
+                      Priority is set to Urgent. Caregiver will receive an immediate alert and an emergency message thread will be created automatically.
+                    </div>
+                  </div>
+                )}
+
+                {/* Title */}
+                <div className="space-y-1.5">
+                  <Label>Entry Title <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={mcLogForm.title}
+                    onChange={e => setMcLogForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="e.g. Client had a fall at 7pm"
+                    data-testid="mc-log-title-input"
+                  />
+                </div>
+
+                {/* Category + Priority */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label>Category</Label>
+                    <Select value={mcLogForm.category} onValueChange={v => setMcLogForm(f => ({ ...f, category: v }))}>
+                      <SelectTrigger data-testid="mc-log-category-select"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="medication">Medication</SelectItem>
+                        <SelectItem value="meal">Meal / Nutrition</SelectItem>
+                        <SelectItem value="hygiene">Hygiene</SelectItem>
+                        <SelectItem value="medical">Medical</SelectItem>
+                        <SelectItem value="mood">Mood / Behavior</SelectItem>
+                        <SelectItem value="general">General</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Priority</Label>
+                    <Select
+                      value={mcLogForm.isEmergency ? "red" : mcLogForm.priority}
+                      onValueChange={v => setMcLogForm(f => ({ ...f, priority: v }))}
+                      disabled={mcLogForm.isEmergency}
+                    >
+                      <SelectTrigger data-testid="mc-log-priority-select"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="red">🔴 Urgent</SelectItem>
+                        <SelectItem value="yellow">🟡 Important</SelectItem>
+                        <SelectItem value="green">🟢 Normal</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Description */}
+                <div className="space-y-1.5">
+                  <Label>Description</Label>
+                  <Textarea
+                    value={mcLogForm.description}
+                    onChange={e => setMcLogForm(f => ({ ...f, description: e.target.value }))}
+                    placeholder="Describe what happened..."
+                    rows={3}
+                    data-testid="mc-log-description-input"
+                  />
+                </div>
+
+                {/* Emergency Toggle */}
+                <div className={cn(
+                  "rounded-lg border p-3 space-y-3 transition-colors",
+                  mcLogForm.isEmergency
+                    ? "border-red-300 dark:border-red-800 bg-red-50/50 dark:bg-red-950/20"
+                    : "border-border bg-muted/30"
+                )}>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <AlertTriangle size={14} className={mcLogForm.isEmergency ? "text-red-600" : "text-muted-foreground"} />
+                      <span className={cn("text-sm font-medium", mcLogForm.isEmergency ? "text-red-700 dark:text-red-400" : "")}>
+                        This is an emergency
+                      </span>
+                    </div>
+                    <Switch
+                      checked={mcLogForm.isEmergency}
+                      onCheckedChange={v => setMcLogForm(f => ({ ...f, isEmergency: v, priority: v ? "red" : f.priority }))}
+                      data-testid="mc-log-emergency-toggle"
+                    />
+                  </div>
+                  {mcLogForm.isEmergency && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs text-red-700 dark:text-red-400">Emergency Type</Label>
+                      <Select value={mcLogForm.emergencyType} onValueChange={v => setMcLogForm(f => ({ ...f, emergencyType: v }))}>
+                        <SelectTrigger className="border-red-300 dark:border-red-700" data-testid="mc-log-emergency-type-select"><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="fall">🩹 Fall</SelectItem>
+                          <SelectItem value="er_visit">🚨 ER Visit</SelectItem>
+                          <SelectItem value="hospital_admission">🏥 Hospital Admission</SelectItem>
+                          <SelectItem value="medical_event">💊 Acute Medical Event</SelectItem>
+                          <SelectItem value="other">⚠️ Other Emergency</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  )}
+                </div>
+
+                {/* Additional Notes */}
+                <div className="space-y-1.5">
+                  <Label>Additional Notes <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                  <Textarea
+                    value={mcLogForm.notes}
+                    onChange={e => setMcLogForm(f => ({ ...f, notes: e.target.value }))}
+                    placeholder="Any additional context for the caregiver..."
+                    rows={2}
+                    data-testid="mc-log-notes-input"
+                  />
+                </div>
+
+                <Button
+                  className={cn(
+                    "w-full gap-2",
+                    mcLogForm.isEmergency
+                      ? "bg-red-600 hover:bg-red-700 text-white"
+                      : "bg-violet-600 hover:bg-violet-700 text-white"
+                  )}
+                  onClick={() => mcLogMutation.mutate()}
+                  disabled={!mcLogForm.title.trim() || mcLogMutation.isPending}
+                  data-testid="mc-log-submit-btn"
+                >
+                  {mcLogMutation.isPending
+                    ? <><Loader2 size={14} className="animate-spin" /> Saving...</>
+                    : mcLogForm.isEmergency
+                      ? <><Siren size={14} /> Log Emergency Entry</>
+                      : <><Plus size={14} /> Log Entry</>}
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
+
         {canEdit && (
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2" data-testid="add-activity-btn">
-                <Plus size={16} /> Log Activity
+              <Button size="sm" className="gap-1.5 w-full" data-testid="add-activity-btn">
+                <Plus size={16} /> {t("activity.addEntry")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
@@ -160,7 +465,7 @@ export default function ActivityPage() {
                       <SelectContent>
                         <SelectItem value="red">🔴 Urgent</SelectItem>
                         <SelectItem value="yellow">🟡 Important</SelectItem>
-                        <SelectItem value="green">🟢 Routine</SelectItem>
+                        <SelectItem value="green">🟢 Normal</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -183,44 +488,48 @@ export default function ActivityPage() {
         )}
       </div>
 
-      {/* Priority Stats */}
-      <div className="grid grid-cols-4 gap-3">
-        {[
-          { label: "Urgent", count: stats.red, color: "text-red-600 bg-red-50 dark:bg-red-950/30 dark:text-red-400", dot: "bg-red-500" },
-          { label: "Important", count: stats.yellow, color: "text-amber-600 bg-amber-50 dark:bg-amber-950/30 dark:text-amber-400", dot: "bg-amber-500" },
-          { label: "Routine", count: stats.green, color: "text-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 dark:text-emerald-400", dot: "bg-emerald-500" },
-          { label: "Checked", count: stats.checked, color: "text-primary bg-primary/10", dot: "bg-primary" },
-        ].map(({ label, count, color, dot }) => (
-          <div key={label} className={cn("rounded-xl p-3 text-center border border-transparent", color)}>
-            <div className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{count}</div>
-            <div className="text-xs mt-0.5 opacity-80">{label}</div>
+      {/* Priority filter pills — counts embedded, replaces stat cards */}
+      <div className="space-y-2">
+        <div className="overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-2 min-w-max">
+            {[
+              { p: "all",    label: "All",       count: logs.length,   activeClass: "bg-foreground text-background border-foreground",                                                             inactiveClass: "bg-background border-border text-muted-foreground hover:text-foreground" },
+              { p: "red",    label: "Urgent",    count: stats.red,     activeClass: "bg-red-500 text-white border-red-500",     inactiveClass: "bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-950/50" },
+              { p: "yellow", label: "Important", count: stats.yellow,  activeClass: "bg-amber-500 text-white border-amber-500", inactiveClass: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-900 text-amber-600 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/50" },
+              { p: "green",  label: "Normal",    count: stats.green,   activeClass: "bg-emerald-500 text-white border-emerald-500", inactiveClass: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-900 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-950/50" },
+              { p: "checked",label: "Checked",   count: stats.checked, activeClass: "bg-primary text-primary-foreground border-primary", inactiveClass: "bg-primary/5 border-primary/20 text-primary hover:bg-primary/10" },
+            ].map(({ p, label, count, activeClass, inactiveClass }) => (
+              <button
+                key={p}
+                onClick={() => setFilterPriority(p)}
+                className={cn(
+                  "flex items-center gap-2 pl-3 pr-1 py-1.5 rounded-full text-sm font-medium border transition-all whitespace-nowrap",
+                  filterPriority === p ? activeClass : inactiveClass
+                )}
+                data-testid={`priority-filter-${p}`}
+              >
+                <span>{label}</span>
+                <span className={cn(
+                  "min-w-[22px] h-[22px] rounded-full flex items-center justify-center text-xs font-bold px-1",
+                  filterPriority === p ? "bg-white/20" : "bg-black/8 dark:bg-white/10"
+                )}>{count}</span>
+              </button>
+            ))}
           </div>
-        ))}
-      </div>
-
-      {/* Filters */}
-      <div className="flex gap-2 flex-wrap">
-        <div className="flex gap-1.5">
-          {["all", "red", "yellow", "green"].map(p => (
-            <button key={p} onClick={() => setFilterPriority(p)}
-              className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-                filterPriority === p ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:text-foreground"
-              )} data-testid={`priority-filter-${p}`}
-            >
-              {p === "all" ? "All" : p === "red" ? "🔴 Urgent" : p === "yellow" ? "🟡 Important" : "🟢 Routine"}
-            </button>
-          ))}
         </div>
-        <div className="w-px bg-border" />
-        {["all", "medication", "meal", "medical", "general"].map(c => (
-          <button key={c} onClick={() => setFilterCategory(c)}
-            className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
-              filterCategory === c ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:text-foreground"
-            )} data-testid={`category-filter-${c}`}
-          >
-            {c.charAt(0).toUpperCase() + c.slice(1)}
-          </button>
-        ))}
+        <div className="overflow-x-auto pb-1 -mx-1 px-1">
+          <div className="flex gap-1.5 min-w-max">
+            {["all", "medication", "meal", "medical", "general"].map(c => (
+              <button key={c} onClick={() => setFilterCategory(c)}
+                className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors whitespace-nowrap",
+                  filterCategory === c ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:text-foreground"
+                )} data-testid={`category-filter-${c}`}
+              >
+                {c.charAt(0).toUpperCase() + c.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Log Entries */}
@@ -238,36 +547,215 @@ export default function ActivityPage() {
         <div className="space-y-2">
           {filtered.map(log => {
             const Icon = CATEGORY_ICONS[log.category] || ClipboardList;
+            const seenBy = getSeenBy(log.id);
             return (
-              <div key={log.id} className={cn("flex items-start gap-4 p-4 rounded-xl border bg-card transition-all", log.isChecked && "opacity-60")} data-testid={`activity-card-${log.id}`}>
-                <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0", CATEGORY_COLORS[log.category])}>
-                  <Icon size={16} />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-start justify-between gap-2">
-                    <span className={cn("font-medium text-sm", log.isChecked && "line-through")}>{log.title}</span>
-                    <PriorityBadge priority={log.priority} />
-                  </div>
-                  {log.description && (
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{log.description}</p>
-                  )}
-                  <div className="text-xs text-muted-foreground mt-2">{formatTime(log.loggedAt)}</div>
-                </div>
-                {canEdit && !log.isChecked && (
-                  <button
-                    onClick={() => checkMutation.mutate(log.id)}
-                    className="flex-shrink-0 w-8 h-8 rounded-full border-2 border-border hover:border-primary hover:bg-primary/10 flex items-center justify-center transition-colors"
-                    data-testid={`check-activity-${log.id}`}
-                  >
-                    <Circle size={16} className="text-muted-foreground" />
-                  </button>
+              <div
+                key={log.id}
+                className={cn(
+                  "p-4 rounded-xl border bg-card transition-all relative overflow-hidden",
+                  (log as any).isEmergency
+                    ? "border-red-400 dark:border-red-700 shadow-[0_0_0_1px_rgb(248_113_113/0.3)] emergency-pulse-border"
+                    : (log as any).isOffShiftEntry
+                      ? "border-l-4 border-l-amber-400 dark:border-l-amber-600"
+                      : (log as any).loggedByRole === "primary_family" || (log as any).loggedByRole === "secondary_family"
+                        ? "border-l-4 border-l-violet-400 dark:border-l-violet-600"
+                        : ""
                 )}
-                {log.isChecked && <CheckCircle2 size={18} className="flex-shrink-0 text-emerald-500 mt-0.5" />}
+                data-testid={`activity-card-${log.id}`}
+              >
+                <div className="flex items-start gap-3">
+                  {/* Icon + status stacked */}
+                  <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
+                    <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", CATEGORY_COLORS[log.category])}>
+                      <Icon size={16} />
+                    </div>
+                    {/* Status below icon */}
+                    {canEdit && !log.isChecked ? (
+                      <button
+                        onClick={() => checkMutation.mutate(log.id)}
+                        className="w-7 h-7 rounded-full border-2 border-border hover:border-emerald-500 hover:bg-emerald-50 flex items-center justify-center transition-colors"
+                        data-testid={`check-activity-${log.id}`}
+                      >
+                        <Circle size={13} className="text-muted-foreground" />
+                      </button>
+                    ) : log.isChecked ? (
+                      <div className="w-7 h-7 rounded-full bg-emerald-500 flex items-center justify-center">
+                        <CheckCircle2 size={14} className="text-white" />
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-start gap-2 flex-wrap">
+                      <span className="font-medium text-sm">{log.title}</span>
+                      <PriorityBadge priority={log.priority} />
+                      {/* Emergency badge */}
+                      {(log as any).isEmergency && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-red-500 text-white animate-pulse">
+                          <Siren size={9} /> Emergency
+                        </span>
+                      )}
+                      {/* Off-shift badge (non-emergency) */}
+                      {(log as any).isOffShiftEntry && !(log as any).isEmergency && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-100 text-amber-700 border border-amber-300 dark:bg-amber-950/40 dark:text-amber-400 dark:border-amber-800">
+                          <Clock size={9} /> Off-Shift
+                        </span>
+                      )}
+                      {/* Family log badge */}
+                      {((log as any).loggedByRole === "primary_family" || (log as any).loggedByRole === "secondary_family") && !((log as any).isEmergency) && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-100 text-violet-700 border border-violet-300 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800">
+                          <UserRound size={9} /> Family Log
+                        </span>
+                      )}
+                      {/* Emergency type label */}
+                      {(log as any).isEmergency && (log as any).emergencyType && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-red-100 text-red-700 border border-red-300 dark:bg-red-950/40 dark:text-red-400 dark:border-red-800">
+                          {{
+                            fall: "🩹 Fall",
+                            er_visit: "🚨 ER Visit",
+                            hospital_admission: "🏥 Hospital Admission",
+                            medical_event: "💊 Acute Medical Event",
+                            other: "⚠️ Emergency",
+                          }[(log as any).emergencyType as string] || (log as any).emergencyType}
+                        </span>
+                      )}
+                      {log.isLateEntry && !log.isExcused && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-yellow-100 text-yellow-700 border border-yellow-300 dark:bg-yellow-950/40 dark:text-yellow-400 dark:border-yellow-800">
+                          <Clock size={9} /> {t("activity.late")}
+                        </span>
+                      )}
+                      {log.isLateEntry && log.isExcused && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800">
+                          <CheckCheck size={9} /> {t("activity.excused")}
+                        </span>
+                      )}
+                    </div>
+                    {log.description && (() => {
+                      const isCollapsed = log.isChecked && !expandedIds.has(log.id);
+                      const preview = firstSentence(log.description);
+                      const hasMore = log.description.trim() !== preview.replace(/…$/, "").trim() &&
+                                      log.description.length > preview.replace(/…$/, "").length;
+                      return (
+                        <div className="mt-1">
+                          <p className="text-sm text-muted-foreground leading-relaxed">
+                            {isCollapsed ? preview : log.description}
+                          </p>
+                          {isCollapsed && hasMore && (
+                            <button
+                              onClick={() => toggleExpanded(log.id)}
+                              className="text-xs text-primary font-medium hover:underline mt-0.5"
+                            >
+                              See more
+                            </button>
+                          )}
+                          {!isCollapsed && log.isChecked && (
+                            <button
+                              onClick={() => toggleExpanded(log.id)}
+                              className="text-xs text-muted-foreground hover:underline mt-0.5 block"
+                            >
+                              See less
+                            </button>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    <div className="flex items-center gap-3 mt-1.5">
+                      <span className="text-xs text-muted-foreground">{formatTime(log.loggedAt)}</span>
+                      {log.description && (
+                        <button
+                          onClick={() => speakBecky(`${log.title}. ${log.description}`)}
+                          className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          title="Listen to this entry"
+                        >
+                          <Volume2 size={11} /> Listen
+                        </button>
+                      )}
+                    </div>
+                    {log.isExcused && log.excuseNote && (
+                      <div className="mt-1.5 text-xs text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900 rounded-md px-2.5 py-1.5 leading-relaxed">
+                        <span className="font-semibold">Excuse note:</span> {log.excuseNote}
+                      </div>
+                    )}
+
+                    {/* Seen by */}
+                    {seenBy.length > 0 && (
+                      <div className="flex items-center gap-1 mt-1 text-xs text-muted-foreground">
+                        <Eye size={10} />
+                        <span>Seen by {seenBy.join(", ")}</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bottom action row — family only */}
+                {isFamily && (
+                  <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
+                    {/* Excuse flag — primary family only, only on unexcused late entries */}
+                    {activeUser.role === "primary_family" && log.isLateEntry && !log.isExcused ? (
+                      <button
+                        onClick={() => { setExcuseDialogId(log.id); setExcuseNote(""); }}
+                        className="text-xs text-yellow-600 dark:text-yellow-400 hover:underline flex items-center gap-1.5"
+                        data-testid={`excuse-flag-${log.id}`}
+                      >
+                        <Clock size={11} /> {t("activity.excuse")}
+                      </button>
+                    ) : <span />}
+
+                    <button
+                      onClick={() => {
+                        setDiscussingId(log.id);
+                        discussMutation.mutate(log);
+                      }}
+                      disabled={discussingId === log.id && discussMutation.isPending}
+                      className="text-xs text-primary hover:underline flex items-center gap-1.5 disabled:opacity-60"
+                      data-testid={`discuss-activity-${log.id}`}
+                    >
+                      {discussingId === log.id && discussMutation.isPending
+                        ? <><Loader2 size={11} className="animate-spin" /> Creating thread...</>
+                        : <>💬 Discuss with family</>}
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}
         </div>
       )}
+
+      {/* Excuse Flag Dialog */}
+      <Dialog open={excuseDialogId !== null} onOpenChange={open => { if (!open) { setExcuseDialogId(null); setExcuseNote(""); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock size={16} className="text-yellow-500" /> Excuse Late Entry Flag
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Adding an excuse note will clear this flag and prevent it from affecting the caregiver's rating. Please briefly explain the context.
+            </p>
+            <div className="space-y-1.5">
+              <Label>{t("activity.excuseReason")} <span className="text-red-500">*</span></Label>
+              <Textarea
+                value={excuseNote}
+                onChange={e => setExcuseNote(e.target.value)}
+                placeholder="e.g. Doctor appointment ran late, Robert needed extra rest this morning, traffic delay..."
+                rows={3}
+                data-testid="excuse-note-input"
+              />
+            </div>
+            <Button
+              className="w-full gap-2"
+              disabled={!excuseNote.trim() || excuseMutation.isPending}
+              onClick={() => excuseDialogId !== null && excuseMutation.mutate({ id: excuseDialogId, note: excuseNote.trim() })}
+              data-testid="submit-excuse-btn"
+            >
+              {excuseMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCheck size={14} /> {t("activity.excuseConfirm")}</>}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
