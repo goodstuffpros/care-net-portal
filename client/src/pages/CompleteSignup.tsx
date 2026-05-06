@@ -50,6 +50,11 @@ export default function CompleteSignupPage() {
         throw new Error(body.message || "Failed to create account");
       }
       setDone(true);
+      // Redirect to app after a moment — RealAuthGate will detect the session
+      // and show the onboarding wizard automatically
+      setTimeout(() => {
+        window.location.href = "/";
+      }, 1800);
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     } finally {
@@ -83,11 +88,10 @@ export default function CompleteSignupPage() {
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 mb-4">
             <Heart className="w-6 h-6 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Account created</h2>
+          <h2 className="text-xl font-semibold mb-2">You're in!</h2>
           <p className="text-sm text-muted-foreground leading-relaxed mb-6">
-            Check your email for a verification link. Once verified, you'll be able to sign in to Care Net Portal.
+            Your account is ready. Taking you to Care Net Portal now…
           </p>
-          <Button onClick={() => navigate("/login")}>Go to sign in</Button>
         </div>
       </div>
     );
