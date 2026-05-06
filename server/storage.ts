@@ -458,6 +458,50 @@ sqlite.exec(`
   );
 `);
 
+// ── Auth tables ──────────────────────────────────────────────────────────────
+sqlite.exec(`
+  CREATE TABLE IF NOT EXISTS auth_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    user_id INTEGER,
+    email_verified INTEGER DEFAULT 0,
+    email_verify_token TEXT,
+    email_verify_expiry TEXT,
+    password_reset_token TEXT,
+    password_reset_expiry TEXT,
+    last_login_at TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE TABLE IF NOT EXISTS auth_sessions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    auth_account_id INTEGER NOT NULL,
+    token_hash TEXT NOT NULL UNIQUE,
+    expires_at TEXT NOT NULL,
+    revoked_at TEXT,
+    created_at TEXT NOT NULL,
+    user_agent TEXT,
+    ip_address TEXT
+  );
+  CREATE TABLE IF NOT EXISTS beta_applications (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    name TEXT NOT NULL,
+    role TEXT NOT NULL,
+    currently_in_care TEXT NOT NULL,
+    intent TEXT NOT NULL,
+    agreed_to_confidentiality INTEGER NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    reviewed_at TEXT,
+    review_note TEXT,
+    invite_token TEXT,
+    invite_expiry TEXT,
+    invite_sent_at TEXT,
+    account_created_at TEXT,
+    created_at TEXT NOT NULL
+  );
+`);
+
 export interface IStorage {
   // Users
   getUsers(): User[];
