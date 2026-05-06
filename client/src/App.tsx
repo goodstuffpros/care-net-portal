@@ -52,6 +52,7 @@ import BetaAgreement from "@/pages/BetaAgreement";
 
 // Onboarding wizard (real auth users only)
 import OnboardingWizard from "@/pages/Onboarding";
+import PreConnectionScreen from "@/pages/PreConnection";
 
 // Layout
 import AppLayout from "@/components/AppLayout";
@@ -110,7 +111,40 @@ interface AppContextType {
 export const AppContext = createContext<AppContextType>({} as AppContextType);
 export const useApp = () => useContext(AppContext);
 
-function MainApp() {
+interface RealUser {
+  id?: number;
+  name?: string;
+  role?: string;
+  email: string;
+  clientId?: number | null;
+  onboardingCompletedAt?: string | null;
+}
+
+function MainApp({ realUser }: { realUser?: RealUser | null }) {
+  // If this is a real auth user with no care circle yet, show pre-connection screen
+  if (realUser?.name && realUser?.role && !realUser?.clientId) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <PreConnectionScreen
+          name={realUser.name}
+          role={realUser.role}
+          email={realUser.email}
+          onGoToUniversity={() => {
+            // Navigate into demo as CG user and open University
+            window.location.hash = "/university";
+            // Brief flag so MainApp knows to load demo for university
+            sessionStorage.setItem("cnp_demo_preview", "1");
+            window.location.reload();
+          }}
+        />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  // If a real auth user is in demo preview mode, suppress the OnboardingFlow overlay.
+  const isRealUserDemoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
+
   const [activeUser, setActiveUser] = useState<ActiveUser>(DEMO_USERS[0]);
   const [selectedClientId, setSelectedClientId] = useState(1);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
@@ -178,6 +212,7 @@ function MainApp() {
   }, [activeUser.id, activeUser.role]);
 
   const showOnboarding =
+    !isRealUserDemoPreview &&
     isCaregiverRole(activeUser.role) &&
     !onboardingDismissed[activeUser.id] &&
     onboardingUserFetched[activeUser.id] === true &&
@@ -358,15 +393,25 @@ export default function App() {
  */
 function RealAuthGate() {
   const [checking, setChecking] = useState(true);
-  const [realUser, setRealUser] = useState<{ email: string; onboardingCompletedAt: string | null } | null>(null);
+  const [realUser, setRealUser] = useState<RealUser | null>(null);
   const [onboardingDone, setOnboardingDone] = useState(false);
+
+  // If user clicked "Go to University" from pre-connection, let them into the demo
+  const demoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
 
   useEffect(() => {
     apiRequest("GET", "/api/auth/me")
       .then((res) => res.json())
       .then((data) => {
         if (data?.email && !data?.isDemoMode) {
-          setRealUser({ email: data.email, onboardingCompletedAt: data.onboardingCompletedAt ?? null });
+          setRealUser({
+            id: data.id,
+            name: data.name,
+            role: data.role,
+            email: data.email,
+            clientId: data.clientId ?? null,
+            onboardingCompletedAt: data.onboardingCompletedAt ?? null,
+          });
           if (data.onboardingCompletedAt) setOnboardingDone(true);
         }
       })
@@ -376,7 +421,7 @@ function RealAuthGate() {
 
   if (checking) return null; // brief flicker prevention
 
-  // Real user who hasn't completed onboarding
+  // Real user who hasn't completed onboarding wizard yet
   if (realUser && !onboardingDone) {
     return (
       <QueryClientProvider client={queryClient}>
@@ -388,5 +433,8 @@ function RealAuthGate() {
     );
   }
 
-  return <MainApp />;
+  // Real user, onboarding done — pass user into MainApp.
+  // MainApp will show PreConnectionScreen if clientId is null,
+  // unless they clicked through to demo preview.
+  return <MainApp realUser={demoPreview ? null : realUser} />;
 }
