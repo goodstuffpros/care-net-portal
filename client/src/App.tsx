@@ -107,6 +107,7 @@ interface AppContextType {
   setPortalMode: (mode: PortalMode) => void;
   showUpgradeTransition: boolean;
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
+  isRealSession: boolean; // true when a real auth user is logged in (not demo)
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -152,8 +153,22 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
   const startPortalMode: PortalMode = isMCReal ? "family" : "dedicated";
 
-  const [activeUser, setActiveUser] = useState<ActiveUser>(DEMO_USERS[0]);
-  const [selectedClientId, setSelectedClientId] = useState(1);
+  // Build an ActiveUser from the real session if available, otherwise default to demo Becky
+  const buildRealActiveUser = (): ActiveUser | null => {
+    if (!realUser?.id || !realUser?.name || !realUser?.role) return null;
+    return {
+      id: realUser.id,
+      name: realUser.name,
+      role: realUser.role as UserRole,
+      avatarInitials: realUser.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
+      clientId: realUser.clientId ?? null,
+    };
+  };
+  const initialActiveUser = buildRealActiveUser() ?? DEMO_USERS[0];
+  const isRealSession = !!buildRealActiveUser();
+
+  const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
+  const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -257,6 +272,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         setPortalMode,
         showUpgradeTransition,
         triggerUpgradeTransition,
+        isRealSession,
       }}>
         <LangProvider>
         <AlarmEngine />

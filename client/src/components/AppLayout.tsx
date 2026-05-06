@@ -119,7 +119,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode } = useApp();
+  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession } = useApp();
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [location, navigate] = useLocation();
@@ -408,7 +408,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const NAV_ITEMS = (() => {
     let items = rawNavItems;
     if (isFamily) items = items.filter(n => n.path !== "/thoughts" && n.path !== "/my-profile");
-    if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/patterns");
+    if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/patterns" && n.path !== "/archive");
     // University always visible to caregiver + MC; ensure it's in family nav
     const hasUniversity = items.some(n => n.path === "/university");
     if (!hasUniversity && (isFamily || isFamilyPortal)) {
@@ -662,6 +662,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
       </div>
 
+      {/* Help Desk — always visible */}
+      <div className="px-3 py-2">
+        <a
+          href="mailto:portal@carenetportal.com"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          data-testid="help-desk-btn"
+        >
+          <MessageCircleHeart size={14} className="flex-shrink-0" />
+          <span>Need help? Contact support</span>
+        </a>
+      </div>
+
       {/* User Profile / Role Switcher */}
       <div className="px-3 pb-4 border-t border-sidebar-border pt-3">
         <DropdownMenu>
@@ -678,56 +690,70 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-64 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
-            <DropdownMenuLabel>Switch Role (Demo)</DropdownMenuLabel>
-            <DropdownMenuSeparator />
+            {!isRealSession && <><DropdownMenuLabel>Switch Role (Demo)</DropdownMenuLabel>
+            <DropdownMenuSeparator /></>}
 
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 1 — Robert Johnson</DropdownMenuLabel>
-              {client1Users.map(user => (
-                <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                  </div>
-                  {user.role === "temp_caregiver" && <span className="text-[10px] px-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 ml-1">Temp</span>}
-                  {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
+            {!isRealSession && (
+              <>
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 1 — Robert Johnson</DropdownMenuLabel>
+                  {client1Users.map(user => (
+                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{user.name}</div>
+                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
+                      </div>
+                      {user.role === "temp_caregiver" && <span className="text-[10px] px-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 ml-1">Temp</span>}
+                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 2 — Eleanor Williams</DropdownMenuLabel>
+                  {client2Users.map(user => (
+                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{user.name}</div>
+                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
+                      </div>
+                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+                <DropdownMenuGroup>
+                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 3 — Frank Garcia (Pre-Care)</DropdownMenuLabel>
+                  {client3Users.map(user => (
+                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
+                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-medium text-sm">{user.name}</div>
+                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
+                      </div>
+                      <span className="text-[10px] px-1.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 ml-1">Pre-Care</span>
+                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuGroup>
+                <DropdownMenuSeparator />
+              </>
+            )}
 
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 2 — Eleanor Williams</DropdownMenuLabel>
-              {client2Users.map(user => (
-                <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                  </div>
-                  {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-
-            <DropdownMenuSeparator />
-            <DropdownMenuGroup>
-              <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 3 — Frank Garcia (Pre-Care)</DropdownMenuLabel>
-              {client3Users.map(user => (
-                <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                  <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-sm">{user.name}</div>
-                    <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                  </div>
-                  <span className="text-[10px] px-1.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 ml-1">Pre-Care</span>
-                  {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-
-            <DropdownMenuSeparator />
+            {/* Real user info */}
+            {isRealSession && (
+              <>
+                <div className="px-2 py-2">
+                  <div className="text-xs text-muted-foreground">Signed in as</div>
+                  <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
+                  <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
+                </div>
+                <DropdownMenuSeparator />
+              </>
+            )}
+            <DropdownMenuSeparator className={isRealSession ? "hidden" : ""} />
             <DropdownMenuItem
               onClick={() => navigate("/pricing")}
               className="cursor-pointer text-muted-foreground"
@@ -736,7 +762,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Sparkles size={14} className="mr-2" />
               Pricing
             </DropdownMenuItem>
-            {isCaregiverRole(activeUser.role) && (
+            {!isRealSession && isCaregiverRole(activeUser.role) && (
               <DropdownMenuItem
                 onClick={triggerOnboarding}
                 className="cursor-pointer text-muted-foreground"
@@ -745,6 +771,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <BookOpen size={14} className="mr-2" />
                 Replay Introduction
               </DropdownMenuItem>
+            )}
+            {isRealSession && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                      .finally(() => { window.location.href = "/#/login"; });
+                  }}
+                  className="cursor-pointer text-red-500 dark:text-red-400"
+                  data-testid="sign-out-btn"
+                >
+                  <LogOut size={14} className="mr-2" />
+                  Sign out
+                </DropdownMenuItem>
+              </>
             )}
           </DropdownMenuContent>
         </DropdownMenu>
