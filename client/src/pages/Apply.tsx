@@ -221,7 +221,7 @@ export default function ApplyPage() {
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-border text-center">
+          <div className="mt-6 pt-6 border-t border-border text-center space-y-3">
             <p className="text-sm text-muted-foreground">
               Already have an account?{" "}
               <button
@@ -231,6 +231,14 @@ export default function ApplyPage() {
               >
                 Sign in
               </button>
+            </p>
+            <p className="text-xs text-muted-foreground">
+              By applying you agree to our{" "}
+              <a href="#/terms" className="text-primary hover:underline">Terms of Service</a>
+              {", "}
+              <a href="#/privacy" className="text-primary hover:underline">Privacy Policy</a>
+              {" and "}
+              <a href="#/beta-agreement" className="text-primary hover:underline">Beta User Agreement</a>.
             </p>
           </div>
         </div>

@@ -172,6 +172,16 @@ export default function CompleteSignupPage() {
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</> : "Create account"}
             </Button>
           </form>
+          <div className="mt-6 pt-6 border-t border-border text-center">
+            <p className="text-xs text-muted-foreground">
+              By creating an account you agree to our{" "}
+              <a href="#/terms" className="text-primary hover:underline">Terms of Service</a>
+              {", "}
+              <a href="#/privacy" className="text-primary hover:underline">Privacy Policy</a>
+              {" and "}
+              <a href="#/beta-agreement" className="text-primary hover:underline">Beta User Agreement</a>.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -45,6 +45,11 @@ import VerifyEmailPage from "@/pages/VerifyEmail";
 import ForgotPasswordPage from "@/pages/ForgotPassword";
 import ResetPasswordPage from "@/pages/ResetPassword";
 
+// Legal pages (public — no AppLayout)
+import TermsOfService from "@/pages/TermsOfService";
+import PrivacyPolicy from "@/pages/PrivacyPolicy";
+import BetaAgreement from "@/pages/BetaAgreement";
+
 // Layout
 import AppLayout from "@/components/AppLayout";
 
@@ -272,7 +277,7 @@ function MainApp() {
   );
 }
 
-// Auth pages that render standalone (no AppLayout, no context needed)
+// Auth + legal pages that render standalone (no AppLayout, no context needed)
 const AUTH_ROUTES: Record<string, React.ComponentType> = {
   "/login": LoginPage,
   "/apply": ApplyPage,
@@ -280,6 +285,9 @@ const AUTH_ROUTES: Record<string, React.ComponentType> = {
   "/verify-email": VerifyEmailPage,
   "/forgot-password": ForgotPasswordPage,
   "/reset-password": ResetPasswordPage,
+  "/terms": TermsOfService,
+  "/privacy": PrivacyPolicy,
+  "/beta-agreement": BetaAgreement,
 };
 
 export default function App() {
