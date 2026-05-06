@@ -81,7 +81,9 @@ sqlite.exec(`
     completed_at TEXT,
     completed_by_user_id INTEGER,
     location TEXT,
-    reminder_minutes INTEGER DEFAULT 30
+    reminder_minutes INTEGER DEFAULT 30,
+    alarm_enabled INTEGER DEFAULT 0,
+    alarm_lead_minutes INTEGER DEFAULT 15
   );
   CREATE TABLE IF NOT EXISTS activity_logs (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -335,6 +337,9 @@ sqlite.exec(`
 
 // Safe migration: add onboarding_completed_at column if it doesn't exist yet
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch { /* column already exists */ }
+// Safe migration: schedule_events alarm columns
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_enabled INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_lead_minutes INTEGER DEFAULT 15`); } catch {}
 // Safe migrations: caregiver_profiles new columns
 try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN travel_distance TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN custom_specialties TEXT`); } catch {}
