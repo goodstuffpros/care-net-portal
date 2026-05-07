@@ -16,6 +16,7 @@ import { useState, useRef, useEffect } from "react";
 import { MessageSquare, Plus, Send, Mic, MicOff, Lock, Users, ChevronRight, CheckCircle2, Circle, Volume2, AlertTriangle, PhoneCall, UserPlus, UserMinus, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 const DEMO_USERS: Record<number, { name: string; initials: string; role: string }> = {
   1: { name: "Becky M.", initials: "BM", role: "caregiver" },
@@ -187,6 +188,7 @@ export default function MessagesPage() {
 
   return (
     <div className="flex h-[calc(100vh-57px)] overflow-hidden">
+      <ModuleIntro moduleKey="messages" />
       {/* Thread List */}
       <div className={cn("flex flex-col border-r border-border bg-background", activeThreadId ? "hidden md:flex w-72 flex-shrink-0" : "flex-1 md:w-72 md:flex-none")}>
         <div className="p-4 border-b border-border">

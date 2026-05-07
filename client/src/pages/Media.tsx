@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Image, Video, Plus, Mic, MicOff, Trash2, Camera, Film, Circle, Square, RotateCcw, Download, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 const DEMO_USERS: Record<number, string> = {
   1: "Becky M.",
@@ -306,6 +307,7 @@ export default function MediaPage() {
 
   return (
     <div className="p-4 max-w-5xl mx-auto space-y-6 w-full overflow-x-hidden">
+      <ModuleIntro moduleKey="media" />
       {/* Page Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">

@@ -15,6 +15,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Caregiver",
@@ -122,6 +123,7 @@ export default function ClientPortalPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
+      <ModuleIntro moduleKey="client-portal" />
       <div className="flex items-center gap-3 pb-2 border-b border-border">
         <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
           <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />

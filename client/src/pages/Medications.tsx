@@ -24,6 +24,7 @@ import {
   FlaskConical, Stethoscope, FileText
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 const FREQUENCY_LABELS: Record<string, string> = {
@@ -794,6 +795,7 @@ export default function MedicationsPage() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
+      <ModuleIntro moduleKey="medications" />
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1">

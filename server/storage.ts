@@ -1651,3 +1651,6 @@ try {
 
 // Notification prefs column on users
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"careLog":true,"messages":true,"schedule":true,"vitals":false}'`); } catch { /* already exists */ }
+
+// seenModules — tracks which module intros a user has already dismissed
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch { /* already exists */ }

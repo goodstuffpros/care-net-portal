@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Award, MessageSquare, Shield, BookOpen, Heart, RefreshCw, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Pill, Activity, Calendar, SlidersHorizontal } from "lucide-react";
+import ModuleIntro from "@/components/ModuleIntro";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -544,6 +545,7 @@ export default function Badges() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+      <ModuleIntro moduleKey="badges" />
 
       {/* Header */}
       <div className="flex items-start justify-between">

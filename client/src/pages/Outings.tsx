@@ -15,6 +15,7 @@ import { MapPin, Play, Square, Clock, CheckCircle2, Car } from "lucide-react";
 import { cn } from "@/lib/utils";
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
+import ModuleIntro from "@/components/ModuleIntro";
 
 // Fix default marker icons for Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -194,6 +195,7 @@ export default function OutingsPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="outings-page">
+      <ModuleIntro moduleKey="outings" />
       <div className="flex items-center gap-3 pb-2 border-b border-border">
         <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
           <MapPin size={20} className="text-teal-600 dark:text-teal-400" />

@@ -19,6 +19,7 @@ import {
   ExternalLink, Download, Shield
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 const CATEGORIES = ["All", "Insurance", "Legal", "Medical", "Financial", "Other"] as const;
 const CATEGORY_COLORS: Record<string, string> = {
@@ -79,6 +80,7 @@ export default function DocumentsPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="documents-page">
+      <ModuleIntro moduleKey="documents" />
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
