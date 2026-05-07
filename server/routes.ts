@@ -633,6 +633,106 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // GET /api/users/lookup-by-email?email=... — check if email belongs to an active CNP caregiver
+  app.get("/api/users/lookup-by-email", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const email = (req.query.email as string || "").trim().toLowerCase();
+      if (!email) return res.status(400).json({ message: "Email required" });
+      // Find auth account with this email
+      const account = db.select().from(authAccounts).where(eq(authAccounts.email, email)).get();
+      if (!account || !account.userId) return res.json({ found: false });
+      const user = db.select().from(users).where(eq(users.id, account.userId)).get();
+      if (!user || !user.isActive) return res.json({ found: false });
+      // Only surface caregivers (not other MCs or family)
+      const caregiverRoles = ["caregiver", "multi_caregiver", "temp_caregiver"];
+      if (!caregiverRoles.includes(user.role)) return res.json({ found: false, notCaregiver: true });
+      res.json({
+        found: true,
+        userId: user.id,
+        name: user.name,
+        avatarInitials: user.avatarInitials || user.name?.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2) || "?",
+        role: user.role,
+      });
+    } catch (err: any) {
+      console.error("[lookup-by-email] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Lookup failed" });
+    }
+  });
+
+  // POST /api/invite/direct-connect — MC finds existing CNP caregiver by email and sends them a connection request
+  app.post("/api/invite/direct-connect", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const account = req.account!;
+      let userId = account.userId;
+      if (!userId) return res.status(403).json({ message: "Profile not linked" });
+      const senderUser = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!senderUser) return res.status(404).json({ message: "Sender not found" });
+
+      const { targetEmail, targetUserId } = req.body;
+      if (!targetEmail || !targetUserId) return res.status(400).json({ message: "targetEmail and targetUserId required" });
+
+      // Verify target is a real active caregiver
+      const targetUser = db.select().from(users).where(eq(users.id, Number(targetUserId))).get();
+      if (!targetUser || !targetUser.isActive) return res.status(404).json({ message: "Caregiver not found" });
+
+      // Build the invite token
+      const token = generateToken(32);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+      const now = new Date().toISOString();
+      const senderName = senderUser.name || account.email || "A Care Net Portal member";
+      let clientName: string | null = null;
+      if (senderUser.clientId) {
+        const client = db.select().from(clients).where(eq(clients.id, senderUser.clientId)).get();
+        clientName = client?.name ?? null;
+      }
+
+      db.insert(connectionInvites).values({
+        token,
+        senderUserId: senderUser.id,
+        senderRole: senderUser.role,
+        clientId: senderUser.clientId ?? null,
+        clientName,
+        senderName,
+        invitedEmail: targetEmail,
+        inviteType: "mc_to_caregiver",
+        status: "pending",
+        expiresAt,
+        createdAt: now,
+      }).run();
+
+      const appUrl = process.env.APP_URL || "https://care-net-portal-production.up.railway.app";
+      const acceptUrl = `${appUrl}/#/invite/${token}`;
+      const lovedOneLine = clientName ? ` to help care for <strong>${clientName}</strong>` : "";
+
+      // Send a direct "you've been requested" email to the caregiver
+      await sendEmail({
+        to: targetEmail,
+        subject: `${senderName} wants to connect with you on Care Net Portal`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #28251D;">
+            <div style="background: #01696F; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px;">Care Net Portal</h1>
+              <p style="margin: 8px 0 0; opacity: 0.85;">Connection Request</p>
+            </div>
+            <div style="background: #F7F6F2; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #D4D1CA;">
+              <p style="font-size: 16px;"><strong>${senderName}</strong> has sent you a connection request on Care Net Portal${lovedOneLine}.</p>
+              <p style="color: #5A5957; font-size: 14px;">Since you're already on Care Net Portal, just tap the button below to accept. No signup needed.</p>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="${acceptUrl}" style="background: #01696F; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">Accept Connection</a>
+              </div>
+              <p style="color: #BAB9B4; font-size: 12px; text-align: center;">This request expires in 7 days. You can also find it under your notifications in the app.</p>
+            </div>
+          </div>
+        `,
+      });
+
+      res.json({ success: true, token });
+    } catch (err: any) {
+      console.error("[direct-connect] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to send connection request" });
+    }
+  });
+
   // POST /api/invite/:token/accept — authenticated user accepts the invite
   app.post("/api/invite/:token/accept", requireAuth, async (req: AuthRequest, res) => {
     try {

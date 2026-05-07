@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle, Link2, Mail, Copy, Check } from "lucide-react";
+import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle, Link2, Mail, Copy, Check, Search, UserCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
@@ -47,6 +47,10 @@ export default function CaregiversPage() {
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
+  const [inviteTab, setInviteTab] = useState<"new" | "existing">("existing");
+  const [findEmail, setFindEmail] = useState("");
+  const [foundUser, setFoundUser] = useState<{ userId: number; name: string; avatarInitials: string; role: string } | null>(null);
+  const [findStatus, setFindStatus] = useState<"idle" | "searching" | "not_found" | "not_caregiver" | "found" | "sent">("idle");
   const canManage = activeUser.role === "caregiver" || activeUser.role === "facilitator";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
@@ -82,13 +86,49 @@ export default function CaregiversPage() {
     });
   }
 
+  async function handleFindOnCNP() {
+    if (!findEmail.trim()) return;
+    setFindStatus("searching");
+    setFoundUser(null);
+    try {
+      const res = await apiRequest("GET", `/api/users/lookup-by-email?email=${encodeURIComponent(findEmail.trim())}`);
+      const data = await res.json();
+      if (data.found) {
+        setFoundUser(data);
+        setFindStatus("found");
+      } else if (data.notCaregiver) {
+        setFindStatus("not_caregiver");
+      } else {
+        setFindStatus("not_found");
+      }
+    } catch {
+      setFindStatus("not_found");
+    }
+  }
+
+  const directConnectMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/invite/direct-connect", {
+      targetEmail: findEmail.trim(),
+      targetUserId: foundUser!.userId,
+    }).then(r => r.json()),
+    onSuccess: () => {
+      setFindStatus("sent");
+      toast({ title: "Connection request sent!", description: `${foundUser?.name} will receive an email to accept your connection.` });
+    },
+    onError: () => toast({ title: "Could not send request", description: "Please try again.", variant: "destructive" }),
+  });
+
   function handleOpenInvite() {
     setInviteLink("");
     setInviteEmail("");
     setCopied(false);
+    setFindEmail("");
+    setFoundUser(null);
+    setFindStatus("idle");
+    setInviteTab(isFamily ? "existing" : "new");
     setInviteOpen(true);
-    // Pre-generate a link immediately
-    createInviteMutation.mutate(undefined);
+    // Pre-generate a shareable link (for the "new user" tab)
+    if (!isFamily) createInviteMutation.mutate(undefined);
   }
 
   const [form, setForm] = useState({
@@ -255,59 +295,177 @@ export default function CaregiversPage() {
               Invite a {inviteLabel}
             </SheetTitle>
           </SheetHeader>
-          <div className="space-y-4">
-            {/* Copy link row */}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Share this link</Label>
-              <div className="flex gap-2">
-                <div className="flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground truncate font-mono">
-                  {createInviteMutation.isPending ? "Generating link…" : inviteLink || "—"}
-                </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="flex-shrink-0 gap-1.5"
-                  onClick={handleCopyLink}
-                  disabled={!inviteLink || createInviteMutation.isPending}
-                  data-testid="copy-invite-link-btn"
-                >
-                  {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                  {copied ? "Copied" : "Copy"}
-                </Button>
-              </div>
-              <p className="text-[11px] text-muted-foreground">Link expires in 7 days. Anyone with it can join as a {inviteLabel}.</p>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <div className="flex-1 h-px bg-border" />
-              <span className="text-xs text-muted-foreground">or send by email</span>
-              <div className="flex-1 h-px bg-border" />
-            </div>
-
-            {/* Email row */}
-            <div className="space-y-1.5">
-              <Label className="text-xs text-muted-foreground">Email address</Label>
-              <div className="flex gap-2">
-                <Input
-                  type="email"
-                  placeholder="name@example.com"
-                  value={inviteEmail}
-                  onChange={e => setInviteEmail(e.target.value)}
-                  className="flex-1"
-                  data-testid="invite-email-input"
-                />
-                <Button
-                  size="sm"
-                  className="flex-shrink-0 gap-1.5"
-                  onClick={() => createInviteMutation.mutate(inviteEmail)}
-                  disabled={!inviteEmail || createInviteMutation.isPending}
-                  data-testid="send-invite-email-btn"
-                >
-                  <Mail size={14} /> Send
-                </Button>
-              </div>
-            </div>
+          {/* Tab switcher */}
+          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-5">
+            <button
+              type="button"
+              onClick={() => { setInviteTab("existing"); }}
+              className={cn(
+                "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                inviteTab === "existing"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="invite-tab-existing"
+            >
+              Already on CNP
+            </button>
+            <button
+              type="button"
+              onClick={() => { setInviteTab("new"); if (!inviteLink) createInviteMutation.mutate(undefined); }}
+              className={cn(
+                "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                inviteTab === "new"
+                  ? "bg-background shadow-sm text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+              data-testid="invite-tab-new"
+            >
+              New to CNP
+            </button>
           </div>
+
+          {/* Tab: Already on CNP — find by email + direct connect */}
+          {inviteTab === "existing" && (
+            <div className="space-y-4">
+              {findStatus !== "sent" ? (
+                <>
+                  <p className="text-xs text-muted-foreground">
+                    Enter the email address your caregiver uses for their Care Net Portal account. We'll find them and send a connection request directly.
+                  </p>
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Caregiver's CNP email</Label>
+                    <div className="flex gap-2">
+                      <Input
+                        type="email"
+                        placeholder="name@example.com"
+                        value={findEmail}
+                        onChange={e => { setFindEmail(e.target.value); setFindStatus("idle"); setFoundUser(null); }}
+                        onKeyDown={e => e.key === "Enter" && handleFindOnCNP()}
+                        className="flex-1"
+                        data-testid="find-cnp-email-input"
+                      />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-shrink-0 gap-1.5"
+                        onClick={handleFindOnCNP}
+                        disabled={!findEmail.trim() || findStatus === "searching"}
+                        data-testid="find-cnp-btn"
+                      >
+                        <Search size={14} />
+                        {findStatus === "searching" ? "Searching…" : "Find"}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {findStatus === "found" && foundUser && (
+                    <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
+                        {foundUser.avatarInitials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="font-semibold text-sm">{foundUser.name}</div>
+                        <div className="text-xs text-muted-foreground">Care Net Portal caregiver</div>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="gap-1.5 flex-shrink-0"
+                        onClick={() => directConnectMutation.mutate()}
+                        disabled={directConnectMutation.isPending}
+                        data-testid="send-direct-connect-btn"
+                      >
+                        {directConnectMutation.isPending
+                          ? "Sending…"
+                          : <><Send size={13} /> Connect</>}
+                      </Button>
+                    </div>
+                  )}
+
+                  {findStatus === "not_found" && (
+                    <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
+                      No CNP account found for that email. They may not be on Care Net Portal yet — use the <button type="button" className="text-primary underline" onClick={() => setInviteTab("new")}>New to CNP</button> tab to send them an invite.
+                    </div>
+                  )}
+
+                  {findStatus === "not_caregiver" && (
+                    <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
+                      That email is registered but not as a caregiver account.
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="text-center py-8 space-y-3">
+                  <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center mx-auto">
+                    <UserCheck size={22} className="text-green-600 dark:text-green-400" />
+                  </div>
+                  <p className="font-semibold text-sm">Request sent to {foundUser?.name}</p>
+                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                    They'll receive an email with a one-tap accept button. Once they accept, you'll both be connected on Care Net Portal.
+                  </p>
+                  <Button variant="outline" size="sm" onClick={() => setInviteOpen(false)}>Done</Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tab: New to CNP — shareable link + email */}
+          {inviteTab === "new" && (
+            <div className="space-y-4">
+              {/* Copy link row */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Share this link</Label>
+                <div className="flex gap-2">
+                  <div className="flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground truncate font-mono">
+                    {createInviteMutation.isPending ? "Generating link…" : inviteLink || "—"}
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-shrink-0 gap-1.5"
+                    onClick={handleCopyLink}
+                    disabled={!inviteLink || createInviteMutation.isPending}
+                    data-testid="copy-invite-link-btn"
+                  >
+                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                    {copied ? "Copied" : "Copy"}
+                  </Button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">Link expires in 7 days. Anyone with it can join as a {inviteLabel}.</p>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex-1 h-px bg-border" />
+                <span className="text-xs text-muted-foreground">or send by email</span>
+                <div className="flex-1 h-px bg-border" />
+              </div>
+
+              {/* Email row */}
+              <div className="space-y-1.5">
+                <Label className="text-xs text-muted-foreground">Email address</Label>
+                <div className="flex gap-2">
+                  <Input
+                    type="email"
+                    placeholder="name@example.com"
+                    value={inviteEmail}
+                    onChange={e => setInviteEmail(e.target.value)}
+                    className="flex-1"
+                    data-testid="invite-email-input"
+                  />
+                  <Button
+                    size="sm"
+                    className="flex-shrink-0 gap-1.5"
+                    onClick={() => createInviteMutation.mutate(inviteEmail)}
+                    disabled={!inviteEmail || createInviteMutation.isPending}
+                    data-testid="send-invite-email-btn"
+                  >
+                    <Mail size={14} /> Send
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
         </SheetContent>
       </Sheet>
 
