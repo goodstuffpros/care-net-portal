@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -729,6 +729,7 @@ function HelpdeskTab() {
 export default function BeckyAdminPage() {
   const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk">("library");
   const [activeTheme, setActiveTheme] = useState<string>("all");
+  const { toast } = useToast();
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["/api/becky-library", activeTheme],
@@ -742,6 +743,29 @@ export default function BeckyAdminPage() {
 
   const placeholderCount = items.filter(i => i.isPlaceholder).length;
   const totalActive = items.filter(i => i.isActive).length;
+
+  const exportLibrary = async () => {
+    try {
+      // Fetch ALL items regardless of active theme filter
+      const res = await apiRequest("GET", "/api/becky-library");
+      const allData = await res.json();
+      const allItems: LibraryItem[] = allData?.items ?? [];
+      const timestamp = new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19);
+      const filename = `becky-response-library-${timestamp}.json`;
+      const blob = new Blob([JSON.stringify(allItems, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      toast({ title: "✅ Export saved", description: `${allItems.length} entries saved to ${filename}` });
+    } catch {
+      toast({ title: "❌ Export failed", description: "Could not download library data.", variant: "destructive" });
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background" style={{ background: "hsl(345 18% 5%)" }}>
@@ -802,6 +826,18 @@ export default function BeckyAdminPage() {
 
         {/* Library tab — only render when on library tab */}
         {activeTab === "library" && (<>
+
+        {/* Library toolbar: Export button */}
+        <div className="flex justify-end">
+          <button
+            onClick={exportLibrary}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 hover:text-white hover:bg-white/10 text-xs font-medium transition-all"
+            data-testid="button-export-library"
+          >
+            <Download size={13} />
+            Export Backup
+          </button>
+        </div>
 
         {/* Stats row */}
         {!isLoading && (
