@@ -150,7 +150,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!payload) return res.status(401).json({ message: "Session expired" });
     const account = db.select().from(authAccounts).where(eq(authAccounts.id, payload.authAccountId)).get();
     if (!account) return res.status(401).json({ message: "Not authenticated" });
-    // No userId yet — account exists but profile not created (fresh signup, needs onboarding)
+    // No userId yet — try to self-heal by finding a users row with matching email
+    if (!account.userId) {
+      const userByEmail = db.select().from(users).where(eq(users.email, account.email)).get();
+      if (userByEmail) {
+        db.update(authAccounts).set({ userId: userByEmail.id }).where(eq(authAccounts.id, account.id)).run();
+        account.userId = userByEmail.id;
+      }
+    }
+    // Still no userId — account exists but profile not created (fresh signup, needs onboarding)
     if (!account.userId) return res.json({ email: account.email, onboardingCompletedAt: null, needsProfile: true });
     const user = db.select().from(users).where(eq(users.id, account.userId)).get();
     if (!user) return res.status(401).json({ message: "User not found" });
@@ -459,10 +467,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ── Connection Invites ──────────────────────────────────────────────────────
 
   // POST /api/invite/create — authenticated user creates an invite link
-  app.post("/api/invite/create", requireAuth, async (req: AuthRequest, res) => {
+  // Uses requireAuthAccount (not requireAuth) so users in partial-link state can still invite
+  app.post("/api/invite/create", requireAuthAccount, async (req: AuthRequest, res) => {
     try {
-      const account = req.account!;
-      const user = db.select().from(users).where(eq(users.id, account.userId!)).get();
+      const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+      if (!account) return res.status(401).json({ message: "Not authenticated" });
+      // If userId not linked yet, try to find user by email and self-heal the link
+      let userId = account.userId;
+      if (!userId) {
+        const userByEmail = db.select().from(users).where(eq(users.email, account.email)).get();
+        if (userByEmail) {
+          db.update(authAccounts).set({ userId: userByEmail.id }).where(eq(authAccounts.id, account.id)).run();
+          userId = userByEmail.id;
+        }
+      }
+      if (!userId) return res.status(403).json({ message: "Profile not yet created. Please complete your profile first." });
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
       if (!user) return res.status(404).json({ message: "User not found" });
 
       const { invitedEmail, inviteType } = req.body;
