@@ -474,6 +474,7 @@ function RealAuthGate() {
         <OnboardingWizard
           email={realUser.email}
           onComplete={() => setOnboardingDone(true)}
+          initialRole={realUser.role as any}
         />
       </QueryClientProvider>
     );

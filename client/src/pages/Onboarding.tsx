@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 interface OnboardingProps {
   email: string;
   onComplete: () => void;
+  initialRole?: Role; // pre-set from signup — skips role selection step
 }
 
 type Role = "caregiver" | "primary_family" | "secondary_family";
@@ -60,10 +61,10 @@ const MC_TOUR = [
 
 type Step = "role" | "profile" | "tour" | "done";
 
-export default function Onboarding({ email, onComplete }: OnboardingProps) {
+export default function Onboarding({ email, onComplete, initialRole }: OnboardingProps) {
   const { toast } = useToast();
-  const [step, setStep] = useState<Step>("role");
-  const [role, setRole] = useState<Role | null>(null);
+  const [step, setStep] = useState<Step>(initialRole ? "profile" : "role");
+  const [role, setRole] = useState<Role | null>(initialRole ?? null);
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [tourIndex, setTourIndex] = useState(0);
@@ -184,9 +185,11 @@ export default function Onboarding({ email, onComplete }: OnboardingProps) {
             </div>
           </div>
           <div className="flex gap-3 mt-6">
-            <Button variant="outline" onClick={() => setStep("role")} className="flex-1">
-              Back
-            </Button>
+            {!initialRole && (
+              <Button variant="outline" onClick={() => setStep("role")} className="flex-1">
+                Back
+              </Button>
+            )}
             <Button
               className="flex-1"
               disabled={!name.trim() || saving}
