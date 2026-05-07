@@ -73,16 +73,19 @@ const COLOR_SWATCHES: { key: ColorTheme; color: string; label: string }[] = [
 ];
 
 // ── Drag-to-reorder ───────────────────────────────────────────────────────────
-// Strategy:
-//   • Track all mutable state in a plain ref (ds) — never stale in closures
-//   • Document-level pointermove/pointerup detect scroll vs hold-drag globally
-//   • MOVE_THRESHOLD: if pointer moves >10px before HOLD_MS fires → scroll, cancel
-//   • HOLD_MS: hold still this long → drag mode activates
-//   • touch-action on tiles: "pan-y" normally (allows scroll), "none" when dragging
-//   • No setPointerCapture — doc listeners handle everything
+// Strategy: two-phase pick-up model
+//   Phase 1 — HOLD: finger down + still for HOLD_MS → tile lifts (picked up)
+//             Movement > CANCEL_THRESHOLD before HOLD_MS fires → scroll, cancel
+//   Phase 2 — HOVER: dragged tile tracks pointer; overIdx updates smoothly
+//             On pointer-up → drop at overIdx (or back to fromIdx if none)
+//   Keys:
+//   • CANCEL_THRESHOLD raised to 18px — prevents accidental scroll cancellation
+//   • HOLD_MS lowered to 300ms — feels snappy without being hair-trigger
+//   • overIdx only committed on pointer-up, not mid-drag — no hopping
+//   • Haptic feedback (vibrate) on pickup if supported
 
-const MOVE_THRESHOLD = 10;
-const HOLD_MS = 420;
+const CANCEL_THRESHOLD = 18;
+const HOLD_MS = 300;
 
 interface DragState {
   fromIdx: number;
@@ -92,6 +95,7 @@ interface DragState {
   isDragging: boolean;
   scrollCancelled: boolean;
   pointerId: number;
+  currentOverIdx: number | null;
 }
 
 function useDragOrder<T extends { path: string }>(
@@ -112,46 +116,64 @@ function useDragOrder<T extends { path: string }>(
       const d = ds.current;
       if (!d || e.pointerId !== d.pointerId) return;
 
-      // Pre-drag: if moved too far → it's a scroll, cancel
-      if (!d.isDragging && !d.scrollCancelled) {
-        const dx = Math.abs(e.clientX - d.startX);
-        const dy = Math.abs(e.clientY - d.startY);
-        if (dx > MOVE_THRESHOLD || dy > MOVE_THRESHOLD) {
-          d.scrollCancelled = true;
-          if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+      if (!d.isDragging) {
+        // Pre-drag: cancel if finger moved too far (scroll gesture)
+        if (!d.scrollCancelled) {
+          const dx = Math.abs(e.clientX - d.startX);
+          const dy = Math.abs(e.clientY - d.startY);
+          if (dx > CANCEL_THRESHOLD || dy > CANCEL_THRESHOLD) {
+            d.scrollCancelled = true;
+            if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+          }
         }
         return;
       }
 
-      // Active drag: find which tile the pointer is over
-      if (d.isDragging) {
-        let found: number | null = null;
-        tileRefs.current.forEach((el, i) => {
-          if (!el || i === d.fromIdx) return;
-          const r = el.getBoundingClientRect();
-          if (e.clientX >= r.left && e.clientX <= r.right &&
-              e.clientY >= r.top  && e.clientY <= r.bottom) {
-            found = i;
-          }
-        });
-        if (found !== null) setOverIdx(found);
-      }
+      // Active drag: track which tile pointer is hovering
+      let found: number | null = null;
+      tileRefs.current.forEach((el, i) => {
+        if (!el || i === d.fromIdx) return;
+        const r = el.getBoundingClientRect();
+        if (e.clientX >= r.left && e.clientX <= r.right &&
+            e.clientY >= r.top  && e.clientY <= r.bottom) {
+          found = i;
+        }
+      });
+      // Update visual highlight only — actual swap happens on pointer-up
+      d.currentOverIdx = found;
+      setOverIdx(found);
     }
 
     function onUp(e: PointerEvent) {
       const d = ds.current;
       if (!d || e.pointerId !== d.pointerId) return;
       if (d.timer) { clearTimeout(d.timer); d.timer = null; }
-      // Leave ds.current intact — React onPointerUp handler reads it
+      // Commit the drop here at document level — reliable on mobile
+      if (d.isDragging) {
+        const from = d.fromIdx;
+        const over = d.currentOverIdx;
+        if (over !== null && over !== from) {
+          setItems(prev => {
+            const next = [...prev];
+            const [moved] = next.splice(from, 1);
+            next.splice(over, 0, moved);
+            onSave(next.map(i => i.path));
+            return next;
+          });
+        }
+        ds.current = null;
+        setDraggingIdx(null);
+        setOverIdx(null);
+      }
     }
 
-    document.addEventListener("pointermove", onMove);
+    document.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerup", onUp);
     return () => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
     };
-  }, []);
+  }, [onSave]);
 
   // ── Per-tile handlers ─────────────────────────────────────────────────────
 
@@ -165,41 +187,31 @@ function useDragOrder<T extends { path: string }>(
       const d = ds.current;
       if (!d || d.scrollCancelled || d.pointerId !== pointerId) return;
       d.isDragging = true;
+      d.currentOverIdx = null;
       setDraggingIdx(idx);
+      // Haptic feedback on pickup
+      if (navigator.vibrate) navigator.vibrate(30);
     }, HOLD_MS);
 
-    ds.current = { fromIdx: idx, startX, startY, timer, isDragging: false, scrollCancelled: false, pointerId };
+    ds.current = { fromIdx: idx, startX, startY, timer, isDragging: false, scrollCancelled: false, pointerId, currentOverIdx: null };
   }, []);
 
-  const handlePointerMove = useCallback((_e: React.PointerEvent, _idx: number) => {}, []);
-
-  const handlePointerUp = useCallback((_e: React.PointerEvent, _idx: number) => {
+  const handlePointerUp = useCallback((_e: React.PointerEvent, idx: number) => {
     const d = ds.current;
     if (!d) return false;
-
+    // If document-level onUp already handled the drop, ds.current is null — nothing to do
+    // This handler only runs if document onUp didn't fire (e.g. fast tap)
     const wasDragging = d.isDragging;
     const wasScroll = d.scrollCancelled;
-    const from = d.fromIdx;
-    const over = overIdx;
-
-    if (wasDragging && over !== null && over !== from) {
-      setItems(prev => {
-        const next = [...prev];
-        const [moved] = next.splice(from, 1);
-        next.splice(over, 0, moved);
-        onSave(next.map(i => i.path));
-        return next;
-      });
+    if (!wasDragging) {
+      // Clean up timers on fast tap
+      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+      ds.current = null;
     }
+    return wasDragging || wasScroll;
+  }, []);
 
-    ds.current = null;
-    setDraggingIdx(null);
-    setOverIdx(null);
-
-    return wasDragging || wasScroll; // true = suppress navigation
-  }, [overIdx, onSave]);
-
-  return { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerMove, handlePointerUp };
+  return { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerUp };
 }
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -235,7 +247,7 @@ export default function NavOverlay({
     return ordered;
   })();
 
-  const { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerMove, handlePointerUp } =
+  const { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerUp } =
     useDragOrder(orderedItems, onOrderSave);
 
   // Close on Escape
@@ -370,7 +382,6 @@ export default function NavOverlay({
                   key={item.path}
                   ref={el => { tileRefs.current[idx] = el; }}
                   onPointerDown={e => handlePointerDown(e, idx)}
-                  onPointerMove={e => handlePointerMove(e, idx)}
                   onPointerUp={e => {
                     const suppress = handlePointerUp(e, idx);
                     if (!suppress) handleTileClick(item.path);
