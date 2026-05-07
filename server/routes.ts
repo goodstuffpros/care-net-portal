@@ -160,8 +160,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
     // Still no userId — account exists but profile not created (fresh signup, needs onboarding)
     if (!account.userId) return res.json({ email: account.email, onboardingCompletedAt: null, needsProfile: true });
-    const user = db.select().from(users).where(eq(users.id, account.userId)).get();
+    let user = db.select().from(users).where(eq(users.id, account.userId)).get();
     if (!user) return res.status(401).json({ message: "User not found" });
+
+    // Self-heal: if the beta application says family/MC but the user row has a caregiver role,
+    // correct it now. This fixes accounts created before the onboarding role-skip fix.
+    if (user.role === "caregiver" || user.role === "temp_caregiver") {
+      const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
+      if (app_ && (app_.role === "family" || app_.role === "both" && user.role !== "caregiver")) {
+        // Application said family — correct the user role
+        const correctRole = app_.role === "family" ? "primary_family" : user.role;
+        if (correctRole !== user.role) {
+          db.update(users).set({ role: correctRole }).where(eq(users.id, user.id)).run();
+          user = { ...user, role: correctRole };
+        }
+      }
+    }
+
     res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
