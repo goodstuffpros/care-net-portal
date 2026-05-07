@@ -463,6 +463,11 @@ function RealAuthGate() {
             carePathChoice: data.carePathChoice ?? null,
           });
           if (data.onboardingCompletedAt) setOnboardingDone(true);
+          // Once the user has a real clientId (connected to a care circle),
+          // clear the demo preview flag so they no longer see demo data.
+          if (data.clientId) {
+            sessionStorage.removeItem("cnp_demo_preview");
+          }
         }
       })
       .catch(() => {})
@@ -499,7 +504,8 @@ function RealAuthGate() {
   }
 
   // Real user, onboarding done — pass user into MainApp.
-  // MainApp will show PreConnectionScreen if CG has no clientId yet,
-  // unless they clicked through to demo preview.
+  // In demoPreview mode (user clicked "Go to University" from PreConnection),
+  // pass null so the demo runs freely for University exploration.
+  // Otherwise always pass realUser so MainApp can guard pre-connection pages.
   return <MainApp realUser={demoPreview ? null : realUser} />;
 }

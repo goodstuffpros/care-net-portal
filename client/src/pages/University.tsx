@@ -652,6 +652,14 @@ export default function UniversityPage() {
   const isCG = ["caregiver", "multi_caregiver", "temp_caregiver"].includes(activeUser.role);
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
+  // If this is a demo-preview session (real user clicked "Go to University" from PreConnection),
+  // clear the flag on unmount so navigating away from University returns them to PreConnection.
+  useEffect(() => {
+    return () => {
+      sessionStorage.removeItem("cnp_demo_preview");
+    };
+  }, []);
+
   const [showGate, setShowGate] = useState<boolean>(() => !(window as any).__cnuVisited);
   const [activeLesson, setActiveLesson] = useState<{ lesson: Lesson; track: Track } | null>(null);
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
