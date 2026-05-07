@@ -48,12 +48,33 @@ function EntryCard({ item, onSaved, onDeleted }: {
   const [response, setResponse] = useState(item.response);
 
   const updateMutation = useMutation({
-    mutationFn: (data: Partial<LibraryItem>) =>
-      apiRequest("PATCH", `/api/becky-library/${item.id}`, data).then(r => r.json()),
-    onSuccess: () => {
+    mutationFn: async (data: Partial<LibraryItem>) => {
+      const res = await apiRequest("PATCH", `/api/becky-library/${item.id}`, data);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.message || `Server returned ${res.status}`);
+      }
+      const saved = await res.json();
+      // Verify the save actually landed
+      if (data.isPlaceholder === 0 && saved.isPlaceholder !== 0) {
+        throw new Error("Save appeared to succeed but the record was not updated. Try again.");
+      }
+      return saved;
+    },
+    onSuccess: (saved) => {
       setEditing(false);
       onSaved();
-      toast({ title: "Saved", description: "Response updated successfully." });
+      toast({
+        title: "\u2705 Saved",
+        description: `Response saved at ${new Date(saved.updatedAt).toLocaleTimeString()}.`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({
+        title: "\u274C Save failed — your work was NOT saved",
+        description: err.message || "Something went wrong. Copy your response text before closing this page.",
+        variant: "destructive",
+      });
     },
   });
 
