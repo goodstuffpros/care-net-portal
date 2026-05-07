@@ -13,8 +13,9 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle } from "lucide-react";
+import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle, Link2, Mail, Copy, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Primary Caregiver",
@@ -42,7 +43,52 @@ export default function CaregiversPage() {
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteLink, setInviteLink] = useState("");
+  const [copied, setCopied] = useState(false);
   const canManage = activeUser.role === "caregiver" || activeUser.role === "facilitator";
+
+  // Invite type: CG invites MC, MC invites CG or family
+  const inviteType = (activeUser.role === "primary_family" || activeUser.role === "secondary_family")
+    ? "mc_to_caregiver"
+    : "caregiver_to_mc";
+  const inviteLabel = inviteType === "caregiver_to_mc" ? "Family Contact (MC)" : "Caregiver";
+
+  const createInviteMutation = useMutation({
+    mutationFn: (email?: string) => apiRequest("POST", "/api/invite/create", {
+      inviteType,
+      invitedEmail: email || undefined,
+    }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data?.token) {
+        const link = `${window.location.origin}/#/invite/${data.token}`;
+        setInviteLink(link);
+      }
+      if (inviteEmail) {
+        toast({ title: "Invite sent!", description: `An email with the invite link was sent to ${inviteEmail}.` });
+        setInviteEmail("");
+      }
+    },
+    onError: () => toast({ title: "Could not create invite", description: "Please try again.", variant: "destructive" }),
+  });
+
+  function handleCopyLink() {
+    navigator.clipboard.writeText(inviteLink).then(() => {
+      setCopied(true);
+      toast({ title: "Link copied!", description: "Share it with your contact to get started." });
+      setTimeout(() => setCopied(false), 2500);
+    });
+  }
+
+  function handleOpenInvite() {
+    setInviteLink("");
+    setInviteEmail("");
+    setCopied(false);
+    setInviteOpen(true);
+    // Pre-generate a link immediately
+    createInviteMutation.mutate(undefined);
+  }
 
   const [form, setForm] = useState({
     name: "", email: "", phone: "", role: "multi_caregiver",
@@ -108,9 +154,10 @@ export default function CaregiversPage() {
           </div>
         </div>
         {canManage && (
+          <div className="flex gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2 w-full" data-testid="add-caregiver-btn">
+              <Button size="sm" className="gap-2 flex-1" data-testid="add-caregiver-btn">
                 <UserPlus size={15} /> Add Caregiver
               </Button>
             </DialogTrigger>
@@ -187,8 +234,79 @@ export default function CaregiversPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          {/* Invite button */}
+          <Button size="sm" variant="outline" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+            <Link2 size={15} /> Invite
+          </Button>
+          </div>
         )}
       </div>
+
+      {/* Invite Sheet */}
+      <Sheet open={inviteOpen} onOpenChange={setInviteOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-10">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <Link2 size={16} className="text-primary" />
+              Invite a {inviteLabel}
+            </SheetTitle>
+          </SheetHeader>
+          <div className="space-y-4">
+            {/* Copy link row */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Share this link</Label>
+              <div className="flex gap-2">
+                <div className="flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground truncate font-mono">
+                  {createInviteMutation.isPending ? "Generating link…" : inviteLink || "—"}
+                </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-shrink-0 gap-1.5"
+                  onClick={handleCopyLink}
+                  disabled={!inviteLink || createInviteMutation.isPending}
+                  data-testid="copy-invite-link-btn"
+                >
+                  {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
+                  {copied ? "Copied" : "Copy"}
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">Link expires in 7 days. Anyone with it can join as a {inviteLabel}.</p>
+            </div>
+
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or send by email</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {/* Email row */}
+            <div className="space-y-1.5">
+              <Label className="text-xs text-muted-foreground">Email address</Label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="name@example.com"
+                  value={inviteEmail}
+                  onChange={e => setInviteEmail(e.target.value)}
+                  className="flex-1"
+                  data-testid="invite-email-input"
+                />
+                <Button
+                  size="sm"
+                  className="flex-shrink-0 gap-1.5"
+                  onClick={() => createInviteMutation.mutate(inviteEmail)}
+                  disabled={!inviteEmail || createInviteMutation.isPending}
+                  data-testid="send-invite-email-btn"
+                >
+                  <Mail size={14} /> Send
+                </Button>
+              </div>
+            </div>
+          </div>
+        </SheetContent>
+      </Sheet>
 
       {/* Legend */}
       <div className="flex flex-wrap gap-2">
