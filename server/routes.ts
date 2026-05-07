@@ -390,14 +390,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Help Desk ────────────────────────────────────────────────────────────
 
-  // POST /api/helpdesk/chat — AI-powered support chat
+  // POST /api/helpdesk/chat — AI-powered support chat (Gemini 1.5 Flash)
   app.post("/api/helpdesk/chat", async (req, res) => {
     const { message, context, history = [], sessionId } = req.body;
     if (!message) return res.status(400).json({ message: "No message provided" });
 
-    const openaiKey = process.env.OPENAI_API_KEY;
-    if (!openaiKey) {
-      // Graceful fallback if key not yet set
+    const geminiKey = process.env.GEMINI_API_KEY;
+    if (!geminiKey) {
       return res.json({
         reply: "I'm not fully set up yet. For help, please email portal@carenetportal.com and someone will assist you shortly.",
         shouldEscalate: false,
@@ -407,32 +406,43 @@ export function registerRoutes(httpServer: Server, app: Express) {
     try {
       const systemPrompt = buildSystemPrompt(context || {});
 
-      const messages = [
-        { role: "system", content: systemPrompt },
-        ...history.slice(-10).map((h: any) => ({ role: h.role, content: h.content })),
-        { role: "user", content: message },
-      ];
+      // Gemini uses a different message format — system instruction separate,
+      // history as alternating user/model turns
+      const geminiHistory = history.slice(-10).map((h: any) => ({
+        role: h.role === "assistant" ? "model" : "user",
+        parts: [{ text: h.content }],
+      }));
 
-      const response = await fetch("https://api.openai.com/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${openaiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages,
-          max_tokens: 400,
+      const body = {
+        system_instruction: { parts: [{ text: systemPrompt }] },
+        contents: [
+          ...geminiHistory,
+          { role: "user", parts: [{ text: message }] },
+        ],
+        generationConfig: {
+          maxOutputTokens: 400,
           temperature: 0.7,
-        }),
-      });
+        },
+      };
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        }
+      );
 
       if (!response.ok) {
-        throw new Error(`OpenAI error: ${response.status}`);
+        const errBody = await response.text();
+        throw new Error(`Gemini error: ${response.status} — ${errBody.slice(0, 200)}`);
       }
 
       const data = await response.json() as any;
-      const reply = data.choices?.[0]?.message?.content || "I didn't get a response. Please try again.";
+      const reply =
+        data.candidates?.[0]?.content?.parts?.[0]?.text ||
+        "I didn't get a response. Please try again.";
 
       // Detect if escalation should be offered
       const lowerReply = reply.toLowerCase();
