@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, Heart } from "lucide-react";
+import { Loader2, Eye, EyeOff, Heart, Mail } from "lucide-react";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
@@ -21,6 +21,9 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [needsVerification, setNeedsVerification] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -28,8 +31,12 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const res = await apiRequest("POST", "/api/auth/login", { email: email.trim(), password });
+      const body = await res.json().catch(() => ({}));
       if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
+        if (body.needsVerification) {
+          setNeedsVerification(true);
+          return;
+        }
         throw new Error(body.message || "Login failed");
       }
       // Success — hard reload so AppContext re-fetches auth state
@@ -40,6 +47,62 @@ export default function LoginPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  async function handleResend() {
+    setResendLoading(true);
+    try {
+      await apiRequest("POST", "/api/auth/resend-verification", { email: email.trim() });
+      setResendSent(true);
+      toast({ title: "Email sent", description: "Check your inbox for a new verification link." });
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
+  // ── Needs verification screen ───────────────────────────────────────────────
+  if (needsVerification) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="w-full max-w-md text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
+            <Mail className="w-8 h-8 text-primary" />
+          </div>
+          <h2 className="text-xl font-semibold mb-2">Check your email</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-1">
+            Your account isn't verified yet. We sent a link to
+          </p>
+          <p className="font-medium text-foreground mb-4">{email}</p>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+            Click the link in that email to activate your account — no waiting for approval.
+          </p>
+          <div className="space-y-3">
+            <Button
+              className="w-full"
+              onClick={handleResend}
+              disabled={resendLoading || resendSent}
+              data-testid="button-resend"
+            >
+              {resendLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending…</> :
+               resendSent ? "Email resent ✓" : "Resend verification email"}
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setNeedsVerification(false)}
+              data-testid="button-back-login"
+            >
+              Back to sign in
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground mt-8">
+            The link expires in 24 hours. Check your spam folder if you don't see it.
+          </p>
+        </div>
+      </div>
+    );
   }
 
   return (

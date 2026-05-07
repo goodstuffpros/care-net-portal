@@ -1,6 +1,7 @@
 /**
  * Beta Application form — /apply
- * Intake questions: role, currently in care, intent, confidentiality agreement.
+ * Collects name, email, password, role, care status, intent, confidentiality.
+ * On submit: creates account + sends verification email. No manual approval needed.
  */
 
 import { useState } from "react";
@@ -13,18 +14,23 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Heart, CheckCircle2 } from "lucide-react";
+import { Loader2, Heart, Mail, Eye, EyeOff } from "lucide-react";
 
 export default function ApplyPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  const [submitted, setSubmitted] = useState(false);
+  // "form" | "check-email"
+  const [stage, setStage] = useState<"form" | "check-email">("form");
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [resendLoading, setResendLoading] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
     email: "",
+    password: "",
     role: "" as "" | "caregiver" | "family" | "both" | "other",
     currentlyInCare: "" as "" | "yes" | "no" | "soon",
     intent: "",
@@ -34,6 +40,7 @@ export default function ApplyPage() {
   const valid =
     form.name.trim() &&
     form.email.trim() &&
+    form.password.length >= 8 &&
     form.role &&
     form.currentlyInCare &&
     form.intent.trim() &&
@@ -47,16 +54,15 @@ export default function ApplyPage() {
       const res = await apiRequest("POST", "/api/auth/apply", {
         name: form.name.trim(),
         email: form.email.trim(),
+        password: form.password,
         role: form.role,
         currentlyInCare: form.currentlyInCare,
         intent: form.intent.trim(),
         agreedToConfidentiality: form.agreedToConfidentiality,
       });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.message || "Submission failed");
-      }
-      setSubmitted(true);
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(body.message || "Submission failed");
+      setStage("check-email");
     } catch (err: any) {
       toast({ title: "Submission failed", description: err.message, variant: "destructive" });
     } finally {
@@ -64,29 +70,66 @@ export default function ApplyPage() {
     }
   }
 
-  if (submitted) {
+  async function handleResend() {
+    setResendLoading(true);
+    try {
+      await apiRequest("POST", "/api/auth/resend-verification", { email: form.email.trim() });
+      setResendSent(true);
+      toast({ title: "Email sent", description: "Check your inbox for a new verification link." });
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setResendLoading(false);
+    }
+  }
+
+  // ── Check-email screen ──────────────────────────────────────────────────────
+  if (stage === "check-email") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
         <div className="w-full max-w-md text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-6">
-            <CheckCircle2 className="w-8 h-8 text-primary" />
+            <Mail className="w-8 h-8 text-primary" />
           </div>
-          <h2 className="text-xl font-semibold mb-2">Application received</h2>
-          <p className="text-muted-foreground text-sm leading-relaxed">
-            Thank you for applying to the Care Net Portal beta. We review every application personally and will be in touch at <strong>{form.email}</strong> soon.
+          <h2 className="text-xl font-semibold mb-2">Check your email</h2>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-1">
+            We sent a verification link to
           </p>
-          <Button
-            variant="outline"
-            className="mt-6"
-            onClick={() => navigate("/login")}
-          >
-            Back to sign in
-          </Button>
+          <p className="font-medium text-foreground mb-4">{form.email}</p>
+          <p className="text-muted-foreground text-sm leading-relaxed mb-8">
+            Click the link to verify your email and you'll be taken straight into the app — no waiting for approval.
+          </p>
+
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={handleResend}
+              disabled={resendLoading || resendSent}
+              data-testid="button-resend"
+            >
+              {resendLoading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending…</> :
+               resendSent ? "Email resent ✓" : "Resend verification email"}
+            </Button>
+            <Button
+              variant="ghost"
+              className="w-full text-muted-foreground"
+              onClick={() => navigate("/login")}
+              data-testid="link-back-login"
+            >
+              Back to sign in
+            </Button>
+          </div>
+
+          <p className="text-xs text-muted-foreground mt-8">
+            The link expires in 24 hours. Check your spam folder if you don't see it.
+          </p>
         </div>
       </div>
     );
   }
 
+  // ── Application form ────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
       <div className="w-full max-w-lg">
@@ -130,6 +173,35 @@ export default function ApplyPage() {
                 disabled={loading}
                 data-testid="input-email"
               />
+            </div>
+
+            {/* Password */}
+            <div className="space-y-1.5">
+              <Label htmlFor="apply-password">Create a password</Label>
+              <div className="relative">
+                <Input
+                  id="apply-password"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="At least 8 characters"
+                  value={form.password}
+                  onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
+                  disabled={loading}
+                  data-testid="input-password"
+                  className="pr-10"
+                />
+                <button
+                  type="button"
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  onClick={() => setShowPassword(v => !v)}
+                  tabIndex={-1}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+              {form.password.length > 0 && form.password.length < 8 && (
+                <p className="text-xs text-destructive">Must be at least 8 characters</p>
+              )}
             </div>
 
             {/* Role */}
@@ -217,7 +289,7 @@ export default function ApplyPage() {
               disabled={loading || !valid}
               data-testid="button-submit-apply"
             >
-              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Submitting…</> : "Submit application"}
+              {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</> : "Create account & get started"}
             </Button>
           </form>
 

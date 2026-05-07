@@ -293,6 +293,7 @@ interface BetaApplication {
   agreedToConfidentiality: number;
   status: "pending" | "approved" | "denied";
   createdAt: string;
+  emailVerified?: boolean;
 }
 
 const ROLE_LABELS: Record<string, string> = {
@@ -353,7 +354,13 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
               {app.status}
             </span>
           </div>
-          <div className="text-white/40 text-xs truncate">{app.email}</div>
+          <div className="flex items-center gap-1.5">
+              <span className="text-white/40 text-xs truncate">{app.email}</span>
+              {app.emailVerified
+                ? <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-sky-500/20 text-sky-300 font-semibold uppercase tracking-wide flex-shrink-0">Verified</span>
+                : <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-white/5 text-white/30 font-semibold uppercase tracking-wide flex-shrink-0">Unverified</span>
+              }
+            </div>
         </div>
         <div className="text-white/30 text-xs flex-shrink-0">
           {new Date(app.createdAt).toLocaleDateString()}
@@ -408,7 +415,8 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
 
           {app.status === "approved" && (
             <div className="flex items-center gap-2 text-emerald-400 text-xs pt-1">
-              <Mail size={12} /> Invite sent — waiting for them to complete signup
+              <CheckCircle2 size={12} />
+              {app.emailVerified ? "Email verified — account active" : "Auto-approved — waiting for email verification"}
             </div>
           )}
           {app.status === "denied" && (

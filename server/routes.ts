@@ -24,18 +24,28 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // AUTH ROUTES
   // ══════════════════════════════════════════════════════════════════════════
 
-  // POST /api/auth/apply — submit beta application
+  // POST /api/auth/apply — submit beta application + create account + send verification email
   app.post("/api/auth/apply", async (req: AuthRequest, res) => {
-    const { email, name, role, currentlyInCare, intent, agreedToConfidentiality } = req.body;
-    if (!email || !name || !role || !currentlyInCare || !intent || !agreedToConfidentiality) {
+    const { email, name, role, currentlyInCare, intent, agreedToConfidentiality, password } = req.body;
+    if (!email || !name || !role || !currentlyInCare || !intent || !agreedToConfidentiality || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
-    const existing = db.select().from(betaApplications).where(eq(betaApplications.email, email.toLowerCase())).get();
+    if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
+
+    const normalizedEmail = email.toLowerCase().trim();
+
+    const existing = db.select().from(betaApplications).where(eq(betaApplications.email, normalizedEmail)).get();
     if (existing) {
       return res.status(409).json({ message: "An application with this email already exists" });
     }
+    const existingAccount = db.select().from(authAccounts).where(eq(authAccounts.email, normalizedEmail)).get();
+    if (existingAccount) {
+      return res.status(409).json({ message: "An account with this email already exists" });
+    }
+
+    // Store application (auto-pending — will auto-approve on email verify)
     db.insert(betaApplications).values({
-      email: email.toLowerCase().trim(),
+      email: normalizedEmail,
       name: name.trim(),
       role,
       currentlyInCare,
@@ -44,7 +54,55 @@ export function registerRoutes(httpServer: Server, app: Express) {
       status: "pending",
       createdAt: new Date().toISOString(),
     }).run();
-    res.json({ success: true, message: "Application received. We'll be in touch soon." });
+
+    // Create auth account immediately (unverified)
+    const passwordHash = await hashPassword(password);
+    const verifyToken = generateToken(32);
+    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(); // 24 hours
+    db.insert(authAccounts).values({
+      email: normalizedEmail,
+      passwordHash,
+      emailVerified: false,
+      emailVerifyToken: verifyToken,
+      emailVerifyExpiry: verifyExpiry,
+      createdAt: new Date().toISOString(),
+    }).run();
+
+    // Send verification email
+    const appUrl = process.env.APP_URL || "http://localhost:5000";
+    const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    sendEmail({
+      to: normalizedEmail,
+      subject: "Verify your Care Net Portal email",
+      html: emailVerifyTemplate(name.trim(), verifyUrl),
+    }).catch(err => console.error("[apply] verification email failed:", err));
+
+    res.json({ success: true, message: "Check your email to verify your account and get started.", needsVerification: true });
+  });
+
+  // POST /api/auth/resend-verification
+  app.post("/api/auth/resend-verification", async (req: AuthRequest, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "Email required" });
+    // Always return 200 to prevent enumeration
+    res.json({ success: true, message: "If that email is pending verification, a new link has been sent." });
+
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
+    if (!account || account.emailVerified) return;
+
+    const verifyToken = generateToken(32);
+    const verifyExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+    db.update(authAccounts).set({ emailVerifyToken: verifyToken, emailVerifyExpiry: verifyExpiry })
+      .where(eq(authAccounts.id, account.id)).run();
+
+    const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
+    const appUrl = process.env.APP_URL || "http://localhost:5000";
+    const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    sendEmail({
+      to: account.email,
+      subject: "Verify your Care Net Portal email",
+      html: emailVerifyTemplate(app_?.name || "there", verifyUrl),
+    }).catch(err => console.error("[resend-verification] email failed:", err));
   });
 
   // POST /api/auth/login
@@ -173,6 +231,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
       userId: newUser.id,
     }).where(eq(authAccounts.id, account.id)).run();
 
+    // Auto-approve the beta application
+    db.update(betaApplications).set({
+      status: "approved",
+      approvedAt: new Date().toISOString(),
+      accountCreatedAt: new Date().toISOString(),
+    }).where(eq(betaApplications.email, account.email)).run();
+
     // Auto-login
     const sessionToken = await createSession(account.id, req);
     setSessionCookie(res, sessionToken);
@@ -234,12 +299,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Admin: Beta Application Management ──────────────────────────────────
 
-  // GET /api/admin/applications — list all beta applications (admin only)
+  // GET /api/admin/applications — list all beta applications with email verified status
   app.get("/api/admin/applications", async (req: AuthRequest, res) => {
-    // In production this should be locked to admin accounts
-    // For now, secured by the /becky-admin URL pattern (direct URL only)
     const apps = db.select().from(betaApplications).all();
-    res.json(apps);
+    // Attach emailVerified from authAccounts
+    const enriched = apps.map(app => {
+      const account = db.select().from(authAccounts).where(eq(authAccounts.email, app.email)).get();
+      return { ...app, emailVerified: account?.emailVerified ?? false };
+    });
+    res.json(enriched);
   });
 
   // POST /api/admin/applications/:id/approve

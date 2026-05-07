@@ -405,6 +405,16 @@ export default function App() {
     );
   }
 
+  // Email verification — /#/verify-email/:token (public)
+  const verifyMatch = effectivePath.match(/^\/verify-email\/([a-zA-Z0-9]+)$/);
+  if (verifyMatch) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <VerifyEmailPage token={verifyMatch[1]} />
+      </QueryClientProvider>
+    );
+  }
+
   // Auth page check — hash path OR ?page= query param
   const AuthPage = AUTH_ROUTES[effectivePath];
   if (AuthPage) {
