@@ -32,7 +32,9 @@ import UniversityPage from "@/pages/University";
 import PatternsPage from "@/pages/Patterns";
 import BeckyAdminPage from "@/pages/BeckyAdmin";
 import PricingPage from "@/pages/Pricing";
+import FamilyPricingPage from "@/pages/FamilyPricing";
 import CaregiverProfilePage from "@/pages/CaregiverProfile";
+import FamilyProfilePage from "@/pages/FamilyProfile";
 import CareScopePage from "@/pages/CareScope";
 import OnboardingFlow from "@/components/OnboardingFlow";
 import UpgradeTransition from "@/components/UpgradeTransition";
@@ -295,10 +297,12 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
               )} />
               <Route path="/becky-admin" component={BeckyAdminPage} />
               <Route path="/pricing" component={PricingPage} />
+              <Route path="/family-pricing" component={FamilyPricingPage} />
               <Route path="/notification-prefs" component={() => (
                 <NotificationPrefs portalMode={activeUser.portalMode} />
               )} />
               <Route path="/my-profile" component={CaregiverProfilePage} />
+              <Route path="/my-profile-family" component={FamilyProfilePage} />
               <Route path="/care-scope" component={CareScopePage} />
               <Route component={NotFound} />
             </Switch>

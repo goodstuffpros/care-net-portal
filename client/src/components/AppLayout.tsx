@@ -885,8 +885,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
             <DropdownMenuSeparator className={isRealSession ? "hidden" : ""} />
+            {/* Profile page — role-aware */}
+            {isRealSession && (
+              <DropdownMenuItem
+                onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
+                className="cursor-pointer text-muted-foreground"
+                data-testid="nav-my-profile"
+              >
+                <User size={14} className="mr-2" />
+                My Profile
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem
-              onClick={() => navigate("/pricing")}
+              onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")}
               className="cursor-pointer text-muted-foreground"
               data-testid="nav-pricing"
             >
@@ -960,14 +971,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu size={20} />
           </button>
 
-          {/* Mode/Role indicator */}
-          <div className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium",
-            isFamilyPortal ? "bg-sidebar-accent text-sidebar-foreground/80 border border-sidebar-border"
-            : isPreCare ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
-            : "bg-muted text-muted-foreground")}>
+          {/* Mode/Role indicator — tappable, navigates to profile */}
+          <button
+            onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
+            data-testid="role-pill-header"
+            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity active:opacity-70",
+              isFamilyPortal ? "bg-sidebar-accent text-sidebar-foreground/80 border border-sidebar-border hover:bg-sidebar-primary/10"
+              : isPreCare ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
+              : "bg-muted text-muted-foreground hover:bg-muted/80")}>
             {isFamilyPortal ? <Heart size={12} /> : isPreCare ? <Heart size={12} /> : <Shield size={12} />}
             <span>{isFamilyPortal ? "Family Care" : isPreCare ? "Pre-Care Mode" : ROLE_LABELS[activeUser.role]}</span>
-          </div>
+          </button>
 
           {/* Temp caregiver expiry badge */}
           {activeUser.role === "temp_caregiver" && activeUser.tempAccessEnd && (
@@ -1241,7 +1255,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <DropdownMenuSeparator />
                   </>
                 )}
-                <DropdownMenuItem onClick={() => navigate("/pricing")} className="cursor-pointer text-muted-foreground" data-testid="nav-pricing-mobile">
+                {/* Profile page — mobile, role-aware */}
+                {isRealSession && (
+                  <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
+                    <User size={14} className="mr-2" />
+                    My Profile
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuItem onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")} className="cursor-pointer text-muted-foreground" data-testid="nav-pricing-mobile">
                   <Sparkles size={14} className="mr-2" />
                   Pricing
                 </DropdownMenuItem>
