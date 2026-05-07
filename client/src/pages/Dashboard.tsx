@@ -11,7 +11,7 @@ import { Link, useLocation } from "wouter";
 import {
   AlertTriangle, Calendar, ClipboardCheck, Heart, MessageSquare,
   Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell, Volume2,
-  Trophy, Star, BookOpen, Users, Bell, LayoutDashboard, NotebookPen, CalendarDays
+  Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakText } from "@/lib/ttsUtils";
@@ -133,6 +133,28 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {/* FCP connect prompt — shown when MC has no caregiver connected yet */}
+      {isFamilyPortal && !activityLoading && activityLogs.length === 0 && scheduleEvents.length === 0 && (
+        <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Users size={17} className="text-primary" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground leading-tight">Connect your care circle</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Invite your caregiver to link portals. Once connected, you'll see their schedule, care log entries, and updates here in real time.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <Link href="/caregivers">
+                <button className="flex items-center gap-1.5 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors">
+                  <UserPlus size={13} /> Invite Caregiver
+                </button>
+              </Link>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Stats Row */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
