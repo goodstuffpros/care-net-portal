@@ -131,7 +131,8 @@ const LESSONS: Record<ModuleKey, ModuleLesson> = {
     title: "Client Profile",
     image: `${API_BASE}/university/seed_mod03_client_profile.jpg`,
     narration: "The Client Portal is the full profile for the person in your care. Background, preferences, medical history, emergency contacts, and care instructions all live here. Keep this complete — it is the foundation of everything the care team needs to know.",
-    familyNarration: "The Client Portal is the full profile for your loved one. Medical history, care preferences, and emergency contacts are all organized here so every member of the care team has what they need.",
+    familyImage: `${API_BASE}/university/seed_mod18_family_portal.jpg`,
+    familyNarration: "The Client Profile is where your loved one's full picture lives — personal information, care preferences, medical history, and emergency contacts. Everything your care team needs, organized in one place.",
   },
   wellbeing: {
     title: "Wellbeing",
