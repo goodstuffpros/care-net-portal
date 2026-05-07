@@ -315,7 +315,7 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="flex flex-col bg-black" style={{ height: '100dvh', maxHeight: '100dvh', overflow: 'hidden' }}>
+    <div className="flex flex-col bg-black" style={{ height: '100dvh', minHeight: '-webkit-fill-available', maxHeight: '100dvh', overflow: 'hidden' }}>
       <audio
         ref={audioRef}
         src={`${API_BASE}/cnu-audio/welcome.mp3`}
@@ -399,7 +399,7 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
       </div>
 
       {/* Bottom button — always visible, never pushed off screen */}
-      <div className="relative flex-shrink-0 px-6 pt-3 pb-8">
+      <div className="relative flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 2rem))' }}>
         <button
           onClick={() => { audioRef.current?.pause(); onClose(); }}
           className={cn(
@@ -453,14 +453,25 @@ function LessonViewer({
     };
   }, [lesson.id]);
 
-  // Back button intercept
+  // Back button intercept — push a safe hash so the browser never surfaces
+  // a stale verify-email URL when the user taps the phone back button.
   useEffect(() => {
-    window.history.pushState({ lessonViewer: true }, "");
-    const handlePop = () => { stopBecky(); onClose(); };
+    // Replace the current history entry with a clean university URL
+    // so there's no dangerous previous entry to pop back to.
+    const prevHash = window.location.hash;
+    window.history.pushState({ lessonViewer: true }, "", "#/university");
+    const handlePop = (e: PopStateEvent) => {
+      if (e.state?.lessonViewer === undefined) {
+        // They went back past our pushed state — restore hash and close
+        window.history.pushState({ lessonViewer: true }, "", "#/university");
+      }
+      stopBecky();
+      onClose();
+    };
     window.addEventListener("popstate", handlePop);
     return () => {
       window.removeEventListener("popstate", handlePop);
-      if (window.history.state?.lessonViewer) window.history.back();
+      // On unmount, leave hash at #/university (already there)
     };
   }, []);
 
