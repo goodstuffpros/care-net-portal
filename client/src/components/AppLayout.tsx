@@ -187,6 +187,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // ── Voice state ──────────────────────────────────────────────────────────────
   const [voiceStatus, setVoiceStatus] = useState<VoiceCommandStatus>("idle");
   const [hfmActive, setHfmActive] = useState(false);
+  // "Hey CareNet" shift-only mode: if true, HFM auto-activates on clock-in and stops on clock-out
+  const [hfmShiftOnly, setHfmShiftOnly] = useState(false);
+  const [hfmMenuOpen, setHfmMenuOpen] = useState(false);
   const [voiceConfirm, setVoiceConfirm] = useState<VoiceCommandConfirmState | null>(null);
   const [lastConfirmed, setLastConfirmed] = useState<{ type: string; text?: string } | null>(null);
   const [isSubmittingVoice, setIsSubmittingVoice] = useState(false);
@@ -401,6 +404,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return () => { if (shiftTimerRef.current) clearInterval(shiftTimerRef.current); };
   }, [activeShift?.id, activeShift?.clockedInAt]);
 
+  // Auto-activate / deactivate HFM when shift-only mode is on
+  useEffect(() => {
+    if (!hfmShiftOnly) return;
+    const onShift = !!activeShift?.clockedInAt;
+    if (onShift && !hfmActive) {
+      recognizerRef.current?.startHFM();
+      setHfmActive(true);
+    } else if (!onShift && hfmActive) {
+      recognizerRef.current?.stopHFM();
+      setHfmActive(false);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hfmShiftOnly, activeShift?.clockedInAt]);
   const clockInMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/caregivers/${activeUser.id}/clients/${selectedClientId}/shift/clockin`, {}),
     onSuccess: () => {
@@ -935,24 +951,90 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Voice Controls — caregiver roles only */}
           {isVoiceSupported() && isCaregiverRole(activeUser.role) && (
             <div className="flex items-center gap-1">
-              {/* HFM toggle button */}
-              <button
-                onClick={handleToggleHFM}
-                data-testid="hfm-toggle-button"
-                aria-label={hfmActive ? t("voice.hfm.deactivate") : t("voice.hfm.activate")}
-                title={hfmActive ? t("voice.hfm.deactivate") : t("voice.hfm.activate")}
-                className={cn(
-                  "relative p-2 rounded-lg transition-all",
-                  hfmActive
-                    ? "bg-primary/15 text-primary hover:bg-primary/25 ring-1 ring-primary/40"
-                    : "hover:bg-muted text-muted-foreground"
-                )}
-              >
-                <Radio size={18} className={cn(hfmActive && "animate-pulse")} />
-                {hfmActive && (
-                  <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-primary rounded-full animate-pulse" />
-                )}
-              </button>
+
+              {/* ── Hey CareNet wake-word pill ── */}
+              <div className="relative flex items-center">
+                {/* Main toggle — labeled pill */}
+                <button
+                  onClick={handleToggleHFM}
+                  data-testid="hfm-toggle-button"
+                  aria-label={hfmActive ? t("voice.hfm.deactivate") : t("voice.hfm.activate")}
+                  className={cn(
+                    "relative flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-l-full text-xs font-medium transition-all border",
+                    hfmActive
+                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                      : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                  )}
+                >
+                  <Radio size={13} className={cn(hfmActive && "animate-pulse")} />
+                  <span>Hey CareNet</span>
+                  {hfmActive && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                  )}
+                </button>
+
+                {/* Dropdown chevron — shift-only option */}
+                <div className="relative">
+                  <button
+                    onClick={() => setHfmMenuOpen(v => !v)}
+                    data-testid="hfm-menu-button"
+                    aria-label="Hey CareNet options"
+                    className={cn(
+                      "flex items-center justify-center w-6 h-[30px] rounded-r-full border-l-0 border transition-all text-xs",
+                      hfmActive
+                        ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
+                        : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
+                    )}
+                  >
+                    <ChevronDown size={11} className={cn("transition-transform", hfmMenuOpen && "rotate-180")} />
+                  </button>
+
+                  {/* Dropdown menu */}
+                  {hfmMenuOpen && (
+                    <>
+                      {/* Backdrop */}
+                      <div className="fixed inset-0 z-40" onClick={() => setHfmMenuOpen(false)} />
+                      <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-popover border border-border rounded-xl shadow-lg py-1 text-sm">
+                        <div className="px-3 py-2">
+                          <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">Hey CareNet options</p>
+                          <label className="flex items-start gap-3 cursor-pointer group">
+                            <div
+                              onClick={() => {
+                                setHfmShiftOnly(v => {
+                                  const next = !v;
+                                  // If enabling shift-only and currently on shift, activate now
+                                  if (next && activeShift?.clockedInAt && !hfmActive) {
+                                    recognizerRef.current?.startHFM();
+                                    setHfmActive(true);
+                                  }
+                                  // If disabling shift-only, leave current state as-is
+                                  return next;
+                                });
+                                setHfmMenuOpen(false);
+                              }}
+                              className={cn(
+                                "mt-0.5 w-8 h-4 rounded-full flex-shrink-0 relative transition-colors cursor-pointer",
+                                hfmShiftOnly ? "bg-primary" : "bg-muted-foreground/30"
+                              )}
+                            >
+                              <span className={cn(
+                                "absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform",
+                                hfmShiftOnly ? "translate-x-4" : "translate-x-0.5"
+                              )} />
+                            </div>
+                            <div>
+                              <p className="text-foreground text-sm font-medium leading-tight">During shift only</p>
+                              <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
+                                Auto-activates when you clock in, turns off when you clock out.
+                              </p>
+                            </div>
+                          </label>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
 
               {/* Tap mic — disabled while HFM is on */}
               {!hfmActive && (
@@ -1154,7 +1236,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       />
 
       {/* AI Help Desk — floating, always visible */}
-      <HelpDesk />
+      <HelpDesk hfmActive={hfmActive} />
     </div>
   );
 }

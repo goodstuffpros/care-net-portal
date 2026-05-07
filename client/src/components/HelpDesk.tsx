@@ -50,7 +50,12 @@ function generateId() {
   return Math.random().toString(36).slice(2, 9);
 }
 
-export default function HelpDesk() {
+interface HelpDeskProps {
+  /** When true, the "Hey CareNet" wake word is already managed by AppLayout's HFM — skip the built-in listener */
+  hfmActive?: boolean;
+}
+
+export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
   const { activeUser, portalMode } = useApp();
   const [location] = useLocation();
   const isFamilyPortal = portalMode === "family";
@@ -180,6 +185,7 @@ export default function HelpDesk() {
 
   // Wake word listener is NOT auto-started on mount — only starts after the user
   // has opened the HelpDesk at least once (opt-in to mic permission).
+  // If hfmActive is passed from AppLayout, that already handles "Hey CareNet" globally — skip the built-in listener.
   const [wakeListenerEnabled, setWakeListenerEnabled] = useState(false);
 
   useEffect(() => {
@@ -189,15 +195,18 @@ export default function HelpDesk() {
     };
   }, []);
 
-  // Stop wake listener while chat is open (avoids interference)
+  // Stop wake listener while chat is open, or when AppLayout's HFM is managing it
   useEffect(() => {
-    if (!wakeListenerEnabled) return;
+    if (!wakeListenerEnabled || hfmActive) {
+      wakeRecognitionRef.current?.abort();
+      return;
+    }
     if (open) {
       wakeRecognitionRef.current?.abort();
     } else {
       startWakeWordListener();
     }
-  }, [open, wakeListenerEnabled]);
+  }, [open, wakeListenerEnabled, hfmActive]);
 
   // Show welcome message on first open
   function handleOpen() {
