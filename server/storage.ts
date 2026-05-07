@@ -335,11 +335,149 @@ sqlite.exec(`
   );
 `);
 
-// Safe migration: add onboarding_completed_at column if it doesn't exist yet
-try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch { /* column already exists */ }
-try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch { /* column already exists */ }
-try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch { /* column already exists */ }
-try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch { /* column already exists */ }
+// ── Safe migrations — run BEFORE any Drizzle queries ────────────────────────
+// These must all be here, at the top, before storage methods are called.
+
+// users — columns added over time
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"all":true}'`); } catch {}
+
+// schedule_events — columns added after initial release
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_enabled INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_lead_minutes INTEGER DEFAULT 15`); } catch {}
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN caregiver_responsible INTEGER DEFAULT 1`); } catch {}
+try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN responsibility_note TEXT`); } catch {}
+
+// activity_logs — columns added after initial release
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN logged_by_role TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN is_off_shift_entry INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN is_emergency INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN emergency_type TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN notes TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN is_late_entry INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN is_excused INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN excuse_note TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN excused_by_user_id INTEGER`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN scheduled_at TEXT`); } catch {}
+
+// caregiver_profiles — columns added after initial release
+try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN travel_distance TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN custom_specialties TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN custom_certifications TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN photo_url TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN display_name TEXT`); } catch {}
+
+// shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS shifts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    caregiver_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL,
+    clocked_in_at TEXT NOT NULL,
+    clocked_out_at TEXT,
+    notes TEXT
+  )`);
+} catch {}
+
+// care_flags — CREATE TABLE IF NOT EXISTS
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS care_flags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    caregiver_id INTEGER NOT NULL,
+    flag_type TEXT NOT NULL,
+    category TEXT NOT NULL,
+    reason TEXT NOT NULL,
+    reference_id INTEGER,
+    reference_type TEXT,
+    triggered_at TEXT NOT NULL,
+    is_excused INTEGER DEFAULT 0,
+    excuse_note TEXT,
+    excused_by_user_id INTEGER,
+    excused_at TEXT
+  )`);
+} catch {}
+
+// observation_tags — CREATE TABLE IF NOT EXISTS
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS observation_tags (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    source_type TEXT NOT NULL,
+    source_id INTEGER NOT NULL,
+    observed_at TEXT NOT NULL,
+    category TEXT NOT NULL,
+    tag TEXT NOT NULL,
+    severity TEXT,
+    raw_text TEXT,
+    created_at TEXT NOT NULL
+  )`);
+} catch {}
+
+// health_patterns — CREATE TABLE IF NOT EXISTS
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS health_patterns (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    pattern_key TEXT NOT NULL,
+    label TEXT NOT NULL,
+    description TEXT,
+    symptom_tag TEXT,
+    correlated_with TEXT,
+    severity TEXT NOT NULL DEFAULT 'low',
+    occurrence_count INTEGER NOT NULL DEFAULT 0,
+    consecutive_days INTEGER NOT NULL DEFAULT 0,
+    window_days INTEGER NOT NULL DEFAULT 7,
+    first_seen_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    alert_3day_fired_at TEXT,
+    alert_7day_fired_at TEXT,
+    alert_3x_week_fired_at TEXT,
+    alert_6x_2week_fired_at TEXT,
+    status TEXT NOT NULL DEFAULT 'active',
+    dismissed_at TEXT,
+    dismissed_by_user_id INTEGER,
+    dismissed_until TEXT,
+    resolved_at TEXT,
+    escalated_at TEXT,
+    escalated_by_user_id INTEGER,
+    doctor_note_text TEXT,
+    doctor_note_sent_at TEXT,
+    doctor_note_sent_by_user_id INTEGER,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+} catch {}
+
+// pattern_acknowledgements — CREATE TABLE IF NOT EXISTS
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS pattern_acknowledgements (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    pattern_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    alert_level TEXT NOT NULL,
+    acknowledged_at TEXT NOT NULL
+  )`);
+} catch {}
+
+// pattern_preferences — CREATE TABLE IF NOT EXISTS
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS pattern_preferences (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL,
+    watch_symptoms INTEGER DEFAULT 1,
+    watch_activity INTEGER DEFAULT 1,
+    watch_food INTEGER DEFAULT 1,
+    watch_sleep INTEGER DEFAULT 1,
+    watch_vitals INTEGER DEFAULT 1,
+    notify_threshold TEXT DEFAULT 'medium',
+    updated_at TEXT NOT NULL
+  )`);
+} catch {}
 // Help desk escalations table
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS helpdesk_escalations (
