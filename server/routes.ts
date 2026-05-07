@@ -613,16 +613,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
           db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
         }
       } else if (invite.inviteType === "caregiver_to_mc") {
-        // Sender is CG (has clientId), acceptor is MC — share the clientId
+        // Sender is CG (has clientId), acceptor is MC — share the clientId and set role
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
-          db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
+          db.update(users).set({ clientId, role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
         } else if (acceptingUser.clientId) {
-          // MC already has a client — share it back to the CG sender
+          // MC already has a client — share it back to the CG sender, still mark acceptor as primary_family
           if (sender) {
             db.update(users).set({ clientId: acceptingUser.clientId }).where(eq(users.id, sender.id)).run();
           }
           clientId = acceptingUser.clientId;
+          db.update(users).set({ role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
         }
       } else if (invite.inviteType === "mc_to_family") {
         // Sender is MC, acceptor is secondary family — give them read access to same client
