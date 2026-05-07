@@ -342,8 +342,8 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
         }
       </button>
 
-      {/* Wake word hint — shows briefly on first load if voice supported */}
-      {voiceSupported && !open && (
+      {/* Wake word hint — caregiver only, not shown in Family Care Portal */}
+      {voiceSupported && !open && !isFamilyPortal && (
         <div className="fixed bottom-20 right-5 z-40 pointer-events-none">
           <div className="text-xs text-muted-foreground/50 text-right pr-1">
             Say “Hey CareNet”
