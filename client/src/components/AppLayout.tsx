@@ -127,6 +127,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
   const [navOrder, setNavOrder] = useState<string[] | null>(null);
+
+  // ── Load saved nav order from DB (real users) or localStorage (demo) ────────
+  useEffect(() => {
+    if (isRealSession) {
+      apiRequest("GET", `/api/users/${activeUser.id}`)
+        .then(r => r.json())
+        .then(u => {
+          try {
+            const order: string[] = JSON.parse(u.navOrder ?? "[]");
+            if (order.length > 0) setNavOrder(order);
+          } catch {}
+        })
+        .catch(() => {});
+    } else {
+      try {
+        const stored = localStorage.getItem(`cnp_nav_order_${activeUser.id}`);
+        if (stored) {
+          const order: string[] = JSON.parse(stored);
+          if (order.length > 0) setNavOrder(order);
+        }
+      } catch {}
+    }
+  }, [activeUser.id, isRealSession]);
   const { t, lang, setLang } = useLang();
   const { toast } = useToast();
 
@@ -1407,7 +1430,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }))}
         userId={activeUser.id}
         savedOrder={navOrder}
-        onOrderSave={(paths) => setNavOrder(paths)}
+        onOrderSave={(paths) => {
+          setNavOrder(paths);
+          if (isRealSession) {
+            apiRequest("PATCH", `/api/users/${activeUser.id}`, {
+              navOrder: JSON.stringify(paths),
+            }).catch(() => {});
+          } else {
+            try { localStorage.setItem(`cnp_nav_order_${activeUser.id}`, JSON.stringify(paths)); } catch {}
+          }
+        }}
       />
 
       {/* AI Help Desk — floating, always visible */}

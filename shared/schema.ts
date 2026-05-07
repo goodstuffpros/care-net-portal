@@ -20,7 +20,8 @@ export const users = sqliteTable("users", {
   tempAccessStart: text("temp_access_start"), // ISO date
   tempAccessEnd: text("temp_access_end"),   // ISO date
   tempAccessReason: text("temp_access_reason"), // 'vacation' | 'illness' | 'other'
-  seenModules: text("seen_modules").default("[]"), // JSON array of module keys user has already seen intro for
+  seenModules: text("seen_modules").default("[]"),
+  navOrder: text("nav_order").default("[]"), // JSON array of module keys user has already seen intro for
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
