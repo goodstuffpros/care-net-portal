@@ -110,6 +110,7 @@ interface AppContextType {
   showUpgradeTransition: boolean;
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
   isRealSession: boolean; // true when a real auth user is logged in (not demo)
+  isPreConnection: boolean; // true when real CG session but no clientId yet (exploring demo)
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -127,26 +128,8 @@ interface RealUser {
 }
 
 function MainApp({ realUser }: { realUser?: RealUser | null }) {
-  // If this is a real auth user with no care circle yet, show pre-connection screen
-  if (realUser?.name && realUser?.role && !realUser?.clientId) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <PreConnectionScreen
-          name={realUser.name}
-          role={realUser.role}
-          email={realUser.email}
-          onGoToUniversity={() => {
-            // Navigate into demo as CG user and open University
-            window.location.hash = "/university";
-            // Brief flag so MainApp knows to load demo for university
-            sessionStorage.setItem("cnp_demo_preview", "1");
-            window.location.reload();
-          }}
-        />
-        <Toaster />
-      </QueryClientProvider>
-    );
-  }
+  // Pre-connection CGs (no clientId yet) fall through to the main app in demo mode.
+  // A banner in AppLayout explains the situation and offers an invite shortcut.
 
   // If a real auth user is in demo preview mode, suppress the OnboardingFlow overlay.
   const isRealUserDemoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
@@ -168,6 +151,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   };
   const initialActiveUser = buildRealActiveUser() ?? DEMO_USERS[0];
   const isRealSession = !!buildRealActiveUser();
+  const isPreConnection = isRealSession && !realUser?.clientId;
 
   const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
   const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
@@ -275,6 +259,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         showUpgradeTransition,
         triggerUpgradeTransition,
         isRealSession,
+        isPreConnection,
       }}>
         <LangProvider>
         <AlarmEngine />
@@ -503,9 +488,6 @@ function RealAuthGate() {
     );
   }
 
-  // Real user, onboarding done — pass user into MainApp.
-  // In demoPreview mode (user clicked "Go to University" from PreConnection),
-  // pass null so the demo runs freely for University exploration.
-  // Otherwise always pass realUser so MainApp can guard pre-connection pages.
-  return <MainApp realUser={demoPreview ? null : realUser} />;
+  // Real user, onboarding done — always pass realUser into MainApp.
+  return <MainApp realUser={realUser} />;
 }

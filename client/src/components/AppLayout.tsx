@@ -14,7 +14,7 @@ import {
   Sparkles, Lock, StickyNote, MicOff, ClipboardSignature,
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
-  NotebookPen, CalendarDays, GraduationCap
+  NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -120,7 +120,7 @@ export function PriorityBadge({ priority }: { priority: string }) {
 }
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession } = useApp();
+  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection } = useApp();
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false);
   const [location, navigate] = useLocation();
@@ -129,6 +129,40 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOrder, setNavOrder] = useState<string[] | null>(null);
   const { t, lang, setLang } = useLang();
   const { toast } = useToast();
+
+  // ── Pre-connection demo banner ─────────────────────────────────────────────
+  const [preConnBannerDismissed, setPreConnBannerDismissed] = useState(false);
+  const [preConnInviteLink, setPreConnInviteLink] = useState("");
+  const [preConnCopied, setPreConnCopied] = useState(false);
+  const showPreConnBanner = isPreConnection && !preConnBannerDismissed;
+
+  const preConnInviteMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/invite/create", { inviteType: "caregiver_to_mc" }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data?.token) {
+        const link = `${window.location.origin}/#/invite/${data.token}`;
+        setPreConnInviteLink(link);
+        navigator.clipboard.writeText(link).then(() => {
+          setPreConnCopied(true);
+          toast({ title: "Invite link copied!", description: "Share it with your family contact to get started." });
+          setTimeout(() => setPreConnCopied(false), 3000);
+        });
+      }
+    },
+    onError: () => toast({ title: "Could not generate invite", description: "Please try again.", variant: "destructive" }),
+  });
+
+  function handlePreConnInvite() {
+    if (preConnInviteLink) {
+      navigator.clipboard.writeText(preConnInviteLink).then(() => {
+        setPreConnCopied(true);
+        toast({ title: "Link copied!", description: "Share it with your family contact." });
+        setTimeout(() => setPreConnCopied(false), 3000);
+      });
+    } else {
+      preConnInviteMutation.mutate();
+    }
+  }
 
   // ── Wellbeing state ──────────────────────────────────────────────────────────
   const [wellbeingOpen, setWellbeingOpen] = useState(false);
@@ -1005,6 +1039,37 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onOpen={() => { setProactiveNudgeDismissed(true); openWellbeing("proactive_shift_end"); }}
               onDismiss={() => setProactiveNudgeDismissed(true)}
             />
+          )}
+          {/* Pre-connection demo mode banner */}
+          {showPreConnBanner && (
+            <div className="mx-4 mt-4 rounded-xl border border-teal-500/30 bg-teal-950/20 px-4 py-3 flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <GraduationCap size={15} className="text-teal-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-teal-200 text-sm font-semibold leading-tight">You're in demo mode</p>
+                <p className="text-teal-400/70 text-xs mt-0.5 leading-relaxed">
+                  Everything is unlocked once a client portal is created. Explore freely — this is live demo data.
+                </p>
+                <button
+                  onClick={handlePreConnInvite}
+                  disabled={preConnInviteMutation.isPending}
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-teal-300 hover:text-white transition-colors"
+                >
+                  {preConnCopied
+                    ? <><Check size={12} className="text-green-400" /> Link copied — send it to your family contact</>  
+                    : <><Link2 size={12} /> {preConnInviteMutation.isPending ? "Generating link..." : "Copy invite link for family contact"}</>
+                  }
+                </button>
+              </div>
+              <button
+                onClick={() => setPreConnBannerDismissed(true)}
+                className="text-teal-500/40 hover:text-teal-300 transition-colors flex-shrink-0 mt-0.5"
+                aria-label="Dismiss"
+              >
+                <X size={14} />
+              </button>
+            </div>
           )}
           {children}
         </main>
