@@ -4,7 +4,8 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations } from "@shared/schema";
+import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
@@ -384,6 +385,153 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (err: any) {
       console.error("[mc/setup] ERROR:", err?.message || err);
       res.status(500).json({ message: err?.message || "Setup failed" });
+    }
+  });
+
+  // ── Help Desk ────────────────────────────────────────────────────────────
+
+  // POST /api/helpdesk/chat — AI-powered support chat
+  app.post("/api/helpdesk/chat", async (req, res) => {
+    const { message, context, history = [], sessionId } = req.body;
+    if (!message) return res.status(400).json({ message: "No message provided" });
+
+    const openaiKey = process.env.OPENAI_API_KEY;
+    if (!openaiKey) {
+      // Graceful fallback if key not yet set
+      return res.json({
+        reply: "I'm not fully set up yet. For help, please email portal@carenetportal.com and someone will assist you shortly.",
+        shouldEscalate: false,
+      });
+    }
+
+    try {
+      const systemPrompt = buildSystemPrompt(context || {});
+
+      const messages = [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-10).map((h: any) => ({ role: h.role, content: h.content })),
+        { role: "user", content: message },
+      ];
+
+      const response = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${openaiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: "gpt-4o",
+          messages,
+          max_tokens: 400,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`OpenAI error: ${response.status}`);
+      }
+
+      const data = await response.json() as any;
+      const reply = data.choices?.[0]?.message?.content || "I didn't get a response. Please try again.";
+
+      // Detect if escalation should be offered
+      const lowerReply = reply.toLowerCase();
+      const lowerMsg = message.toLowerCase();
+      const shouldEscalate =
+        lowerMsg.includes("talk to a person") ||
+        lowerMsg.includes("contact support") ||
+        lowerMsg.includes("real person") ||
+        lowerMsg.includes("email") ||
+        (history.length >= 4 && lowerReply.includes("not sure")) ||
+        (history.length >= 6);
+
+      res.json({ reply, shouldEscalate });
+    } catch (err: any) {
+      console.error("[helpdesk/chat] ERROR:", err?.message || err);
+      res.json({
+        reply: "I'm having trouble right now. For immediate help, email portal@carenetportal.com.",
+        shouldEscalate: true,
+      });
+    }
+  });
+
+  // POST /api/helpdesk/escalate — store escalation + send email to support
+  app.post("/api/helpdesk/escalate", async (req, res) => {
+    const { sessionId, userName, userRole, currentPage, history = [] } = req.body;
+
+    try {
+      // Store for learning / review
+      db.insert(helpdeskEscalations).values({
+        sessionId: sessionId || "unknown",
+        userName: userName || null,
+        userRole: userRole || null,
+        currentPage: currentPage || null,
+        conversation: JSON.stringify(history),
+        createdAt: new Date().toISOString(),
+      }).run();
+
+      // Build readable transcript
+      const transcript = history
+        .map((m: any) => `[${m.role === "user" ? (userName || "User") : "Support AI"}]\n${m.content}`)
+        .join("\n\n");
+
+      const emailBody = `
+A Care Net Portal user has requested support and could not be resolved by the AI assistant.
+
+User: ${userName || "Unknown"}
+Role: ${userRole || "Unknown"}
+Page: ${currentPage || "Unknown"}
+Time: ${new Date().toLocaleString()}
+
+─────────────────────────────────
+CONVERSATION TRANSCRIPT
+─────────────────────────────────
+
+${transcript}
+
+─────────────────────────────────
+Please follow up with this user. The conversation above contains everything needed to assist them.
+      `.trim();
+
+      await sendEmail({
+        to: "portal@carenetportal.com",
+        subject: `[Help Desk] Support request from ${userName || "a user"} — ${currentPage || "unknown page"}`,
+        text: emailBody,
+        html: `<pre style="font-family:monospace;white-space:pre-wrap">${emailBody}</pre>`,
+      });
+
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[helpdesk/escalate] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to send escalation" });
+    }
+  });
+
+  // GET /api/admin/helpdesk — list escalations for Becky Admin
+  app.get("/api/admin/helpdesk", async (req, res) => {
+    try {
+      const escalations = db.select().from(helpdeskEscalations)
+        .orderBy(helpdeskEscalations.createdAt)
+        .all()
+        .reverse(); // newest first
+      res.json(escalations);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // PATCH /api/admin/helpdesk/:id — mark resolved + add resolution note
+  app.patch("/api/admin/helpdesk/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { resolved, resolution } = req.body;
+    try {
+      db.update(helpdeskEscalations)
+        .set({ resolved: resolved ?? true, resolution: resolution || null })
+        .where(eq(helpdeskEscalations.id, id))
+        .run();
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
     }
   });
 

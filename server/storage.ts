@@ -339,6 +339,20 @@ sqlite.exec(`
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch { /* column already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch { /* column already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch { /* column already exists */ }
+// Help desk escalations table
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS helpdesk_escalations (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT NOT NULL,
+    user_name TEXT,
+    user_role TEXT,
+    current_page TEXT,
+    conversation TEXT NOT NULL,
+    resolved INTEGER DEFAULT 0,
+    resolution TEXT,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* table already exists */ }
 // Safe migration: schedule_events alarm columns
 try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_enabled INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_lead_minutes INTEGER DEFAULT 15`); } catch {}

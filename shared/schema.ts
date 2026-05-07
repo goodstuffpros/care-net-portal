@@ -819,6 +819,20 @@ export type InsertAuthSession = z.infer<typeof insertAuthSessionSchema>;
 export type AuthSession = typeof authSessions.$inferSelect;
 
 // Beta applications — intake questionnaire responses awaiting approval
+// Help desk escalations — stored for learning / review in Becky Admin
+export const helpdeskEscalations = sqliteTable("helpdesk_escalations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  sessionId: text("session_id").notNull(),
+  userName: text("user_name"),
+  userRole: text("user_role"),
+  currentPage: text("current_page"),
+  conversation: text("conversation").notNull(), // JSON array of {role, content, timestamp}
+  resolved: integer("resolved", { mode: "boolean" }).default(false),
+  resolution: text("resolution"),               // admin can note how it was resolved
+  createdAt: text("created_at").notNull(),
+});
+export type HelpdeskEscalation = typeof helpdeskEscalations.$inferSelect;
+
 export const betaApplications = sqliteTable("beta_applications", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),

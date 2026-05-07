@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -492,9 +492,213 @@ function ApplicationsTab() {
   );
 }
 
+// ── Help Desk Tab ───────────────────────────────────────────────────────────────
+interface HelpEscalation {
+  id: number;
+  userEmail: string | null;
+  userRole: string | null;
+  portalMode: string | null;
+  transcript: string;
+  summary: string | null;
+  resolved: number;
+  resolvedNote: string | null;
+  createdAt: string;
+}
+
+function HelpdeskTab() {
+  const { toast } = useToast();
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const [noteId, setNoteId] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [filterResolved, setFilterResolved] = useState<"all" | "open" | "resolved">("open");
+
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/helpdesk"],
+    queryFn: () => apiRequest("GET", "/api/admin/helpdesk").then(r => r.json()),
+    staleTime: 15000,
+  });
+
+  const escalations: HelpEscalation[] = data?.escalations ?? [];
+
+  const filtered = escalations.filter(e => {
+    if (filterResolved === "open") return !e.resolved;
+    if (filterResolved === "resolved") return !!e.resolved;
+    return true;
+  });
+
+  const resolveMutation = useMutation({
+    mutationFn: ({ id, note }: { id: number; note: string }) =>
+      apiRequest("PATCH", `/api/admin/helpdesk/${id}`, { resolvedNote: note }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Marked resolved", description: "Escalation closed." });
+      setNoteId(null);
+      setNoteText("");
+      refetch();
+    },
+    onError: () => toast({ title: "Error", description: "Could not mark resolved.", variant: "destructive" }),
+  });
+
+  const openCount = escalations.filter(e => !e.resolved).length;
+
+  function formatDate(iso: string) {
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  function roleColor(role: string | null) {
+    if (!role) return "bg-white/10 text-white/50";
+    if (role.includes("caregiver") || role === "caregiver") return "bg-teal-900/40 text-teal-300";
+    if (role.includes("family") || role.includes("contact")) return "bg-rose-900/40 text-rose-300";
+    return "bg-white/10 text-white/50";
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Stats + filter */}
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-center">
+            <div className="text-white font-bold text-lg">{openCount}</div>
+            <div className="text-white/40 text-[10px]">Open</div>
+          </div>
+          <div className="rounded-xl bg-white/5 border border-white/10 px-4 py-2 text-center">
+            <div className="text-emerald-400 font-bold text-lg">{escalations.filter(e => !!e.resolved).length}</div>
+            <div className="text-white/40 text-[10px]">Resolved</div>
+          </div>
+        </div>
+        <div className="flex gap-1">
+          {(["open", "all", "resolved"] as const).map(f => (
+            <button
+              key={f}
+              onClick={() => setFilterResolved(f)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                filterResolved === f
+                  ? "bg-rose-600 border-rose-500 text-white"
+                  : "bg-white/5 border-white/10 text-white/50 hover:text-white"
+              )}
+            >
+              {f.charAt(0).toUpperCase() + f.slice(1)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />)}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12 text-white/30 text-sm">
+          {filterResolved === "open" ? "No open escalations. Great work!" : "Nothing here yet."}
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(esc => (
+            <div key={esc.id} className={cn(
+              "rounded-xl border p-4 space-y-3 transition-all",
+              esc.resolved
+                ? "bg-white/3 border-white/8 opacity-60"
+                : "bg-white/5 border-white/15"
+            )}>
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className={cn("px-2 py-0.5 rounded-full text-[10px] font-medium", roleColor(esc.userRole))}>
+                      {esc.userRole ?? "unknown"}
+                    </span>
+                    {esc.portalMode && (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/8 text-white/50">
+                        {esc.portalMode}
+                      </span>
+                    )}
+                    {esc.resolved ? (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-900/40 text-emerald-300">Resolved</span>
+                    ) : (
+                      <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-900/40 text-amber-300">Open</span>
+                    )}
+                  </div>
+                  <div className="text-white/50 text-xs mt-1">{esc.userEmail ?? "Anonymous"} &middot; {formatDate(esc.createdAt)}</div>
+                </div>
+                <button
+                  onClick={() => setExpandedId(expandedId === esc.id ? null : esc.id)}
+                  className="text-white/40 hover:text-white/70 transition-colors flex-shrink-0"
+                >
+                  {expandedId === esc.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+              </div>
+
+              {/* Summary */}
+              {esc.summary && (
+                <div className="text-white/70 text-sm leading-relaxed">{esc.summary}</div>
+              )}
+
+              {/* Expanded transcript */}
+              {expandedId === esc.id && (
+                <div className="rounded-lg bg-black/20 border border-white/8 p-3">
+                  <div className="text-white/40 text-[10px] font-medium mb-2 uppercase tracking-wider">Full Transcript</div>
+                  <pre className="text-white/60 text-xs leading-relaxed whitespace-pre-wrap font-sans">{esc.transcript}</pre>
+                </div>
+              )}
+
+              {/* Resolution note (if already resolved) */}
+              {esc.resolved && esc.resolvedNote && (
+                <div className="rounded-lg bg-emerald-950/30 border border-emerald-700/30 px-3 py-2 text-emerald-300/80 text-xs">
+                  <span className="font-medium">Note: </span>{esc.resolvedNote}
+                </div>
+              )}
+
+              {/* Resolve action */}
+              {!esc.resolved && (
+                noteId === esc.id ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      value={noteText}
+                      onChange={e => setNoteText(e.target.value)}
+                      placeholder="Add a resolution note (optional)..."
+                      className="bg-white/5 border-white/15 text-white placeholder:text-white/30 text-sm resize-none"
+                      rows={2}
+                    />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        onClick={() => resolveMutation.mutate({ id: esc.id, note: noteText })}
+                        disabled={resolveMutation.isPending}
+                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
+                      >
+                        <Check size={12} className="mr-1" /> Mark Resolved
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => { setNoteId(null); setNoteText(""); }}
+                        className="text-white/40 hover:text-white text-xs"
+                      >
+                        Cancel
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => { setNoteId(esc.id); setNoteText(""); }}
+                    className="flex items-center gap-1.5 text-xs text-white/40 hover:text-emerald-400 transition-colors"
+                  >
+                    <CheckCircle2 size={13} /> Resolve this escalation
+                  </button>
+                )
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications">("library");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk">("library");
   const [activeTheme, setActiveTheme] = useState<string>("all");
 
   const { data, isLoading, refetch } = useQuery({
@@ -546,6 +750,15 @@ export default function BeckyAdminPage() {
             >
               <Users size={14} /> Beta Applications
             </button>
+            <button
+              onClick={() => setActiveTab("helpdesk")}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                activeTab === "helpdesk" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
+              )}
+            >
+              <MessageCircleHeart size={14} /> Help Desk
+            </button>
           </div>
         </div>
       </div>
@@ -554,6 +767,9 @@ export default function BeckyAdminPage() {
 
         {/* Applications tab */}
         {activeTab === "applications" && <ApplicationsTab />}
+
+        {/* Help Desk tab */}
+        {activeTab === "helpdesk" && <HelpdeskTab />}
 
         {/* Library tab — only render when on library tab */}
         {activeTab === "library" && (<>

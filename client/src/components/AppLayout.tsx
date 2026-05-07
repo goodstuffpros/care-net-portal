@@ -1,4 +1,5 @@
 import { useApp, type ActiveUser, isCaregiverRole, type ColorTheme } from "@/App";
+import HelpDesk from "@/components/HelpDesk";
 import { useLang } from "@/lib/useLang";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -1078,6 +1079,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         savedOrder={navOrder}
         onOrderSave={(paths) => setNavOrder(paths)}
       />
+
+      {/* AI Help Desk — floating, always visible */}
+      <HelpDesk />
     </div>
   );
 }
