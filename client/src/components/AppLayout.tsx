@@ -1182,6 +1182,88 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             aria-label="Toggle theme" data-testid="theme-toggle">
             {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
           </button>
+
+          {/* ── Mobile-only: Invite + Profile ── */}
+          {/* Invite a Friend — mobile icon button, real users only */}
+          {isRealSession && (
+            <button
+              onClick={() => setReferralSheetOpen(true)}
+              data-testid="invite-friend-mobile"
+              aria-label="Invite a Friend"
+              className={cn(
+                "md:hidden p-2 rounded-lg transition-colors",
+                isFamilyPortal
+                  ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
+              )}
+            >
+              <Gift size={18} />
+            </button>
+          )}
+
+          {/* Profile / user menu — mobile only */}
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  data-testid="user-menu-mobile"
+                  aria-label="User menu"
+                  className={cn(
+                    "flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold transition-colors",
+                    isFamilyPortal
+                      ? "bg-sidebar-primary/30 text-sidebar-primary hover:bg-sidebar-primary/40"
+                      : "bg-primary/20 text-primary hover:bg-primary/30"
+                  )}
+                >
+                  {activeUser.avatarInitials}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-64 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
+                <div className="px-2 py-2">
+                  <div className="text-xs text-muted-foreground">Signed in as</div>
+                  <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
+                  <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
+                </div>
+                <DropdownMenuSeparator />
+                {!isRealSession && (
+                  <>
+                    <DropdownMenuLabel className="text-xs">Switch Role (Demo)</DropdownMenuLabel>
+                    {[...client1Users, ...client2Users].map(user => (
+                      <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-mobile-${user.id}`}>
+                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
+                        <div className="flex-1 min-w-0">
+                          <div className="font-medium text-sm">{user.name}</div>
+                          <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
+                        </div>
+                        {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                <DropdownMenuItem onClick={() => navigate("/pricing")} className="cursor-pointer text-muted-foreground" data-testid="nav-pricing-mobile">
+                  <Sparkles size={14} className="mr-2" />
+                  Pricing
+                </DropdownMenuItem>
+                {isRealSession && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                          .finally(() => { window.location.href = "/#/login"; });
+                      }}
+                      className="cursor-pointer text-red-500 dark:text-red-400"
+                      data-testid="sign-out-mobile"
+                    >
+                      <LogOut size={14} className="mr-2" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </header>
 
         {/* Page Content */}
