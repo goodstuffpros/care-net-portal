@@ -420,7 +420,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           { role: "user", parts: [{ text: message }] },
         ],
         generationConfig: {
-          maxOutputTokens: 400,
+          maxOutputTokens: 600,
           temperature: 0.7,
         },
       };
