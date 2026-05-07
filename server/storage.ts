@@ -339,6 +339,7 @@ sqlite.exec(`
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); } catch { /* column already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch { /* column already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch { /* column already exists */ }
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch { /* column already exists */ }
 // Help desk escalations table
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS helpdesk_escalations (
@@ -1652,5 +1653,4 @@ try {
 // Notification prefs column on users
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"careLog":true,"messages":true,"schedule":true,"vitals":false}'`); } catch { /* already exists */ }
 
-// seenModules — tracks which module intros a user has already dismissed
-try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch { /* already exists */ }
+// seenModules migration moved to early migration block (line ~339) to avoid startup crash
