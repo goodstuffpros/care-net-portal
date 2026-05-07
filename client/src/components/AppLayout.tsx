@@ -14,7 +14,7 @@ import {
   Sparkles, Lock, StickyNote, MicOff, ClipboardSignature,
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
-  NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check
+  NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -129,6 +129,59 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [navOrder, setNavOrder] = useState<string[] | null>(null);
   const { t, lang, setLang } = useLang();
   const { toast } = useToast();
+
+  // ── Referral / Invite a Friend ──────────────────────────────────────────────────────────────────────────────
+  const REFERRAL_LINK = `${typeof window !== "undefined" ? window.location.origin : "https://care-net-portal-production.up.railway.app"}/#/apply`;
+  const [referralSheetOpen, setReferralSheetOpen] = useState(false);
+  const [referralCopied, setReferralCopied] = useState(false);
+  const [referralEmail, setReferralEmail] = useState("");
+  const [referralSending, setReferralSending] = useState(false);
+  const [referralEmailSent, setReferralEmailSent] = useState(false);
+
+  // Monthly referral popup — shows once per 30 days per real session user
+  const REFERRAL_POPUP_KEY = `cnp_referral_popup_${isRealSession ? activeUser.id : "demo"}`;
+  const [referralPopupOpen, setReferralPopupOpen] = useState(false);
+  useEffect(() => {
+    if (!isRealSession) return;
+    const raw = typeof window !== "undefined" ? window.localStorage.getItem(REFERRAL_POPUP_KEY) : null;
+    const lastShown = raw ? new Date(raw) : null;
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    if (!lastShown || lastShown < thirtyDaysAgo) {
+      const timer = setTimeout(() => setReferralPopupOpen(true), 4000);
+      return () => clearTimeout(timer);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRealSession]);
+
+  function dismissReferralPopup() {
+    setReferralPopupOpen(false);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(REFERRAL_POPUP_KEY, new Date().toISOString());
+    }
+  }
+
+  function copyReferralLink() {
+    navigator.clipboard.writeText(REFERRAL_LINK).then(() => {
+      setReferralCopied(true);
+      toast({ title: "Link copied!", description: "Share it with anyone who could use this app." });
+      setTimeout(() => setReferralCopied(false), 3000);
+    });
+  }
+
+  async function sendReferralEmail() {
+    if (!referralEmail.trim()) return;
+    setReferralSending(true);
+    try {
+      await apiRequest("POST", "/api/invite/refer", { email: referralEmail.trim(), senderName: activeUser.name });
+      setReferralEmailSent(true);
+      setReferralEmail("");
+      toast({ title: "Invitation sent!", description: `We sent a note to ${referralEmail.trim()}.` });
+    } catch {
+      toast({ title: "Something went wrong", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setReferralSending(false);
+    }
+  }
 
   // ── Pre-connection demo banner ─────────────────────────────────────────────
   const [preConnBannerDismissed, setPreConnBannerDismissed] = useState(false);
@@ -733,6 +786,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
       </div>
 
+      {/* Invite a Friend — all real users */}
+      {isRealSession && (
+        <div className="px-3 pb-2">
+          <button
+            onClick={() => setReferralSheetOpen(true)}
+            data-testid="invite-friend-btn"
+            className={cn(
+              "w-full flex items-center gap-2.5 px-3 py-2 rounded-lg border transition-colors text-left text-xs font-medium",
+              isFamilyPortal
+                ? "border-sidebar-border/60 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+                : "border-sidebar-border/60 text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+            )}
+          >
+            <Gift size={14} className="flex-shrink-0 text-primary" />
+            <span>Invite a Friend</span>
+          </button>
+        </div>
+      )}
+
       {/* User Profile / Role Switcher */}
       <div className="px-3 pb-4 border-t border-sidebar-border pt-3">
         <DropdownMenu>
@@ -1237,6 +1309,107 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* AI Help Desk — floating, always visible */}
       <HelpDesk hfmActive={hfmActive} />
+
+      {/* ── Invite a Friend sheet ── */}
+      {referralSheetOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setReferralSheetOpen(false); setReferralEmailSent(false); setReferralEmail(""); }} />
+          <div className="relative w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl p-6 z-10">
+            {/* Handle */}
+            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5 sm:hidden" />
+
+            <div className="flex items-center gap-3 mb-1">
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
+                <Gift size={18} className="text-primary" />
+              </div>
+              <div>
+                <h2 className="text-base font-semibold text-foreground">Invite a Friend</h2>
+                <p className="text-xs text-muted-foreground">Know someone who could use this app?</p>
+              </div>
+              <button onClick={() => { setReferralSheetOpen(false); setReferralEmailSent(false); setReferralEmail(""); }} className="ml-auto text-muted-foreground hover:text-foreground p-1">
+                <X size={16} />
+              </button>
+            </div>
+
+            <p className="text-sm text-muted-foreground leading-relaxed mt-3 mb-5">
+              Families going through a care situation often feel alone. If you know someone who could use a tool like this, send them a link.
+            </p>
+
+            {/* Copy link */}
+            <div className="flex gap-2 mb-4">
+              <div className="flex-1 text-xs bg-muted rounded-lg px-3 py-2.5 font-mono text-muted-foreground truncate">{REFERRAL_LINK}</div>
+              <button
+                onClick={copyReferralLink}
+                className={cn("flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors flex-shrink-0",
+                  referralCopied ? "bg-green-100 text-green-700 dark:bg-green-950/40 dark:text-green-400" : "bg-primary text-primary-foreground hover:bg-primary/90"
+                )}
+              >
+                {referralCopied ? <><Check size={13} /> Copied</> : <><Copy size={13} /> Copy link</>}
+              </button>
+            </div>
+
+            <div className="relative flex items-center gap-2 mb-4">
+              <div className="flex-1 h-px bg-border" />
+              <span className="text-xs text-muted-foreground">or send by email</span>
+              <div className="flex-1 h-px bg-border" />
+            </div>
+
+            {referralEmailSent ? (
+              <div className="flex items-center gap-2 text-sm text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/30 rounded-lg px-4 py-3">
+                <Check size={15} /> Invitation sent! They’ll get a personal note from you.
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <input
+                  type="email"
+                  value={referralEmail}
+                  onChange={e => setReferralEmail(e.target.value)}
+                  onKeyDown={e => e.key === "Enter" && sendReferralEmail()}
+                  placeholder="friend@example.com"
+                  className="flex-1 text-sm bg-background border border-border rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+                <button
+                  onClick={sendReferralEmail}
+                  disabled={referralSending || !referralEmail.trim()}
+                  className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 disabled:opacity-50 transition-colors flex-shrink-0"
+                >
+                  {referralSending ? <><div className="w-3.5 h-3.5 border-2 border-white/40 border-t-white rounded-full animate-spin" /> Sending…</> : <><Send size={13} /> Send</>}
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Monthly referral popup ── */}
+      {referralPopupOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismissReferralPopup} />
+          <div className="relative w-full max-w-sm bg-background rounded-2xl border border-border shadow-2xl p-6 z-10 text-center">
+            <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Heart size={24} className="text-primary fill-primary/30" />
+            </div>
+            <h2 className="text-lg font-semibold text-foreground mb-2">We're glad your family is here.</h2>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-6">
+              Do you know someone else going through a similar situation? A neighbor, co-worker, or friend who could use a tool like this for their family?
+            </p>
+            <div className="space-y-2">
+              <button
+                onClick={() => { dismissReferralPopup(); setReferralSheetOpen(true); }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors"
+              >
+                <Gift size={15} /> Invite a Friend
+              </button>
+              <button
+                onClick={dismissReferralPopup}
+                className="w-full py-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Maybe later
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

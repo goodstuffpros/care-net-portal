@@ -599,6 +599,40 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // POST /api/invite/refer — send a general app referral email ("invite a friend")
+  app.post("/api/invite/refer", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { email, senderName } = req.body;
+      if (!email) return res.status(400).json({ message: "Email required" });
+      const appUrl = process.env.APP_URL || "https://care-net-portal-production.up.railway.app";
+      await sendEmail({
+        to: email,
+        subject: `${senderName || "Someone"} thinks you'd love Care Net Portal`,
+        html: `
+          <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #28251D;">
+            <div style="background: #01696F; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="margin: 0; font-size: 22px;">Care Net Portal</h1>
+              <p style="margin: 8px 0 0; opacity: 0.85;">Private care coordination for families</p>
+            </div>
+            <div style="background: #F7F6F2; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #D4D1CA;">
+              <p style="font-size: 16px; margin-top: 0;">Hi there,</p>
+              <p style="font-size: 15px;"><strong>${senderName || "A friend"}</strong> thought you might benefit from Care Net Portal — a private app that helps families coordinate care for a loved one.</p>
+              <p style="font-size: 14px; color: #5A5957;">It keeps caregivers, family contacts, and loved ones connected through shared schedules, care logs, and real-time updates — all in one private space.</p>
+              <div style="text-align: center; margin: 28px 0;">
+                <a href="${appUrl}/#/apply" style="background: #01696F; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">Apply for Access</a>
+              </div>
+              <p style="font-size: 12px; color: #BAB9B4; text-align: center;">Care Net Portal is currently in private beta. Your friend's referral gets you in.</p>
+            </div>
+          </div>
+        `,
+      });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[invite/refer] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to send referral" });
+    }
+  });
+
   // POST /api/invite/:token/accept — authenticated user accepts the invite
   app.post("/api/invite/:token/accept", requireAuth, async (req: AuthRequest, res) => {
     try {
