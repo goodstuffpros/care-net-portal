@@ -11,6 +11,8 @@ import { Heart, GraduationCap, UserPlus, Copy, Check, ChevronRight, BookOpen, Us
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { useMutation } from "@tanstack/react-query";
+import { apiRequest } from "@/lib/queryClient";
 
 interface PreConnectionProps {
   name: string;
@@ -30,18 +32,45 @@ function isMC(role: string) {
 export default function PreConnectionScreen({ name, role, email, onGoToUniversity }: PreConnectionProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [generatedLink, setGeneratedLink] = useState<string | null>(null);
 
   const firstName = name.split(" ")[0];
 
-  // Placeholder invite link — will be replaced by real referral system
-  const inviteLink = `https://care-net-portal-production.up.railway.app/#/apply?ref=${encodeURIComponent(email)}`;
+  // Determine invite type based on role
+  const inviteType = isCG(role) ? "caregiver_to_mc" : "mc_to_caregiver";
+
+  const createInviteMutation = useMutation({
+    mutationFn: async () => {
+      const res = await apiRequest("POST", "/api/invite/create", {
+        inviteType,
+        recipientEmail: null,
+      });
+      return res.json();
+    },
+    onSuccess: (data) => {
+      const link = `${window.location.origin}/#/invite/${data.token}`;
+      setGeneratedLink(link);
+      navigator.clipboard.writeText(link).then(() => {
+        setCopied(true);
+        toast({ title: "Invite link copied!", description: "Share it with your connection to get started." });
+        setTimeout(() => setCopied(false), 3000);
+      });
+    },
+    onError: () => {
+      toast({ title: "Could not generate invite", description: "Please try again.", variant: "destructive" });
+    },
+  });
 
   function copyInviteLink() {
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setCopied(true);
-      toast({ title: "Link copied", description: "Share it with your connection to get started." });
-      setTimeout(() => setCopied(false), 3000);
-    });
+    if (generatedLink) {
+      navigator.clipboard.writeText(generatedLink).then(() => {
+        setCopied(true);
+        toast({ title: "Link copied!", description: "Share it with your connection to get started." });
+        setTimeout(() => setCopied(false), 3000);
+      });
+    } else {
+      createInviteMutation.mutate();
+    }
   }
 
   return (
@@ -103,9 +132,10 @@ export default function PreConnectionScreen({ name, role, email, onGoToUniversit
                 variant="outline"
                 size="sm"
                 className="w-full gap-2"
+                disabled={createInviteMutation.isPending}
               >
                 {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy Invite Link"}
+                {createInviteMutation.isPending ? "Generating link..." : copied ? "Copied!" : "Copy Invite Link"}
               </Button>
             </div>
 
@@ -144,9 +174,10 @@ export default function PreConnectionScreen({ name, role, email, onGoToUniversit
                 onClick={copyInviteLink}
                 size="sm"
                 className="w-full gap-2 bg-primary hover:bg-primary/90"
+                disabled={createInviteMutation.isPending}
               >
                 {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy Invite Link"}
+                {createInviteMutation.isPending ? "Generating link..." : copied ? "Copied!" : "Copy Invite Link"}
               </Button>
             </div>
 

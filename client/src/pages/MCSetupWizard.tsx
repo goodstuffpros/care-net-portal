@@ -80,10 +80,26 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   // Care path
   const [carePath, setCarePath] = useState<CarePath>(null);
 
-  // Invite link
-  const inviteLink = `https://care-net-portal-production.up.railway.app/#/apply?ref=${encodeURIComponent(email)}`;
+  // Invite link — generated via real API
+  const [inviteLink, setInviteLink] = useState("");
+  const [inviteLoading, setInviteLoading] = useState(false);
+
+  async function generateInviteLink(type: "mc_to_caregiver" | "mc_to_family") {
+    if (inviteLoading) return;
+    setInviteLoading(true);
+    try {
+      const r = await apiRequest("POST", "/api/invite/create", { inviteType: type });
+      const data = await r.json();
+      if (data.inviteUrl) setInviteLink(data.inviteUrl);
+    } catch {
+      toast({ title: "Could not generate link", description: "Please try again.", variant: "destructive" });
+    } finally {
+      setInviteLoading(false);
+    }
+  }
 
   function copyInvite() {
+    if (!inviteLink) return;
     navigator.clipboard.writeText(inviteLink).then(() => {
       setCopied(true);
       toast({ title: "Link copied", description: "Send it to your caregiver to connect your portals." });
@@ -324,6 +340,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
 
   // ── Step: Family ─────────────────────────────────────────────────────────
   if (step === "family") {
+    const inviteType = carePath === "has_caregiver" ? "mc_to_caregiver" : "mc_to_family";
     return (
       <Layout>
         <ProgressDots current="family" />
@@ -333,20 +350,35 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           </h2>
           <p className="text-sm text-muted-foreground">
             {carePath === "has_caregiver"
-              ? "Share this link with your caregiver. When they sign up, your portals connect automatically."
+              ? "Share this link with your caregiver. When they accept, your portals connect automatically."
               : "Want to keep other family members in the loop? Share this link with them."}
           </p>
         </div>
 
         <div className="p-4 rounded-xl border border-border bg-card mb-4">
           <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Your invite link</p>
-          <p className="text-xs text-foreground/70 break-all font-mono bg-muted rounded-md px-3 py-2 mb-3 select-all">
-            {inviteLink}
-          </p>
-          <Button onClick={copyInvite} variant="outline" size="sm" className="w-full gap-2">
-            {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-            {copied ? "Copied!" : "Copy invite link"}
-          </Button>
+          {inviteLink ? (
+            <>
+              <p className="text-xs text-foreground/70 break-all font-mono bg-muted rounded-md px-3 py-2 mb-3 select-all">
+                {inviteLink}
+              </p>
+              <Button onClick={copyInvite} variant="outline" size="sm" className="w-full gap-2">
+                {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                {copied ? "Copied!" : "Copy invite link"}
+              </Button>
+            </>
+          ) : (
+            <Button
+              onClick={() => generateInviteLink(inviteType)}
+              disabled={inviteLoading}
+              variant="outline"
+              size="sm"
+              className="w-full gap-2"
+            >
+              {inviteLoading ? <span className="animate-spin">⟳</span> : <Copy className="w-3.5 h-3.5" />}
+              {inviteLoading ? "Generating link..." : "Generate invite link"}
+            </Button>
+          )}
         </div>
 
         <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/40 mb-8">

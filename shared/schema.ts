@@ -853,3 +853,25 @@ export const betaApplications = sqliteTable("beta_applications", {
 export const insertBetaApplicationSchema = createInsertSchema(betaApplications).omit({ id: true });
 export type InsertBetaApplication = z.infer<typeof insertBetaApplicationSchema>;
 export type BetaApplication = typeof betaApplications.$inferSelect;
+
+// ── Connection Invites ────────────────────────────────────────────────────────
+// Tracks caregiver↔MC connection invites with unique tokens
+export const connectionInvites = sqliteTable("connection_invites", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").notNull().unique(),           // unique URL token
+  senderUserId: integer("sender_user_id").notNull(), // who created the invite
+  senderRole: text("sender_role").notNull(),         // 'caregiver' | 'primary_family'
+  clientId: integer("client_id"),                   // client the invite is for (if known)
+  clientName: text("client_name"),                  // display name for the landing page
+  senderName: text("sender_name").notNull(),        // display name for the landing page
+  invitedEmail: text("invited_email"),              // optional: pre-filled recipient email
+  inviteType: text("invite_type").notNull(),        // 'caregiver_to_mc' | 'mc_to_caregiver' | 'mc_to_family'
+  status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'expired'
+  acceptedByUserId: integer("accepted_by_user_id"),
+  acceptedAt: text("accepted_at"),
+  expiresAt: text("expires_at").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+export const insertConnectionInviteSchema = createInsertSchema(connectionInvites).omit({ id: true });
+export type InsertConnectionInvite = z.infer<typeof insertConnectionInviteSchema>;
+export type ConnectionInvite = typeof connectionInvites.$inferSelect;

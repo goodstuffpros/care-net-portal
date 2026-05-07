@@ -1628,3 +1628,26 @@ export const storage: IStorage = {
 };
 
 storage.seedBeckyResponsesIfEmpty();
+
+// ── Connection Invites Migration ──────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS connection_invites (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token TEXT NOT NULL UNIQUE,
+    sender_user_id INTEGER NOT NULL,
+    sender_role TEXT NOT NULL,
+    client_id INTEGER,
+    client_name TEXT,
+    sender_name TEXT NOT NULL,
+    invited_email TEXT,
+    invite_type TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    accepted_by_user_id INTEGER,
+    accepted_at TEXT,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
+
+// Notification prefs column on users
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"careLog":true,"messages":true,"schedule":true,"vitals":false}'`); } catch { /* already exists */ }

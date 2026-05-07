@@ -673,6 +673,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <MessageCircleHeart size={14} className="flex-shrink-0" />
           <span>Need help? Contact support</span>
         </a>
+        <Link
+          href="/notification-prefs"
+          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          data-testid="notification-prefs-btn"
+        >
+          <Bell size={14} className="flex-shrink-0" />
+          <span>Notification preferences</span>
+        </Link>
       </div>
 
       {/* User Profile / Role Switcher */}

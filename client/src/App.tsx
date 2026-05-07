@@ -41,6 +41,8 @@ import UpgradeTransition from "@/components/UpgradeTransition";
 import LoginPage from "@/pages/Login";
 import ApplyPage from "@/pages/Apply";
 import CompleteSignupPage from "@/pages/CompleteSignup";
+import InviteLanding from "@/pages/InviteLanding";
+import NotificationPrefs from "@/pages/NotificationPrefs";
 import VerifyEmailPage from "@/pages/VerifyEmail";
 import ForgotPasswordPage from "@/pages/ForgotPassword";
 import ResetPasswordPage from "@/pages/ResetPassword";
@@ -308,6 +310,9 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
               )} />
               <Route path="/becky-admin" component={BeckyAdminPage} />
               <Route path="/pricing" component={PricingPage} />
+              <Route path="/notification-prefs" component={() => (
+                <NotificationPrefs portalMode={activeUser.portalMode} />
+              )} />
               <Route path="/my-profile" component={CaregiverProfilePage} />
               <Route path="/care-scope" component={CareScopePage} />
               <Route component={NotFound} />
@@ -386,6 +391,16 @@ export default function App() {
     return (
       <QueryClientProvider client={queryClient}>
         <BeckyAdminPage />
+      </QueryClientProvider>
+    );
+  }
+
+  // Invite landing — /#/invite/:token (public, no auth required)
+  const inviteMatch = effectivePath.match(/^\/invite\/([a-zA-Z0-9]+)$/);
+  if (inviteMatch) {
+    return (
+      <QueryClientProvider client={queryClient}>
+        <InviteLanding token={inviteMatch[1]} />
       </QueryClientProvider>
     );
   }

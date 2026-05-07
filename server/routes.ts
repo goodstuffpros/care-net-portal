@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt } from "drizzle-orm";
 import path from "path";
@@ -385,6 +385,231 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch (err: any) {
       console.error("[mc/setup] ERROR:", err?.message || err);
       res.status(500).json({ message: err?.message || "Setup failed" });
+    }
+  });
+
+  // ── Connection Invites ──────────────────────────────────────────────────────
+
+  // POST /api/invite/create — authenticated user creates an invite link
+  app.post("/api/invite/create", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const account = req.account!;
+      const user = db.select().from(users).where(eq(users.id, account.userId!)).get();
+      if (!user) return res.status(404).json({ message: "User not found" });
+
+      const { invitedEmail, inviteType } = req.body;
+      // inviteType: 'mc_to_caregiver' | 'caregiver_to_mc' | 'mc_to_family'
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family"];
+      if (!inviteType || !validTypes.includes(inviteType)) {
+        return res.status(400).json({ message: "Invalid invite type" });
+      }
+
+      // Get the client/loved one name for the landing page
+      let clientName: string | null = null;
+      if (user.clientId) {
+        const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
+        clientName = client?.name ?? null;
+      }
+
+      const token = generateToken(32);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+      const now = new Date().toISOString();
+      const senderName = user.name || account.email || "Your Care Net Portal connection";
+      const senderRole = user.role || "caregiver";
+
+      db.insert(connectionInvites).values({
+        token,
+        senderUserId: user.id,
+        senderRole,
+        clientId: user.clientId ?? null,
+        clientName,
+        senderName,
+        invitedEmail: invitedEmail || null,
+        inviteType,
+        status: "pending",
+        expiresAt,
+        createdAt: now,
+      }).run();
+
+      const appUrl = process.env.APP_URL || "https://care-net-portal-production.up.railway.app";
+      const inviteUrl = `${appUrl}/#/invite/${token}`;
+
+      // Optionally send invite email if email provided
+      if (invitedEmail) {
+        const roleLabel = inviteType === "mc_to_caregiver" ? "caregiver" :
+                          inviteType === "caregiver_to_mc" ? "family contact" : "family member";
+        await sendEmail({
+          to: invitedEmail,
+          subject: `${senderName} invited you to Care Net Portal`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #28251D;">
+              <div style="background: #01696F; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 22px;">Care Net Portal</h1>
+                <p style="margin: 8px 0 0; opacity: 0.85;">You've been invited</p>
+              </div>
+              <div style="background: #F7F6F2; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #D4D1CA;">
+                <p style="font-size: 16px;"><strong>${senderName}</strong> has invited you to connect on Care Net Portal as a <strong>${roleLabel}</strong>${clientName ? ` for <strong>${clientName}</strong>` : ""}.</p>
+                <p style="color: #5A5957; font-size: 14px;">Care Net Portal is a private care coordination platform that keeps caregivers and families connected with compassion and clarity.</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${inviteUrl}" style="background: #01696F; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">Accept Invitation</a>
+                </div>
+                <p style="color: #BAB9B4; font-size: 12px; text-align: center;">This invitation expires in 7 days. If you did not expect this email, you can safely ignore it.</p>
+              </div>
+            </div>
+          `,
+        });
+      }
+
+      res.json({ success: true, inviteUrl, token });
+    } catch (err: any) {
+      console.error("[invite/create] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to create invite" });
+    }
+  });
+
+  // GET /api/invite/:token — public: validate token + return context for landing page
+  app.get("/api/invite/:token", async (req, res) => {
+    try {
+      const { token } = req.params;
+      const invite = db.select().from(connectionInvites)
+        .where(eq(connectionInvites.token, token)).get();
+
+      if (!invite) return res.status(404).json({ message: "Invite not found" });
+      if (invite.status !== "pending") return res.status(410).json({ message: "This invite has already been used", status: invite.status });
+      if (new Date(invite.expiresAt) < new Date()) {
+        db.update(connectionInvites).set({ status: "expired" })
+          .where(eq(connectionInvites.token, token)).run();
+        return res.status(410).json({ message: "This invite link has expired" });
+      }
+
+      res.json({
+        valid: true,
+        senderName: invite.senderName,
+        senderRole: invite.senderRole,
+        clientName: invite.clientName,
+        inviteType: invite.inviteType,
+        invitedEmail: invite.invitedEmail,
+      });
+    } catch (err: any) {
+      console.error("[invite/get] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to validate invite" });
+    }
+  });
+
+  // POST /api/invite/:token/accept — authenticated user accepts the invite
+  app.post("/api/invite/:token/accept", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { token } = req.params;
+      const account = req.account!;
+      const acceptingUser = db.select().from(users).where(eq(users.id, account.userId!)).get();
+      if (!acceptingUser) return res.status(404).json({ message: "User not found" });
+
+      const invite = db.select().from(connectionInvites)
+        .where(eq(connectionInvites.token, token)).get();
+      if (!invite) return res.status(404).json({ message: "Invite not found" });
+      if (invite.status !== "pending") return res.status(410).json({ message: "This invite has already been used" });
+      if (new Date(invite.expiresAt) < new Date()) return res.status(410).json({ message: "This invite has expired" });
+
+      const sender = db.select().from(users).where(eq(users.id, invite.senderUserId)).get();
+
+      const now = new Date().toISOString();
+
+      // Determine which user is the caregiver and which is the MC/family
+      // Then link them via a shared clientId
+      let clientId = invite.clientId;
+
+      if (invite.inviteType === "mc_to_caregiver") {
+        // Sender is MC (has clientId), acceptor is CG — give CG the clientId
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
+        }
+      } else if (invite.inviteType === "caregiver_to_mc") {
+        // Sender is CG (has clientId), acceptor is MC — share the clientId
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
+        } else if (acceptingUser.clientId) {
+          // MC already has a client — share it back to the CG sender
+          if (sender) {
+            db.update(users).set({ clientId: acceptingUser.clientId }).where(eq(users.id, sender.id)).run();
+          }
+          clientId = acceptingUser.clientId;
+        }
+      } else if (invite.inviteType === "mc_to_family") {
+        // Sender is MC, acceptor is secondary family — give them read access to same client
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          db.update(users).set({ clientId, role: "secondary_family" })
+            .where(eq(users.id, acceptingUser.id)).run();
+        }
+      }
+
+      // Mark invite accepted
+      db.update(connectionInvites).set({
+        status: "accepted",
+        acceptedByUserId: acceptingUser.id,
+        acceptedAt: now,
+      }).where(eq(connectionInvites.token, token)).run();
+
+      // Notify sender that their invite was accepted
+      if (sender) {
+        const senderAccount = db.select().from(authAccounts)
+          .where(eq(authAccounts.userId, sender.id)).get();
+        if (senderAccount?.email) {
+          await sendEmail({
+            to: senderAccount.email,
+            subject: `${acceptingUser.name || "Someone"} accepted your Care Net Portal invitation`,
+            html: `
+              <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #28251D;">
+                <div style="background: #01696F; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                  <h1 style="margin: 0; font-size: 22px;">Care Net Portal</h1>
+                  <p style="margin: 8px 0 0; opacity: 0.85;">Connection accepted</p>
+                </div>
+                <div style="background: #F7F6F2; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #D4D1CA;">
+                  <p style="font-size: 16px;"><strong>${acceptingUser.name || "Your contact"}</strong> has accepted your invitation and joined Care Net Portal. Your portals are now connected.</p>
+                  <div style="text-align: center; margin: 24px 0;">
+                    <a href="${process.env.APP_URL || "https://care-net-portal-production.up.railway.app"}" style="background: #01696F; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">Open Portal</a>
+                  </div>
+                </div>
+              </div>
+            `,
+          });
+        }
+      }
+
+      res.json({ success: true, clientId, message: "Portals connected successfully" });
+    } catch (err: any) {
+      console.error("[invite/accept] ERROR:", err?.message || err);
+      res.status(500).json({ message: "Failed to accept invite" });
+    }
+  });
+
+  // GET /api/notifications/prefs — get current user's notification preferences
+  app.get("/api/notifications/prefs", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const user = db.select().from(users).where(eq(users.id, req.account!.userId!)).get();
+      const prefs = user?.notificationPrefs
+        ? JSON.parse(user.notificationPrefs as string)
+        : { careLog: true, messages: true, schedule: true, vitals: false };
+      res.json({ prefs });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to load preferences" });
+    }
+  });
+
+  // PATCH /api/notifications/prefs — update notification preferences
+  app.patch("/api/notifications/prefs", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const { prefs } = req.body;
+      if (!prefs || typeof prefs !== "object") return res.status(400).json({ message: "Invalid prefs" });
+      db.update(users)
+        .set({ notificationPrefs: JSON.stringify(prefs) })
+        .where(eq(users.id, req.account!.userId!))
+        .run();
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: "Failed to save preferences" });
     }
   });
 
