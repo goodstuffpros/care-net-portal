@@ -1042,29 +1042,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
           {/* Pre-connection demo mode banner */}
           {showPreConnBanner && (
-            <div className="mx-4 mt-4 rounded-xl border border-teal-500/30 bg-teal-950/20 px-4 py-3 flex items-start gap-3">
+            <div className="mx-4 mt-4 rounded-xl border border-teal-400/40 bg-teal-50 dark:bg-teal-950/40 px-4 py-3 flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <GraduationCap size={15} className="text-teal-400" />
+                <GraduationCap size={15} className="text-teal-600 dark:text-teal-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-teal-200 text-sm font-semibold leading-tight">You're in demo mode</p>
-                <p className="text-teal-400/70 text-xs mt-0.5 leading-relaxed">
-                  Everything is unlocked once a client portal is created. Explore freely — this is live demo data.
+                <p className="text-teal-800 dark:text-teal-200 text-sm font-semibold leading-tight">You're in demo mode</p>
+                <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-0.5 leading-relaxed">
+                  Everything unlocks once a client portal is created. Explore freely — this is live demo data.
                 </p>
                 <button
                   onClick={handlePreConnInvite}
                   disabled={preConnInviteMutation.isPending}
-                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-teal-300 hover:text-white transition-colors"
+                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-teal-600 dark:text-teal-300 hover:text-teal-900 dark:hover:text-white transition-colors"
                 >
                   {preConnCopied
-                    ? <><Check size={12} className="text-green-400" /> Link copied — send it to your family contact</>  
+                    ? <><Check size={12} className="text-green-600 dark:text-green-400" /> Link copied — send it to your family contact</>  
                     : <><Link2 size={12} /> {preConnInviteMutation.isPending ? "Generating link..." : "Copy invite link for family contact"}</>
                   }
                 </button>
               </div>
               <button
                 onClick={() => setPreConnBannerDismissed(true)}
-                className="text-teal-500/40 hover:text-teal-300 transition-colors flex-shrink-0 mt-0.5"
+                className="text-teal-400/60 hover:text-teal-600 dark:hover:text-teal-300 transition-colors flex-shrink-0 mt-0.5"
                 aria-label="Dismiss"
               >
                 <X size={14} />

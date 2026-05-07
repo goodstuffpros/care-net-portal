@@ -385,7 +385,9 @@ export default function App() {
   if (inviteMatch) {
     return (
       <QueryClientProvider client={queryClient}>
-        <InviteLanding token={inviteMatch[1]} />
+        <Router hook={useHashLocation}>
+          <InviteLanding token={inviteMatch[1]} />
+        </Router>
       </QueryClientProvider>
     );
   }
@@ -395,7 +397,9 @@ export default function App() {
   if (verifyMatch) {
     return (
       <QueryClientProvider client={queryClient}>
-        <VerifyEmailPage token={verifyMatch[1]} />
+        <Router hook={useHashLocation}>
+          <VerifyEmailPage token={verifyMatch[1]} />
+        </Router>
       </QueryClientProvider>
     );
   }
@@ -410,7 +414,9 @@ export default function App() {
     }
     return (
       <QueryClientProvider client={queryClient}>
-        <AuthPage />
+        <Router hook={useHashLocation}>
+          <AuthPage />
+        </Router>
       </QueryClientProvider>
     );
   }
