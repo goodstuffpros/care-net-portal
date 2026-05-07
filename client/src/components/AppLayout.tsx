@@ -674,7 +674,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       {/* Voice hint — shows HFM status or tip */}
-      {isCaregiverRole(activeUser.role) && isVoiceSupported() && (
+      {(isCaregiverRole(activeUser.role) || isFamily) && isVoiceSupported() && (
         <div className={cn(
           "mx-3 mb-2 px-3 py-2 rounded-lg flex items-center gap-2 text-xs transition-all",
           hfmActive
@@ -1034,8 +1034,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Voice Controls — caregiver roles only */}
-          {isVoiceSupported() && isCaregiverRole(activeUser.role) && (
+          {/* Voice Controls — caregiver roles + family (hands-free situations) */}
+          {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (
             <div className="flex items-center gap-1">
 
               {/* ── Hey CareNet wake-word pill ── */}
