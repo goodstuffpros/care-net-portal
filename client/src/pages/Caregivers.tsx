@@ -48,6 +48,7 @@ export default function CaregiversPage() {
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
   const canManage = activeUser.role === "caregiver" || activeUser.role === "facilitator";
+  const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
   // Invite type: CG invites MC, MC invites CG or family
   const inviteType = (activeUser.role === "primary_family" || activeUser.role === "secondary_family")
@@ -153,14 +154,16 @@ export default function CaregiversPage() {
             <p className="text-xs text-muted-foreground truncate">Primary · Relief · Temp</p>
           </div>
         </div>
-        {canManage && (
+        {(canManage || isFamily) && (
           <div className="flex gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
+            {!isFamily && (
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2 flex-1" data-testid="add-caregiver-btn">
                 <UserPlus size={15} /> Add Caregiver
               </Button>
             </DialogTrigger>
+            )}
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
                 <DialogTitle>Add Caregiver Profile</DialogTitle>
@@ -235,9 +238,9 @@ export default function CaregiversPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Invite button */}
-          <Button size="sm" variant="outline" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
-            <Link2 size={15} /> Invite
+          {/* Invite button — always show for family, conditionally for CG */}
+          <Button size="sm" variant={isFamily ? "default" : "outline"} className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+            <Link2 size={15} /> {isFamily ? "Invite a Caregiver" : "Invite"}
           </Button>
           </div>
         )}
@@ -330,6 +333,20 @@ export default function CaregiversPage() {
           <Users size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No caregivers yet</p>
           {canManage && <p className="text-sm mt-1">Add a caregiver profile to expand the care team.</p>}
+          {isFamily && (
+            <div className="mt-5 space-y-3">
+              <p className="text-sm max-w-xs mx-auto">
+                Once a caregiver joins Care Net Portal, they'll appear here. Use the button below to send them an invite link.
+              </p>
+              <Button
+                onClick={handleOpenInvite}
+                className="gap-2"
+                data-testid="empty-state-invite-caregiver-btn"
+              >
+                <Link2 size={15} /> Invite a Caregiver
+              </Button>
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-3">
