@@ -20,6 +20,13 @@ export default function VerifyEmailPage({ token }: Props) {
   const [stage, setStage] = useState<Stage>("verifying");
   const [errorMsg, setErrorMsg] = useState("");
   const [userName, setUserName] = useState("");
+  const [slowLoad, setSlowLoad] = useState(false);
+
+  // After 8 seconds still verifying → show a reassuring message
+  useEffect(() => {
+    const t = setTimeout(() => setSlowLoad(true), 8000);
+    return () => clearTimeout(t);
+  }, []);
 
   useEffect(() => {
     if (!token) { setStage("error"); setErrorMsg("Missing verification token."); return; }
@@ -41,7 +48,7 @@ export default function VerifyEmailPage({ token }: Props) {
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         setStage("success");
         // Redirect into app after a brief moment
-        setTimeout(() => navigate("/"), 2200);
+        setTimeout(() => navigate("/"), 800);
       })
       .catch(() => {
         setStage("error");
@@ -53,9 +60,14 @@ export default function VerifyEmailPage({ token }: Props) {
   if (stage === "verifying") {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background px-4">
-        <div className="text-center space-y-4">
+        <div className="text-center space-y-4 max-w-xs">
           <Loader2 className="w-10 h-10 animate-spin text-primary mx-auto" />
           <p className="text-muted-foreground text-sm">Verifying your email…</p>
+          {slowLoad && (
+            <p className="text-muted-foreground/60 text-xs leading-relaxed">
+              Almost there — the server is waking up.<br />This can take up to 60 seconds on first use.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -73,7 +85,7 @@ export default function VerifyEmailPage({ token }: Props) {
             {userName ? `You're in, ${userName}!` : "Email verified!"}
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-            Your account is active. Taking you to the app now…
+            Your account is active. Taking you to profile setup now…
           </p>
           <div className="flex justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
