@@ -76,7 +76,7 @@ export default function LoginPage() {
           </p>
           <p className="font-medium text-foreground mb-4">{email}</p>
           <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-            Click the link in that email to activate your account — no waiting for approval.
+            Click the link to verify your account and get started. Be sure to check your spam folder if you don't see it in your inbox.
           </p>
           <div className="space-y-3">
             <Button

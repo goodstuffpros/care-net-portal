@@ -97,7 +97,7 @@ export default function ApplyPage() {
           </p>
           <p className="font-medium text-foreground mb-4">{form.email}</p>
           <p className="text-muted-foreground text-sm leading-relaxed mb-8">
-            Click the link to verify your email and you'll be taken straight into the app — no waiting for approval.
+            Click the link to verify your account and get started. Be sure to check your spam folder if you don't see it in your inbox.
           </p>
 
           <div className="space-y-3">
