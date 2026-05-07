@@ -178,8 +178,11 @@ export default function HelpDesk() {
     try { wake.start(); } catch {}
   }, [voiceSupported, open]);
 
+  // Wake word listener is NOT auto-started on mount — only starts after the user
+  // has opened the HelpDesk at least once (opt-in to mic permission).
+  const [wakeListenerEnabled, setWakeListenerEnabled] = useState(false);
+
   useEffect(() => {
-    startWakeWordListener();
     return () => {
       wakeRecognitionRef.current?.abort();
       recognitionRef.current?.abort();
@@ -188,16 +191,19 @@ export default function HelpDesk() {
 
   // Stop wake listener while chat is open (avoids interference)
   useEffect(() => {
+    if (!wakeListenerEnabled) return;
     if (open) {
       wakeRecognitionRef.current?.abort();
     } else {
       startWakeWordListener();
     }
-  }, [open]);
+  }, [open, wakeListenerEnabled]);
 
   // Show welcome message on first open
   function handleOpen() {
     setOpen(true);
+    // Enable wake word listener after first explicit open (opt-in to mic permission)
+    if (!wakeListenerEnabled) setWakeListenerEnabled(true);
     if (messages.length === 0) {
       setMessages([{
         id: generateId(),

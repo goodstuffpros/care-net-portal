@@ -341,6 +341,16 @@ const AUTH_ROUTES: Record<string, React.ComponentType> = {
   "/beta-agreement": BetaAgreement,
 };
 
+// Known path-based routes that should map to hash routes.
+// Handles users pasting bare URLs like /login instead of /#/login.
+const PATH_TO_HASH_ROUTES: Record<string, string> = {
+  "/login": "#/login",
+  "/apply": "#/apply",
+  "/signup": "#/apply",
+  "/register": "#/apply",
+  "/forgot-password": "#/forgot-password",
+};
+
 export default function App() {
   const [hash, setHash] = useState(
     typeof window !== "undefined" ? window.location.hash : ""
@@ -350,6 +360,17 @@ export default function App() {
     const onHashChange = () => setHash(window.location.hash);
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+
+  // Redirect bare path URLs (/login, /apply, etc.) to their hash equivalents.
+  // Handles users pasting links without the #.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const pathname = window.location.pathname;
+    const target = PATH_TO_HASH_ROUTES[pathname];
+    if (target && !window.location.hash) {
+      window.location.replace("/#" + target.slice(1)); // e.g. /#/login
+    }
   }, []);
 
   // Extract path from hash: "#/apply?token=..." -> "/apply"
