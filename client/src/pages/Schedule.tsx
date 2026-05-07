@@ -177,6 +177,8 @@ export default function SchedulePage() {
   });
 
   // ── MC: Add Appointment ──────────────────────────────────────────────────
+  const [alarmPickerOpen, setAlarmPickerOpen] = useState(false);
+  const [mcAlarmPickerOpen, setMcAlarmPickerOpen] = useState(false);
   const [mcAddOpen, setMcAddOpen] = useState(false);
   const [mcForm, setMcForm] = useState({
     title: "", scheduledAt: "", location: "", doctor: "", notes: "", priority: "green",
@@ -502,28 +504,37 @@ export default function SchedulePage() {
                     </div>
                     <Switch
                       checked={form.alarmEnabled}
-                      onCheckedChange={v => setForm(f => ({ ...f, alarmEnabled: v }))}
+                      onCheckedChange={v => { setForm(f => ({ ...f, alarmEnabled: v })); setAlarmPickerOpen(v); }}
                       data-testid="alarm-toggle-new"
                     />
                   </div>
                   {form.alarmEnabled && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].map(opt => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setForm(f => ({ ...f, reminderMinutes: opt.value }))}
-                          className={cn(
-                            "py-2 px-3 rounded-lg text-xs text-left border transition-all",
-                            form.reminderMinutes === opt.value
-                              ? "bg-primary text-primary-foreground border-primary font-medium"
-                              : "bg-background border-border hover:bg-muted"
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    alarmPickerOpen ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => { setForm(f => ({ ...f, reminderMinutes: opt.value })); setAlarmPickerOpen(false); }}
+                            className={cn(
+                              "py-2 px-3 rounded-lg text-xs text-left border transition-all",
+                              form.reminderMinutes === opt.value
+                                ? "bg-primary text-primary-foreground border-primary font-medium"
+                                : "bg-background border-border hover:bg-muted"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].find(o => o.value === form.reminderMinutes)?.label ?? "30 min before"}
+                        </span>
+                        <button type="button" onClick={() => setAlarmPickerOpen(true)} className="text-xs text-primary hover:underline">Change</button>
+                      </div>
+                    )
                   )}
                 </div>
 
@@ -661,28 +672,37 @@ export default function SchedulePage() {
                     </div>
                     <Switch
                       checked={mcForm.alarmEnabled}
-                      onCheckedChange={v => setMcForm(f => ({ ...f, alarmEnabled: v }))}
+                      onCheckedChange={v => { setMcForm(f => ({ ...f, alarmEnabled: v })); setMcAlarmPickerOpen(v); }}
                       data-testid="mc-alarm-toggle"
                     />
                   </div>
                   {mcForm.alarmEnabled && (
-                    <div className="grid grid-cols-2 gap-2 pt-1">
-                      {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].map(opt => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setMcForm(f => ({ ...f, reminderMinutes: opt.value }))}
-                          className={cn(
-                            "py-2 px-3 rounded-lg text-xs text-left border transition-all",
-                            mcForm.reminderMinutes === opt.value
-                              ? "bg-primary text-primary-foreground border-primary font-medium"
-                              : "bg-background border-border hover:bg-muted"
-                          )}
-                        >
-                          {opt.label}
-                        </button>
-                      ))}
-                    </div>
+                    mcAlarmPickerOpen ? (
+                      <div className="grid grid-cols-2 gap-2 pt-1">
+                        {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].map(opt => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => { setMcForm(f => ({ ...f, reminderMinutes: opt.value })); setMcAlarmPickerOpen(false); }}
+                            className={cn(
+                              "py-2 px-3 rounded-lg text-xs text-left border transition-all",
+                              mcForm.reminderMinutes === opt.value
+                                ? "bg-primary text-primary-foreground border-primary font-medium"
+                                : "bg-background border-border hover:bg-muted"
+                            )}
+                          >
+                            {opt.label}
+                          </button>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="flex items-center justify-between pt-1">
+                        <span className="text-xs font-medium text-foreground">
+                          {[{ value: 0, label: "At time" }, { value: 10, label: "10 min before" }, { value: 15, label: "15 min before" }, { value: 30, label: "30 min before" }, { value: 60, label: "1 hr before" }, { value: 120, label: "2 hrs before" }].find(o => o.value === mcForm.reminderMinutes)?.label ?? "30 min before"}
+                        </span>
+                        <button type="button" onClick={() => setMcAlarmPickerOpen(true)} className="text-xs text-primary hover:underline">Change</button>
+                      </div>
+                    )
                   )}
                 </div>
                 <Button
