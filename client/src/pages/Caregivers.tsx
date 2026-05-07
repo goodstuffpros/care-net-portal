@@ -91,12 +91,14 @@ export default function CaregiversPage() {
     setFindStatus("searching");
     setFoundUser(null);
     try {
-      const res = await apiRequest("GET", `/api/users/lookup-by-email?email=${encodeURIComponent(findEmail.trim())}`);
+      // CG looks for family, MC looks for caregiver
+      const lookingFor = isFamily ? "caregiver" : "family";
+      const res = await apiRequest("GET", `/api/users/lookup-by-email?email=${encodeURIComponent(findEmail.trim())}&lookingFor=${lookingFor}`);
       const data = await res.json();
       if (data.found) {
         setFoundUser(data);
         setFindStatus("found");
-      } else if (data.notCaregiver) {
+      } else if (data.wrongRole) {
         setFindStatus("not_caregiver");
       } else {
         setFindStatus("not_found");
@@ -110,6 +112,7 @@ export default function CaregiversPage() {
     mutationFn: () => apiRequest("POST", "/api/invite/direct-connect", {
       targetEmail: findEmail.trim(),
       targetUserId: foundUser!.userId,
+      inviteType: inviteType, // 'caregiver_to_mc' for CG, 'mc_to_caregiver' for family
     }).then(r => r.json()),
     onSuccess: () => {
       setFindStatus("sent");
@@ -125,10 +128,9 @@ export default function CaregiversPage() {
     setFindEmail("");
     setFoundUser(null);
     setFindStatus("idle");
-    setInviteTab(isFamily ? "existing" : "new");
+    setInviteTab("existing"); // both CG and MC default to "already on CNP"
     setInviteOpen(true);
-    // Pre-generate a shareable link (for the "new user" tab)
-    if (!isFamily) createInviteMutation.mutate(undefined);
+    // Don't pre-generate on open — link is generated when user switches to "New to CNP" tab
   }
 
   const [form, setForm] = useState({
@@ -332,10 +334,10 @@ export default function CaregiversPage() {
               {findStatus !== "sent" ? (
                 <>
                   <p className="text-xs text-muted-foreground">
-                    Enter the email address your caregiver uses for their Care Net Portal account. We'll find them and send a connection request directly.
+                    Enter the email address {isFamily ? "your caregiver" : "the family contact"} uses for their Care Net Portal account. We'll find them and send a connection request directly.
                   </p>
                   <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Caregiver's CNP email</Label>
+                    <Label className="text-xs text-muted-foreground">{isFamily ? "Caregiver's" : "Family contact's"} CNP email</Label>
                     <div className="flex gap-2">
                       <Input
                         type="email"
@@ -367,7 +369,7 @@ export default function CaregiversPage() {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-semibold text-sm">{foundUser.name}</div>
-                        <div className="text-xs text-muted-foreground">Care Net Portal caregiver</div>
+                        <div className="text-xs text-muted-foreground">{isFamily ? "Care Net Portal caregiver" : "Care Net Portal family contact"}</div>
                       </div>
                       <Button
                         size="sm"
@@ -385,13 +387,13 @@ export default function CaregiversPage() {
 
                   {findStatus === "not_found" && (
                     <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
-                      No CNP account found for that email. They may not be on Care Net Portal yet — use the <button type="button" className="text-primary underline" onClick={() => setInviteTab("new")}>New to CNP</button> tab to send them an invite.
+                      No CNP account found for that email. They may not be on Care Net Portal yet — use the <button type="button" className="text-primary underline" onClick={() => setInviteTab("new")}>New to CNP</button> tab to send them an invite link.
                     </div>
                   )}
 
                   {findStatus === "not_caregiver" && (
                     <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
-                      That email is registered but not as a caregiver account.
+                      That email is registered but not as {isFamily ? "a caregiver" : "a family contact"} account.
                     </div>
                   )}
                 </>

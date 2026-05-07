@@ -633,19 +633,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
-  // GET /api/users/lookup-by-email?email=... — check if email belongs to an active CNP caregiver
+  // GET /api/users/lookup-by-email?email=...&lookingFor=caregiver|family
+  // lookingFor=caregiver  → MC searching for a CG to connect with
+  // lookingFor=family     → CG searching for an MC/family member to connect with
   app.get("/api/users/lookup-by-email", requireAuth, (req: AuthRequest, res) => {
     try {
       const email = (req.query.email as string || "").trim().toLowerCase();
+      const lookingFor = (req.query.lookingFor as string || "caregiver");
       if (!email) return res.status(400).json({ message: "Email required" });
-      // Find auth account with this email
       const account = db.select().from(authAccounts).where(eq(authAccounts.email, email)).get();
       if (!account || !account.userId) return res.json({ found: false });
       const user = db.select().from(users).where(eq(users.id, account.userId)).get();
       if (!user || !user.isActive) return res.json({ found: false });
-      // Only surface caregivers (not other MCs or family)
       const caregiverRoles = ["caregiver", "multi_caregiver", "temp_caregiver"];
-      if (!caregiverRoles.includes(user.role)) return res.json({ found: false, notCaregiver: true });
+      const familyRoles = ["primary_family", "secondary_family"];
+      const allowedRoles = lookingFor === "family" ? familyRoles : caregiverRoles;
+      if (!allowedRoles.includes(user.role)) return res.json({ found: false, wrongRole: true });
       res.json({
         found: true,
         userId: user.id,
@@ -668,12 +671,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const senderUser = db.select().from(users).where(eq(users.id, userId)).get();
       if (!senderUser) return res.status(404).json({ message: "Sender not found" });
 
-      const { targetEmail, targetUserId } = req.body;
+      const { targetEmail, targetUserId, inviteType: rawInviteType } = req.body;
       if (!targetEmail || !targetUserId) return res.status(400).json({ message: "targetEmail and targetUserId required" });
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family"];
+      const resolvedInviteType = validTypes.includes(rawInviteType) ? rawInviteType : "mc_to_caregiver";
 
-      // Verify target is a real active caregiver
+      // Verify target is a real active user
       const targetUser = db.select().from(users).where(eq(users.id, Number(targetUserId))).get();
-      if (!targetUser || !targetUser.isActive) return res.status(404).json({ message: "Caregiver not found" });
+      if (!targetUser || !targetUser.isActive) return res.status(404).json({ message: "User not found" });
 
       // Build the invite token
       const token = generateToken(32);
@@ -694,7 +699,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         clientName,
         senderName,
         invitedEmail: targetEmail,
-        inviteType: "mc_to_caregiver",
+        inviteType: resolvedInviteType,
         status: "pending",
         expiresAt,
         createdAt: now,
