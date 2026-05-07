@@ -447,9 +447,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       res.json({ reply, shouldEscalate });
     } catch (err: any) {
-      console.error("[helpdesk/chat] ERROR:", err?.message || err);
+      const errMsg = err?.message || String(err);
+      console.error("[helpdesk/chat] ERROR:", errMsg);
       res.json({
-        reply: "I'm having trouble right now. For immediate help, email portal@carenetportal.com.",
+        reply: `I'm having trouble right now (${errMsg}). For immediate help, email portal@carenetportal.com.`,
         shouldEscalate: true,
       });
     }
