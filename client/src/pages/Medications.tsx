@@ -928,7 +928,7 @@ export default function MedicationsPage() {
           <TabsTrigger value="active" className="text-xs px-3">
             Active {activeMeds.length > 0 && <span className="ml-1 bg-primary/15 text-primary rounded-full px-1.5 text-[10px]">{activeMeds.length}</span>}
           </TabsTrigger>
-          {!isFamilyPortal && (
+          {!isFamilyPortal && !isFamily && (
             <TabsTrigger value="log" className="text-xs px-3">Admin Log</TabsTrigger>
           )}
           <TabsTrigger value="archive" className="text-xs px-3">

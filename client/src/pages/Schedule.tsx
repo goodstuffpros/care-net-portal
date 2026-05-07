@@ -16,7 +16,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Plus, CheckCircle2, Circle, Calendar, Pill, Stethoscope, Dumbbell, Clock, MapPin, RefreshCw, Mic, MicOff, CalendarPlus, PackageOpen, AlertTriangle, Eye, Loader2, UserX, Bell, BellOff } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Calendar, Pill, Stethoscope, Dumbbell, Clock, MapPin, RefreshCw, Mic, MicOff, CalendarPlus, AlertTriangle, Eye, Loader2, UserX, Bell, BellOff } from "lucide-react";
 import { AlarmConfig } from "@/components/AlarmConfig";
 import { Switch } from "@/components/ui/switch";
 import type { Client } from "@shared/schema";
@@ -274,19 +274,6 @@ export default function SchedulePage() {
 
   const pastGrouped = groupByDay(pastEvents);
   const pastSortedDays = Object.keys(pastGrouped).sort().reverse(); // descending — most recent first
-
-  const medEvents = events.filter(e => e.type === "medication");
-  const REFILL_DATA: Record<string, { pills: number; dosesPerDay: number }> = {
-    "Morning Medications": { pills: 14, dosesPerDay: 1 },
-    "Evening Medications": { pills: 6, dosesPerDay: 1 },
-    "Carbidopa-levodopa": { pills: 3, dosesPerDay: 3 },
-  };
-  function getMedRefill(title: string) {
-    for (const key of Object.keys(REFILL_DATA)) {
-      if (title.toLowerCase().includes(key.toLowerCase())) return REFILL_DATA[key];
-    }
-    return { pills: 14, dosesPerDay: 1 };
-  }
 
   function renderEventCard(event: ScheduleEvent) {
     const Icon = TYPE_ICONS[event.type] || Calendar;
@@ -710,54 +697,7 @@ export default function SchedulePage() {
         )}
       </div>
 
-      {/* Refill Tracker — hidden in Family Care Portal */}
-      {medEvents.length > 0 && !isFamilyPortal && (
-        <Card className="border-border" data-testid="refill-tracker">
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-              <PackageOpen size={16} className="text-purple-600" /> Medication Refill Tracker
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-              {medEvents.map(med => {
-                const refill = getMedRefill(med.title);
-                const daysLeft = Math.floor(refill.pills / refill.dosesPerDay);
-                const status = daysLeft > 7 ? "good" : daysLeft > 3 ? "warn" : "urgent";
-                const statusConfig = {
-                  good: { label: "Good Supply", classes: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900" },
-                  warn: { label: "Reorder Soon", classes: "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900" },
-                  urgent: { label: "Urgent: Refill Now", classes: "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900" },
-                }[status];
-                return (
-                  <div key={med.id} className="p-3 rounded-xl border border-border bg-muted/20 space-y-2" data-testid={`refill-card-${med.id}`}>
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="font-medium text-sm">{med.title}</div>
-                      <span className={cn("text-xs px-2 py-0.5 rounded-full border whitespace-nowrap font-medium", statusConfig.classes)}>
-                        {statusConfig.label}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                      <span><span className="font-semibold text-foreground">{refill.pills}</span> pills left</span>
-                      <span>·</span>
-                      <span><span className="font-semibold text-foreground">{daysLeft}</span> days remaining</span>
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="w-full text-xs h-7"
-                      onClick={() => toast({ title: "Refill requested", description: `Refill request sent to pharmacy for ${med.title}` })}
-                      data-testid={`request-refill-${med.id}`}
-                    >
-                      Request Refill
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      )}
+
 
       {/* Filter bar — scrollable on mobile */}
       <div className="overflow-x-auto pb-1 -mx-1 px-1">
