@@ -420,7 +420,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          model: "gpt-4o",
+          model: "gpt-4o-mini",
           messages,
           max_tokens: 400,
           temperature: 0.7,
