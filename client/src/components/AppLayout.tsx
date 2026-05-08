@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings2
+  Megaphone, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -1000,22 +1000,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">Menu</span>
           </button>
 
-          {/* Mode/Role indicator — tappable, navigates to profile */}
-          <button
-            onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
-            data-testid="role-pill-header"
-            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity active:opacity-70 min-w-0 shrink",
-              isFamilyPortal ? "bg-sidebar-accent text-sidebar-foreground/80 border border-sidebar-border hover:bg-sidebar-primary/10"
-              : isPreCare ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
-              : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-            <span className="flex-shrink-0">{isFamilyPortal ? <Heart size={12} /> : isPreCare ? <Heart size={12} /> : <Shield size={12} />}</span>
-            <span className="truncate">{isFamilyPortal ? "Family Care" : isPreCare ? "Pre-Care Mode" : ROLE_LABELS[activeUser.role]}</span>
-          </button>
-
           {/* Temp caregiver expiry badge */}
           {activeUser.role === "temp_caregiver" && activeUser.tempAccessEnd && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900">
-              <span>Temp access until {new Date(activeUser.tempAccessEnd).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900 flex-shrink-0">
+              <span>Temp until {new Date(activeUser.tempAccessEnd).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
             </div>
           )}
 
@@ -1029,7 +1017,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
             >
               <Heart size={11} className="fill-rose-400" />
-              <span className="hidden sm:inline">For Me</span>
+              <span>For Me</span>
             </button>
           )}
 
@@ -1154,7 +1142,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               aria-label="Preferences"
               data-testid="prefs-btn"
             >
-              <Settings2 size={18} />
+              <Settings size={18} />
             </button>
             {showThemePicker && (
               <>
