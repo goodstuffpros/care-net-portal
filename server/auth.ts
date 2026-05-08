@@ -395,6 +395,35 @@ export function emailApprovalTemplate(name: string, inviteUrl: string): string {
   `;
 }
 
+export function emailApprovalWelcomeTemplate(name: string, loginUrl: string): string {
+  return `
+    <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
+      <div style="background: #1a5f5a; padding: 24px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 600;">Care Net Portal</h1>
+        <p style="color: rgba(255,255,255,0.8); margin: 4px 0 0; font-size: 14px;">Private Beta</p>
+      </div>
+      <div style="background: #fafaf9; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #e5e5e3; border-top: none;">
+        <h2 style="margin: 0 0 12px; font-size: 18px;">You're in, ${name}!</h2>
+        <p style="color: #4a4a48; line-height: 1.6; margin: 0 0 24px;">
+          Your Care Net Portal account is set up and ready to go. We're grateful you're willing to help shape this — it means a lot.
+        </p>
+        <p style="color: #4a4a48; line-height: 1.6; margin: 0 0 24px;">
+          Click the button below to sign in any time.
+        </p>
+        <a href="${loginUrl}" style="display: inline-block; background: #1a5f5a; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px;">
+          Sign In to Care Net Portal →
+        </a>
+        <p style="color: #9a9a98; font-size: 13px; margin: 24px 0 0; line-height: 1.5;">
+          This is a private beta. Please don't share screenshots or describe the platform publicly — we'll open things up on our own timeline. Thank you for respecting that.
+        </p>
+        <p style="color: #9a9a98; font-size: 13px; margin: 12px 0 0;">
+          Questions? Reply to this email or reach us at portal@carenetportal.com.
+        </p>
+      </div>
+    </div>
+  `;
+}
+
 export function emailDenialTemplate(name: string): string {
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">

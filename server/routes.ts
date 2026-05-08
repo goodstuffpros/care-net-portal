@@ -14,7 +14,7 @@ import {
   setSessionCookie, clearSessionCookie, getTokenFromRequest,
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
-  emailVerifyTemplate, emailPasswordResetTemplate,
+  emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate,
   requireAuth, requireAuthAccount, requireReAuth, type AuthRequest
 } from "./auth";
 
@@ -260,6 +260,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
       approvedAt: new Date().toISOString(),
       accountCreatedAt: new Date().toISOString(),
     }).where(eq(betaApplications.email, account.email)).run();
+
+    // Send welcome/approval email non-blocking
+    const appUrl = process.env.APP_URL || "http://localhost:5000";
+    const loginUrl = `${appUrl}/#/login`;
+    sendEmail({
+      to: account.email,
+      subject: "You're in — Care Net Portal Beta",
+      html: emailApprovalWelcomeTemplate(app_.name, loginUrl),
+    }).catch(err => console.error("[auto-approve] email failed:", err?.message));
 
     // Auto-login
     const sessionToken = await createSession(account.id, req);
