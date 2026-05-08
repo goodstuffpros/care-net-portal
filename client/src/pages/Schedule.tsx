@@ -118,6 +118,13 @@ export default function SchedulePage() {
   const client = clients.find(c => c.id === selectedClientId);
   const allergies: string[] = client?.allergies ? JSON.parse(client.allergies) : [];
 
+  // All portal users for this client — used to auto-populate discuss threads
+  const { data: portalUsers = [] } = useQuery<{ id: number }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
   function exportToCalendar(event: ScheduleEvent) {
     const start = new Date(event.scheduledAt);
     const end = new Date(start.getTime() + 60 * 60 * 1000);
@@ -213,9 +220,10 @@ export default function SchedulePage() {
 
   const discussMutation = useMutation({
     mutationFn: async (event: ScheduleEvent) => {
+      const allMemberIds = portalUsers.length > 0 ? portalUsers.map((u: { id: number }) => u.id) : [activeUser.id];
       const threadRes = await apiRequest("POST", `/api/clients/${selectedClientId}/threads`, {
         name: `Discuss: ${event.title}`,
-        members: JSON.stringify([activeUser.id]),
+        members: JSON.stringify(allMemberIds),
         createdByUserId: activeUser.id,
         isOpen: true,
         createdAt: new Date().toISOString(),

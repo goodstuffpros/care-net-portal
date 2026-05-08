@@ -107,14 +107,20 @@ export default function MessagesPage() {
     },
   });
 
-  // All users in the portal for this client (for adding members)
-  const ALL_PORTAL_USERS = [
-    { id: 1, name: "Becky M.", initials: "BM", role: "Primary Caregiver" },
-    { id: 2, name: "Marcus T.", initials: "MT", role: "Caregiver" },
-    { id: 3, name: "Diana P.", initials: "DP", role: "Temp Caregiver" },
-    { id: 4, name: "Robert Jr.", initials: "RJ", role: "Main Contact" },
-    { id: 5, name: "Linda J.", initials: "LJ", role: "Family Member" },
-  ];
+  // All users in the portal for this client — real API, not hardcoded
+  const { data: portalUsers = [] } = useQuery<{ id: number; name: string; avatarInitials: string; role: string }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
+  // Normalise for display — works for both real users and demo fallback
+  const ALL_PORTAL_USERS = portalUsers.map(u => ({
+    id: u.id,
+    name: u.name,
+    initials: u.avatarInitials || u.name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2),
+    role: u.role,
+  }));
 
   const addMemberMutation = useMutation({
     mutationFn: (userId: number) => apiRequest("PATCH", `/api/threads/${activeThreadId}/members/add`, { userId }),
@@ -140,10 +146,35 @@ export default function MessagesPage() {
     },
   });
 
+  const leaveThreadMutation = useMutation({
+    mutationFn: async (threadId: number) => {
+      // 1. Remove self from members
+      await apiRequest("PATCH", `/api/threads/${threadId}/members/remove`, { userId: activeUser.id });
+      // 2. Post system notification message
+      await apiRequest("POST", `/api/threads/${threadId}/messages`, {
+        senderId: activeUser.id,
+        content: `${activeUser.name} has left this thread.`,
+        messageType: "system",
+        priority: "green",
+        sentAt: new Date().toISOString(),
+        isRead: false,
+        readByUserIds: JSON.stringify([activeUser.id]),
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/threads", activeThreadId, "messages"] });
+      setActiveThreadId(null);
+      setManageMembersOpen(false);
+      toast({ title: "You have left the thread.", description: "You will no longer receive messages from this conversation." });
+    },
+    onError: () => toast({ title: "Could not leave thread", variant: "destructive" }),
+  });
+
   const createThreadMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/threads`, {
       name: newThreadName,
-      members: JSON.stringify([activeUser.id]),
+      members: JSON.stringify(ALL_PORTAL_USERS.length > 0 ? ALL_PORTAL_USERS.map(u => u.id) : [activeUser.id]),
       createdByUserId: activeUser.id,
       isOpen: true,
       createdAt: new Date().toISOString(),
@@ -331,19 +362,32 @@ export default function MessagesPage() {
                       const user = ALL_PORTAL_USERS.find(u => u.id === id);
                       if (!user) return null;
                       const isMe = id === activeUser.id;
-                      const canRemove = (activeUser.role === "caregiver" || activeUser.role === "primary_family") && memberIds.length > 1;
+                      const canManagerRemove = (activeUser.role === "caregiver" || activeUser.role === "primary_family") && !isMe && memberIds.length > 1;
                       return (
                         <div key={id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-background border border-border text-xs">
                           <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary">{user.initials}</div>
                           <span className="font-medium">{user.name}</span>
                           <span className="text-muted-foreground">· {user.role}</span>
                           {isMe && <span className="text-[10px] text-primary">(you)</span>}
-                          {canRemove && (
+                          {/* Every user can leave their own thread */}
+                          {isMe && memberIds.length > 1 && (
+                            <button
+                              onClick={() => leaveThreadMutation.mutate(activeThreadId!)}
+                              disabled={leaveThreadMutation.isPending}
+                              className="ml-1 text-muted-foreground hover:text-red-500 transition-colors"
+                              title="Leave this thread"
+                              data-testid="leave-thread-btn"
+                            >
+                              <UserMinus size={12} />
+                            </button>
+                          )}
+                          {/* Caregiver/MC can remove others */}
+                          {canManagerRemove && (
                             <button
                               onClick={() => removeMemberMutation.mutate(id)}
                               disabled={removeMemberMutation.isPending}
                               className="ml-1 text-muted-foreground hover:text-red-500 transition-colors"
-                              title={isMe ? "Leave thread" : "Remove"}
+                              title="Remove from thread"
                               data-testid={`remove-member-${id}`}
                             >
                               <UserMinus size={12} />
@@ -391,6 +435,16 @@ export default function MessagesPage() {
                 <p className="text-sm">No messages yet. Say hello!</p>
               </div>
             ) : messages.map(msg => {
+              // System messages: centered italic gray pill
+              if (msg.messageType === "system") {
+                return (
+                  <div key={msg.id} className="flex justify-center py-1" data-testid={`message-${msg.id}`}>
+                    <span className="text-xs italic text-muted-foreground bg-muted/60 px-3 py-1 rounded-full">
+                      {msg.content}
+                    </span>
+                  </div>
+                );
+              }
               const sender = DEMO_USERS[msg.senderId];
               const isMe = msg.senderId === activeUser.id;
               return (

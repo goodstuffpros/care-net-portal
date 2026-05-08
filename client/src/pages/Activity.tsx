@@ -155,6 +155,13 @@ export default function ActivityPage() {
   });
   const client = clients.find(c => c.id === selectedClientId);
 
+  // All portal users for this client — used to auto-populate discuss threads
+  const { data: portalUsers = [] } = useQuery<{ id: number }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
   const addMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/activity`, {
       ...form,
@@ -188,10 +195,11 @@ export default function ActivityPage() {
 
   const discussMutation = useMutation({
     mutationFn: async (log: ActivityLog) => {
+      const allMemberIds = portalUsers.length > 0 ? portalUsers.map((u: { id: number }) => u.id) : [activeUser.id];
       // 1. Create a new thread named after the entry
       const threadRes = await apiRequest("POST", `/api/clients/${selectedClientId}/threads`, {
         name: `Discuss: ${log.title}`,
-        members: JSON.stringify([activeUser.id]),
+        members: JSON.stringify(allMemberIds),
         createdByUserId: activeUser.id,
         isOpen: true,
         createdAt: new Date().toISOString(),
