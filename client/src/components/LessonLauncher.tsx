@@ -219,7 +219,7 @@ function InlineLessonViewer({
 }
 
 // ── Public component ───────────────────────────────────────────────────────────
-export function LessonLauncher({ pageKey }: { pageKey: string }) {
+export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: string; className?: string }) {
   const { activeUser } = useApp();
   const [open, setOpen] = useState(false);
 
@@ -228,12 +228,10 @@ export function LessonLauncher({ pageKey }: { pageKey: string }) {
   const mapping = PAGE_MAP[pageKey];
   if (!mapping) return null;
 
-  const lessonId = isFamily && mapping.familyLessonId
+  // Family uses their specific lesson if one exists, otherwise falls back to CG lesson
+  const lessonId = (isFamily && mapping.familyLessonId)
     ? mapping.familyLessonId
     : mapping.cgLessonId;
-
-  // If family has no lesson for this page, don't render
-  if (isFamily && !mapping.familyLessonId) return null;
 
   const lesson = LESSON_BY_ID[lessonId];
   if (!lesson) return null;
@@ -267,8 +265,9 @@ export function LessonLauncher({ pageKey }: { pageKey: string }) {
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm flex-shrink-0",
-          trackColor, trackBorder, "text-white"
+          "flex items-center justify-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm flex-shrink-0",
+          trackColor, trackBorder, "text-white",
+          extraClass
         )}
         title="How this works"
       >

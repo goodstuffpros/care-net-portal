@@ -224,11 +224,11 @@ export default function MessagesPage() {
       <div className={cn("flex flex-col border-r border-border bg-background", activeThreadId ? "hidden md:flex w-72 flex-shrink-0" : "flex-1 md:w-72 md:flex-none")}>
         <div className="p-4 border-b border-border">
           <h1 className="text-base font-bold mb-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
-          <div className="flex items-center justify-between gap-2">
-            <LessonLauncher pageKey="messages" />
+          <div className="flex items-center gap-2">
+            <LessonLauncher pageKey="messages" className="flex-1" />
             <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 h-8 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
+                <Button size="sm" className="gap-1.5 flex-1 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
                   <Plus size={14} /> {t("messages.newThread")}
                 </Button>
               </DialogTrigger>

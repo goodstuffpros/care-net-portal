@@ -797,28 +797,30 @@ export default function MedicationsPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <ModuleIntro moduleKey="medications" />
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            Medications
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            {activeMeds.length} active · {prnMeds.length} PRN · {archivedMeds.length} archived
-          </p>
+      <div className="pb-3 border-b border-border space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0">
+            <Pill size={20} className="text-violet-600 dark:text-violet-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Medications</h1>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {activeMeds.length} active · {prnMeds.length} PRN · {archivedMeds.length} archived
+            </p>
+          </div>
+          <LessonLauncher pageKey="medications" />
         </div>
-        <div className="flex items-center gap-2 flex-shrink-0">
-        <LessonLauncher pageKey="medications" />
         {isCaregiverRole(activeUser.role) && (
-          <Button onClick={() => setAddOpen(true)} size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
-            <Plus size={14} className="mr-1" />
+          <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
+            <Plus size={14} />
             Add Medication
           </Button>
         )}
         {activeUser.role === "primary_family" && (
           <Dialog open={mcMedOpen} onOpenChange={setMcMedOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" data-testid="mc-add-med-btn">
-                <Plus size={14} className="mr-1" />
+              <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="mc-add-med-btn">
+                <Plus size={14} />
                 Add to Regimen
               </Button>
             </DialogTrigger>
@@ -924,7 +926,6 @@ export default function MedicationsPage() {
             </DialogContent>
           </Dialog>
         )}
-        </div>
       </div>
 
       <Tabs defaultValue="active">
