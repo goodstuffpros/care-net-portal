@@ -229,7 +229,7 @@ export default function MessagesPage() {
           </div>
           <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="w-full gap-1.5 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
+              <Button size="sm" className="w-full gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="new-thread-btn">
                 <Plus size={14} /> {t("messages.newThread")}
               </Button>
             </DialogTrigger>

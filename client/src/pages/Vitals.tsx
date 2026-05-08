@@ -440,7 +440,7 @@ export default function VitalsPage() {
   const { activeUser, selectedClientId } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
-  const canEdit = isCaregiverRole(activeUser.role);
+  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family";
   const [addOpen, setAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
