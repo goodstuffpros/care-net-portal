@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 const CATEGORIES = ["All", "Insurance", "Legal", "Medical", "Financial", "Other"] as const;
 const CATEGORY_COLORS: Record<string, string> = {
@@ -90,11 +91,12 @@ export default function DocumentsPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("documents.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Documents · Records · Insurance</p>
           </div>
+          <LessonLauncher pageKey="documents" />
         </div>
         {canDelete && (
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2 w-full" data-testid="add-document-btn">
+              <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-document-btn">
                 <Plus size={15} /> Add Document
               </Button>
             </DialogTrigger>

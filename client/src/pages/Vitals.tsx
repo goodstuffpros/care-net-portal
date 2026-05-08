@@ -487,17 +487,20 @@ export default function VitalsPage() {
     <div className="p-6 max-w-5xl mx-auto space-y-6">
       <ModuleIntro moduleKey="vitals" />
       {/* Header */}
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            Vitals & Bodily Functions
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Health monitoring · Trend tracking</p>
-          <div className="mt-2"><LessonLauncher pageKey="vitals" /></div>
+      <div className="pb-3 border-b border-border space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
+            <Activity size={20} className="text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Vitals &amp; Bodily Functions</h1>
+            <p className="text-xs text-muted-foreground truncate">Health monitoring · Trend tracking</p>
+          </div>
+          <LessonLauncher pageKey="vitals" />
         </div>
         {canEdit && (
-          <Button onClick={() => setAddOpen(true)} size="sm" className="flex-shrink-0" data-testid="vitals-add-btn">
-            <Plus size={14} className="mr-1" />
+          <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="vitals-add-btn">
+            <Plus size={14} />
             Log Vitals
           </Button>
         )}

@@ -280,8 +280,7 @@ export default function ActivityPage() {
             <DialogTrigger asChild>
               <Button
                 size="sm"
-                variant="outline"
-                className="gap-1.5 w-full border-violet-400 text-violet-700 dark:text-violet-300 hover:bg-violet-50 dark:hover:bg-violet-950/30"
+                className="gap-1.5 w-full bg-teal-600 hover:bg-teal-700 text-white"
                 data-testid="mc-add-log-btn"
               >
                 <Plus size={16} /> Add Family Log Entry
@@ -435,7 +434,7 @@ export default function ActivityPage() {
         {canEdit && (
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 w-full" data-testid="add-activity-btn">
+              <Button size="sm" className="gap-1.5 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-activity-btn">
                 <Plus size={16} /> {t("activity.addEntry")}
               </Button>
             </DialogTrigger>

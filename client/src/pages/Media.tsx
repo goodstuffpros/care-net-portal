@@ -326,7 +326,7 @@ export default function MediaPage() {
           if (!open) setForm({ type: "photo", url: "", caption: "", voiceNoteText: "", priority: "green" });
         }}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-2 w-full" data-testid="add-media-btn">
+            <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-media-btn">
               <Plus size={16} /> Add Media
             </Button>
           </DialogTrigger>

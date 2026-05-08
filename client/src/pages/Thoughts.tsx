@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import type { ThoughtEntry } from "@shared/schema";
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 // ── Mood config ───────────────────────────────────────────────────────────────
 
@@ -571,7 +572,7 @@ export default function ThoughtsPage() {
       <ModuleIntro moduleKey="thoughts" />
       {/* Page header */}
       <div className="flex items-start justify-between mb-8 gap-4">
-        <div>
+        <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5 mb-1">
             <BookHeart size={22} className="text-primary" />
             <h1
@@ -586,6 +587,7 @@ export default function ThoughtsPage() {
             Private journal of memories, stories, and musings — locked until care concludes.
           </p>
         </div>
+        <LessonLauncher pageKey="thoughts" />
 
         {!isUnlocked && (
           <Button

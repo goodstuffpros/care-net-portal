@@ -51,6 +51,7 @@ const PAGE_MAP: Record<string, LessonMap> = {
   thoughts:    { cgLessonId: "mod15_thoughts",   familyLessonId: null },
   notes:       { cgLessonId: "mod10_notifications", familyLessonId: "fc_08" },
   handoff:     { cgLessonId: "mod11_carescope",  familyLessonId: null },
+  documents:   { cgLessonId: "mod13_media",       familyLessonId: null },
 };
 
 // ── All lesson data (duplicated here so component is self-contained) ───────────
@@ -256,20 +257,18 @@ export function LessonLauncher({ pageKey }: { pageKey: string }) {
 
   const completed = (progressData?.completed ?? []).some((r: any) => r.lessonId === lessonId);
 
-  const trackColor = isFamily ? "bg-rose-600" : "bg-teal-600";
-  const trackBorder = isFamily ? "border-rose-500/30" : "border-teal-500/30";
-  const trackText = isFamily ? "text-rose-400" : "text-teal-400";
+  // HIW is always red — "stop and learn this" signal
+  const trackColor = "bg-red-600";
+  const trackBorder = "border-red-500/30";
 
   return (
     <>
-      {/* Always show full pill — completed shows checkmark inside pill */}
+      {/* Always red pill — completed shows checkmark, uncompleted shows graduation cap */}
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm",
-          completed
-            ? "bg-emerald-600 border-emerald-500/30 text-white"
-            : cn(trackColor, trackBorder, "text-white")
+          "flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm flex-shrink-0",
+          trackColor, trackBorder, "text-white"
         )}
         title="How this works"
       >

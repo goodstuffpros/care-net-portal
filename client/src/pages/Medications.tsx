@@ -809,7 +809,7 @@ export default function MedicationsPage() {
         <div className="flex items-center gap-2 flex-shrink-0">
         <LessonLauncher pageKey="medications" />
         {isCaregiverRole(activeUser.role) && (
-          <Button onClick={() => setAddOpen(true)} size="sm" data-testid="add-med-btn">
+          <Button onClick={() => setAddOpen(true)} size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
             <Plus size={14} className="mr-1" />
             Add Medication
           </Button>
@@ -817,7 +817,7 @@ export default function MedicationsPage() {
         {activeUser.role === "primary_family" && (
           <Dialog open={mcMedOpen} onOpenChange={setMcMedOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="border-rose-300 text-rose-700 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30" data-testid="mc-add-med-btn">
+              <Button size="sm" className="bg-teal-600 hover:bg-teal-700 text-white" data-testid="mc-add-med-btn">
                 <Plus size={14} className="mr-1" />
                 Add to Regimen
               </Button>

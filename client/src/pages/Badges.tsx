@@ -10,6 +10,7 @@ import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Award, MessageSquare, Shield, BookOpen, Heart, RefreshCw, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Pill, Activity, Calendar, SlidersHorizontal } from "lucide-react";
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -558,6 +559,8 @@ export default function Badges() {
             <p className="text-xs text-muted-foreground">Private care quality record · 30-day rolling window</p>
           </div>
         </div>
+        <div className="flex items-center gap-2">
+          <LessonLauncher pageKey="badges" />
         {isPrimaryFC && (
           <button
             onClick={() => recomputeMutation.mutate()}
@@ -569,6 +572,7 @@ export default function Badges() {
             <RefreshCw size={15} className={recomputeMutation.isPending ? "animate-spin" : ""} />
           </button>
         )}
+        </div>
       </div>
 
       {/* Overall score card */}

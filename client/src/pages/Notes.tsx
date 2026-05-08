@@ -20,6 +20,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 const CATEGORY_CONFIG = {
   household: { label: "Household", icon: Home, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900" },
@@ -279,6 +280,7 @@ export default function Notes() {
             <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("notes.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Observations · Equipment · Safety</p>
           </div>
+          <LessonLauncher pageKey="notes" />
         </div>
         <div className="flex items-center gap-2">
           <button
@@ -291,7 +293,7 @@ export default function Notes() {
           {canEdit && (
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" className="flex-1" data-testid="add-note-button">
+                <Button size="sm" className="flex-1 bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-note-button">
                   <Plus size={15} className="mr-1" /> {t("notes.add")}
                 </Button>
               </DialogTrigger>

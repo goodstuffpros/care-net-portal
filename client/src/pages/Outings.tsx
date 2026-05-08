@@ -16,6 +16,7 @@ import { cn } from "@/lib/utils";
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 // Fix default marker icons for Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -204,6 +205,7 @@ export default function OutingsPage() {
           <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("outings.title")}</h1>
           <p className="text-xs text-muted-foreground truncate">Outings · Location · Family updates</p>
         </div>
+        <LessonLauncher pageKey="outings" />
       </div>
 
       {/* Family push notification panel */}

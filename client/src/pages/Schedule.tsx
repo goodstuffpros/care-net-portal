@@ -428,7 +428,7 @@ export default function SchedulePage() {
         </div>
         {canEdit && (<Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
-            <Button size="sm" className="gap-2 w-full" data-testid="add-event-btn">
+            <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-event-btn">
               <Plus size={16} /> {t("schedule.addEvent")}
             </Button>
           </DialogTrigger>
@@ -591,7 +591,7 @@ export default function SchedulePage() {
         {isFamilyPrimary && (
           <Dialog open={mcAddOpen} onOpenChange={setMcAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-2 w-full border-blue-300 text-blue-700 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/30" data-testid="mc-add-appointment-btn">
+              <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="mc-add-appointment-btn">
                 <CalendarPlus size={16} /> Add Appointment
               </Button>
             </DialogTrigger>
