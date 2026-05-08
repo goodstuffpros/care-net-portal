@@ -1000,6 +1000,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">Menu</span>
           </button>
 
+          {/* Role/client pill — caregiver roles only (family has single relationship, no need) */}
+          {isCaregiverRole(activeUser.role) && (
+            <button
+              onClick={() => navigate("/my-profile")}
+              data-testid="role-pill-header"
+              className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all min-w-0 flex-shrink-0",
+                isPreCare
+                  ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
+                  : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
+              )}
+            >
+              <Shield size={11} className="flex-shrink-0" />
+              <span className="truncate max-w-[80px]">
+                {isPreCare ? "Pre-Care" : ROLE_LABELS[activeUser.role]}
+              </span>
+            </button>
+          )}
+
           {/* Temp caregiver expiry badge */}
           {activeUser.role === "temp_caregiver" && activeUser.tempAccessEnd && (
             <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900 flex-shrink-0">
