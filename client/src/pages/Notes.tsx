@@ -165,9 +165,9 @@ export default function Notes() {
   const { activeUser, selectedClientId } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
-  const canEdit = isCaregiverRole(activeUser.role);
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
-  const canResolve = canEdit || isFamily; // both caregivers and family can mark resolved
+  const canEdit = isCaregiverRole(activeUser.role) || isFamily; // MC/family can add notes too
+  const canResolve = canEdit; // same as canEdit now that family can add
   const [showResolved, setShowResolved] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>("all");
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -431,7 +431,7 @@ export default function Notes() {
           <StickyNote size={32} className="mx-auto mb-3 opacity-30" />
           <p className="text-sm font-medium">No active notes</p>
           <p className="text-xs mt-1">
-            {canEdit ? "Tap \"Add Note\" to record a household issue, equipment problem, or safety concern." : "No miscellaneous notes have been added yet."}
+            Tap "Add Note" to record a household issue, equipment problem, or safety concern.
           </p>
         </div>
       )}
