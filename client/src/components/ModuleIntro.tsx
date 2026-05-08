@@ -29,6 +29,7 @@ import type { User } from "@shared/schema";
 export type ModuleKey =
   | "dashboard"
   | "nav-overlay"
+  | "family-profile"
   | "schedule"
   | "care-log"
   | "messages"
@@ -60,6 +61,12 @@ const LESSONS: Record<ModuleKey, ModuleLesson> = {
     narration: "Welcome to your Dashboard. This is your home base every time you open Care Net Portal. The four stat tiles at the top give you an instant snapshot — tasks completed today, tasks still pending, urgent flags, and recent Care Log entries. Below that you will find today’s upcoming schedule and the most recent Care Log entries — so you can see what is coming and what has already been documented, all in one place.",
     familyImage: `${API_BASE}/university/seed_fc01_dashboard.jpg`,
     familyNarration: "Welcome to your Dashboard — your home base every time you open the Family Care Portal. The stat tiles at the top give you a quick snapshot of today’s activity. Below that you will see your loved one’s upcoming schedule and the most recent Care Log entries — so you are always in the loop without having to dig.",
+  },
+  "family-profile": {
+    title: "Your Profile",
+    image: `${API_BASE}/university/seed_mod18_family_portal.jpg`,
+    narration: "This is your profile page. At the top you can update your name, phone number, and your relationship to your loved one. Scrolling down, you will find your Notification Preferences — this is where you choose exactly what Care Net Portal tells you about. You can turn on or off notifications for schedule changes, new Care Log entries, messages, vital sign alerts, medications, and media. Each one has its own toggle so you are only hearing about the things that matter to you. Below that is your Care Circle, where you can invite additional family members to the portal. And at the bottom, Account Settings let you update your language and time zone.",
+    familyNarration: "This is your profile page. At the top you can update your name, phone number, and your relationship to your loved one. Scrolling down, you will find your Notification Preferences — this is where you choose exactly what Care Net Portal tells you about. You can turn on or off notifications for schedule changes, new Care Log entries, messages, vital sign alerts, medications, and media. Each one has its own toggle so you are only hearing about the things that matter to you. Below that is your Care Circle, where you can invite additional family members to the portal. And at the bottom, Account Settings let you update your language and time zone.",
   },
   "nav-overlay": {
     title: "Your Menu",

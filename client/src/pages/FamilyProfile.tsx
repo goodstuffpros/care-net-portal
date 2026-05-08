@@ -14,6 +14,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useApp } from "@/App";
+import { useLang } from "@/lib/useLang";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
@@ -21,10 +22,21 @@ import { cn } from "@/lib/utils";
 import {
   User, Phone, Mail, Heart, Bell, BellOff, Shield,
   Pencil, Check, X, ChevronRight, Users, Home,
-  Clock, Globe, Star, Info, UserPlus
+  Clock, Globe, Star, Info, UserPlus, ChevronDown
 } from "lucide-react";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
+import ModuleIntro from "@/components/ModuleIntro";
 import type { User as UserType } from "@shared/schema";
+
+// ── Timezone options ─────────────────────────────────────────────────────────
+const TIMEZONES = [
+  { label: "Eastern Time (ET)",   value: "America/New_York" },
+  { label: "Central Time (CT)",   value: "America/Chicago" },
+  { label: "Mountain Time (MT)",  value: "America/Denver" },
+  { label: "Pacific Time (PT)",   value: "America/Los_Angeles" },
+  { label: "Alaska Time (AKT)",   value: "America/Anchorage" },
+  { label: "Hawaii Time (HT)",    value: "Pacific/Honolulu" },
+];
 
 // ── Relationship options ──────────────────────────────────────────────────────
 const RELATIONSHIP_OPTIONS = [
@@ -191,6 +203,29 @@ export default function FamilyProfile() {
 
   const isMC = activeUser.role === "primary_family";
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // ── Language & Timezone ───────────────────────────────────────────────────
+  const { lang, setLang } = useLang();
+  const [timezone, setTimezone] = useState<string>(() => {
+    try {
+      const raw = (user as any)?.notificationPrefs;
+      const parsed = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
+      return parsed.timezone ?? "America/Chicago";
+    } catch { return "America/Chicago"; }
+  });
+
+  function handleTimezoneChange(tz: string) {
+    setTimezone(tz);
+    if (isRealSession) {
+      try {
+        const raw = (userData as any)?.notificationPrefs;
+        const existing = typeof raw === "string" ? JSON.parse(raw) : (raw ?? {});
+        updateMutation.mutate({ notificationPrefs: JSON.stringify({ ...existing, timezone: tz }) } as any);
+      } catch {
+        updateMutation.mutate({ notificationPrefs: JSON.stringify({ timezone: tz }) } as any);
+      }
+    }
+  }
   const displayName = isRealSession ? (userData?.name ?? activeUser.name) : localName;
   const displayPhone = isRealSession ? ((userData as any)?.phone ?? "") : localPhone;
   const displayEmail = isRealSession ? (activeUser as any).email ?? "" : "demo@carenet.app";
@@ -198,6 +233,7 @@ export default function FamilyProfile() {
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6 pb-24">
+      <ModuleIntro moduleKey="family-profile" />
 
       {/* ── Header ── */}
       <div className="flex items-center gap-4">
@@ -374,22 +410,63 @@ export default function FamilyProfile() {
           <h2 className="text-xs font-semibold text-foreground uppercase tracking-wider">Account</h2>
         </div>
         <div className="px-5 divide-y divide-border">
-          {[
-            { icon: Globe, label: "Language", value: "English", action: () => {} },
-            { icon: Clock, label: "Time Zone", value: "Central Time (CT)", action: () => {} },
-            { icon: Home, label: "Portal Access", value: "Family Care Portal", action: () => {} },
-          ].map(({ icon: Icon, label, value, action }) => (
-            <button key={label} onClick={action} className="w-full flex items-center gap-3 py-3.5 text-left hover:bg-muted/30 -mx-5 px-5 transition-colors">
-              <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
-                <Icon size={14} className="text-muted-foreground" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-foreground">{label}</p>
-                <p className="text-xs text-muted-foreground">{value}</p>
-              </div>
-              <ChevronRight size={14} className="text-muted-foreground shrink-0" />
-            </button>
-          ))}
+
+          {/* Language */}
+          <div className="flex items-center gap-3 py-3.5">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Globe size={14} className="text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Language</p>
+            </div>
+            <div className="relative">
+              <select
+                value={lang}
+                onChange={e => setLang(e.target.value as "en" | "es")}
+                className="appearance-none bg-muted/50 border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                data-testid="account-lang-select"
+              >
+                <option value="en">English</option>
+                <option value="es">Español</option>
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Time Zone */}
+          <div className="flex items-center gap-3 py-3.5">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Clock size={14} className="text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Time Zone</p>
+            </div>
+            <div className="relative">
+              <select
+                value={timezone}
+                onChange={e => handleTimezoneChange(e.target.value)}
+                className="appearance-none bg-muted/50 border border-border rounded-lg pl-3 pr-7 py-1.5 text-xs text-foreground cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                data-testid="account-timezone-select"
+              >
+                {TIMEZONES.map(tz => (
+                  <option key={tz.value} value={tz.value}>{tz.label}</option>
+                ))}
+              </select>
+              <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+            </div>
+          </div>
+
+          {/* Portal Access — read-only */}
+          <div className="flex items-center gap-3 py-3.5">
+            <div className="w-8 h-8 rounded-lg bg-muted flex items-center justify-center shrink-0">
+              <Home size={14} className="text-muted-foreground" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground">Portal Access</p>
+              <p className="text-xs text-muted-foreground">Family Care Portal</p>
+            </div>
+          </div>
+
         </div>
       </div>
 
