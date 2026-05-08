@@ -8,7 +8,7 @@ import { apiRequest, queryClient } from "@/lib/queryClient";
 import type { Shift } from "@shared/schema";
 import type { Notification } from "@shared/schema";
 import {
-  LayoutDashboard, Calendar, ClipboardList, MessageSquare, MessageCircleHeart,
+  LayoutDashboard, LayoutGrid, Calendar, ClipboardList, MessageSquare, MessageCircleHeart,
   Image, Archive, User, Bell, Sun, Moon, ChevronDown,
   Menu, X, Users, Shield, Eye, Mic, UserPlus, Heart,
   Sparkles, Lock, StickyNote, MicOff, ClipboardSignature,
@@ -991,7 +991,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             data-testid="nav-overlay-toggle"
             aria-label="Open navigation menu"
           >
-            <Menu size={20} />
+            <LayoutGrid size={20} />
             <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">Menu</span>
           </button>
 
