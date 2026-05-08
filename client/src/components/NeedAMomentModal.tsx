@@ -206,7 +206,7 @@ export function NeedAMomentModal() {
         aria-label="Need a Moment"
         className={cn(
           "fixed z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
-          "bottom-[4.25rem] right-4",
+          "bottom-[5.5rem] right-4",
           open
             ? "bg-rose-500 text-white"
             : "bg-rose-500/90 hover:bg-rose-500 text-white"
@@ -227,7 +227,7 @@ export function NeedAMomentModal() {
             "flex flex-col overflow-hidden",
             "animate-in slide-in-from-bottom-4 duration-200",
             // Sits above the For Me button (bottom ~4.25rem + 48px button + 8px gap)
-            "bottom-[8.75rem] right-4"
+            "bottom-[10rem] right-4"
           )}
           style={{ height: "480px", background: "hsl(345 18% 7%)" }}
           data-testid="need-a-moment-panel"

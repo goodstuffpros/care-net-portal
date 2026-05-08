@@ -345,9 +345,9 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
         )}
       </button>
 
-      {/* Wake word hint — floats just above the App Help button */}
+      {/* Wake word hint — hidden on mobile to avoid button overlap; show md+ */}
       {voiceSupported && !open && (
-        <div className="fixed bottom-[4.25rem] right-5 z-40 pointer-events-none">
+        <div className="hidden md:block fixed bottom-[4.25rem] right-20 z-40 pointer-events-none">
           <div className="text-xs text-muted-foreground/50 text-right pr-1">
             Say “Hey CareNet”
           </div>
@@ -358,7 +358,7 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
       {open && (
         <div
           className={cn(
-            "fixed bottom-[4.5rem] right-4 z-50 w-[360px] max-w-[calc(100vw-2.5rem)]",
+            "fixed bottom-[5rem] right-4 z-50 w-[360px] max-w-[calc(100vw-2.5rem)]",
             "rounded-2xl border border-border bg-background shadow-2xl",
             "flex flex-col overflow-hidden",
             "animate-in slide-in-from-bottom-4 duration-200"
