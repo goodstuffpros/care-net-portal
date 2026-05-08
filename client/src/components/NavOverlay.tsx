@@ -305,7 +305,8 @@ export default function NavOverlay({
         aria-label="Navigation menu"
       >
         {/* ── How This Works — fires once on first ever open ── */}
-        {isOpen && <ModuleIntro moduleKey="nav-overlay" />}
+        {/* ModuleIntro disabled during bug sweep — re-enable when nav is finalized */}
+        {/* {isOpen && <ModuleIntro moduleKey="nav-overlay" />} */}
 
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
