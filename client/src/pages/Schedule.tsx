@@ -84,6 +84,13 @@ function isLateCompletion(scheduledAt: string, completedAt: string): boolean {
   return completed - scheduled > 60 * 60 * 1000; // > 1 hour
 }
 
+// Max date = 1 year from today (datetime-local format: YYYY-MM-DDTHH:mm)
+function maxDateOneYear(): string {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() + 1);
+  return d.toISOString().slice(0, 16);
+}
+
 export default function SchedulePage() {
   const { activeUser, selectedClientId, portalMode } = useApp();
   const isFamilyPortal = portalMode === "family";
@@ -469,7 +476,7 @@ export default function SchedulePage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("schedule.dateTime")}</Label>
-                  <Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} data-testid="event-datetime-input" />
+                  <Input type="datetime-local" value={form.scheduledAt} onChange={e => setForm(f => ({ ...f, scheduledAt: e.target.value }))} max={maxDateOneYear()} data-testid="event-datetime-input" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>{t("schedule.location")} (optional)</Label>
@@ -580,7 +587,7 @@ export default function SchedulePage() {
                   disabled={!form.title || !form.scheduledAt || addMutation.isPending || (!form.caregiverResponsible && !form.responsibilityNote)}
                   data-testid="save-event-btn"
                 >
-                  {addMutation.isPending ? t("schedule.saving") : t("schedule.save")}
+                  {addMutation.isPending ? t("schedule.saving") : form.type === "appointment" ? "Save & Notify MC" : t("schedule.save")}
                 </Button>
               </div>
             </DialogContent>
@@ -622,6 +629,7 @@ export default function SchedulePage() {
                     type="datetime-local"
                     value={mcForm.scheduledAt}
                     onChange={e => setMcForm(f => ({ ...f, scheduledAt: e.target.value }))}
+                    max={maxDateOneYear()}
                     data-testid="mc-appt-datetime"
                   />
                 </div>

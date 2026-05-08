@@ -269,9 +269,13 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   function markSeen() {
     if (hasMarkedSeen.current) return;
     hasMarkedSeen.current = true;
+    // Stop audio immediately — iOS needs pause() called synchronously in the touch handler
     stopBecky();
+    setIsLoading(false);
     setIsSpeaking(false);
     setVisible(false);
+    // Reset for next visit (DEV_ALWAYS_SHOW mode)
+    setTimeout(() => { hasMarkedSeen.current = false; }, 1000);
 
     if (isRealSession) {
       try {
@@ -329,7 +333,9 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
           <span className="text-white/80 text-xs font-medium">How this works</span>
         </div>
         <button
+          type="button"
           onClick={markSeen}
+          onTouchEnd={e => { e.preventDefault(); markSeen(); }}
           data-testid="module-intro-close"
           aria-label="Close intro"
           className="w-9 h-9 rounded-full bg-black/40 backdrop-blur-sm flex items-center justify-center"
@@ -369,7 +375,9 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
 
         {/* Got it button */}
         <button
+          type="button"
           onClick={markSeen}
+          onTouchEnd={e => { e.preventDefault(); markSeen(); }}
           data-testid="module-intro-got-it"
           className={cn(
             "w-full flex items-center justify-center gap-2 py-3.5 rounded-2xl text-sm font-semibold transition-all",

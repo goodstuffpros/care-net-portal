@@ -184,9 +184,15 @@ export async function speakBecky(text: string): Promise<void> {
 
 export function stopBecky() {
   if (beckyAudio) {
-    beckyAudio.pause();
-    beckyAudio.src = "";
+    // iOS Safari: pause BEFORE clearing src — clearing src first can prevent pause from firing
+    try { beckyAudio.pause(); } catch (_) {}
+    try { beckyAudio.src = ""; } catch (_) {}
+    try { beckyAudio.load(); } catch (_) {} // forces iOS to release the audio session
     beckyAudio = null;
+  }
+  // Also cancel any browser speech synthesis in case it's running
+  if (typeof window !== "undefined" && "speechSynthesis" in window) {
+    try { window.speechSynthesis.cancel(); } catch (_) {}
   }
   notifyBecky(false, false);
 }
