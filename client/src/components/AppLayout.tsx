@@ -124,7 +124,8 @@ export function PriorityBadge({ priority }: { priority: string }) {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection } = useApp();
   const isFamilyPortal = portalMode === "family";
-  const [showThemePicker, setShowThemePicker] = useState(false);
+  const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
+  const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
@@ -1155,23 +1156,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Gear — preferences dropdown (theme, color, language) */}
           <div className="relative flex-shrink-0">
             <button
-              onClick={() => setShowThemePicker(p => !p)}
+              onClick={() => setShowPrefsMenu(p => !p)}
               className={cn("p-2 rounded-lg transition-colors",
-                isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent" : "hover:bg-muted text-muted-foreground hover:text-foreground")}
+                isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent" : "hover:bg-muted text-muted-foreground hover:text-foreground",
+                showPrefsMenu && "bg-muted"
+              )}
               aria-label="Preferences"
               data-testid="prefs-btn"
             >
               <Settings size={18} />
             </button>
-            {showThemePicker && (
+            {showPrefsMenu && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
+                <div className="fixed inset-0 z-40" onClick={() => setShowPrefsMenu(false)} />
                 <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-popover border border-border rounded-xl shadow-xl py-2">
                   <p className="px-3 pb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preferences</p>
 
                   {/* Light / Dark */}
                   <button
-                    onClick={() => { toggleTheme(); setShowThemePicker(false); }}
+                    onClick={() => { toggleTheme(); setShowPrefsMenu(false); }}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
                     data-testid="theme-toggle"
                   >
@@ -1181,7 +1184,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
                   {/* Language */}
                   <button
-                    onClick={() => { setLang(lang === "en" ? "es" : "en"); setShowThemePicker(false); }}
+                    onClick={() => { setLang(lang === "en" ? "es" : "en"); setShowPrefsMenu(false); }}
                     className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
                     data-testid="lang-toggle"
                   >
@@ -1200,7 +1203,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       ] as { key: ColorTheme; color: string; label: string }[]).map(({ key, color, label }) => (
                         <button
                           key={key}
-                          onClick={() => { setColorTheme(key); setShowThemePicker(false); }}
+                          onClick={() => { setColorTheme(key); setShowPrefsMenu(false); }}
                           className={cn("w-7 h-7 rounded-full border-2 transition-all", colorTheme === key ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
                           style={{ backgroundColor: color }}
                           title={label}
