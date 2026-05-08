@@ -1000,25 +1000,20 @@ export default function MedicationsPage() {
                 <span>Your caregiver will receive an <strong>urgent alert</strong> to review and confirm this addition.</span>
               </div>
               <div className="space-y-4 py-1">
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Medication Name <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={mcMedForm.name}
-                      onChange={e => setMcMedForm(f => ({ ...f, name: e.target.value }))}
-                      placeholder="e.g. Metoprolol"
-                      data-testid="mc-med-name"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Dosage <span className="text-red-500">*</span></Label>
-                    <Input
-                      value={mcMedForm.dosage}
-                      onChange={e => setMcMedForm(f => ({ ...f, dosage: e.target.value }))}
-                      placeholder="e.g. 25mg"
-                      data-testid="mc-med-dosage"
-                    />
-                  </div>
+                <div className="space-y-1.5 relative">
+                  <DrugSearchInput
+                    value={mcMedForm.name}
+                    onSelect={(name) => setMcMedForm(f => ({ ...f, name }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label>Dosage <span className="text-red-500">*</span></Label>
+                  <Input
+                    value={mcMedForm.dosage}
+                    onChange={e => setMcMedForm(f => ({ ...f, dosage: e.target.value }))}
+                    placeholder="e.g. 25mg"
+                    data-testid="mc-med-dosage"
+                  />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
