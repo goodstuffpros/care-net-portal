@@ -21,8 +21,9 @@ import { cn } from "@/lib/utils";
 import {
   User, Phone, Mail, Heart, Bell, BellOff, Shield,
   Pencil, Check, X, ChevronRight, Users, Home,
-  Clock, Globe, Star, Info
+  Clock, Globe, Star, Info, UserPlus
 } from "lucide-react";
+import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 import type { User as UserType } from "@shared/schema";
 
 // ── Relationship options ──────────────────────────────────────────────────────
@@ -189,6 +190,7 @@ export default function FamilyProfile() {
   }
 
   const isMC = activeUser.role === "primary_family";
+  const [inviteOpen, setInviteOpen] = useState(false);
   const displayName = isRealSession ? (userData?.name ?? activeUser.name) : localName;
   const displayPhone = isRealSession ? ((userData as any)?.phone ?? "") : localPhone;
   const displayEmail = isRealSession ? (activeUser as any).email ?? "" : "demo@carenet.app";
@@ -335,6 +337,24 @@ export default function FamilyProfile() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Everyone connected to this care portal — caregivers and family members — can see updates. You control who has access by managing invitations through the portal.
           </p>
+
+          {/* Invite button — MC only, prominent CTA */}
+          {isMC && (
+            <button
+              onClick={() => setInviteOpen(true)}
+              className="w-full flex items-center justify-between px-4 py-3.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-sm text-primary font-medium"
+              data-testid="profile-invite-family-btn"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                  <UserPlus size={14} className="text-primary" />
+                </div>
+                Invite a family member
+              </div>
+              <ChevronRight size={14} className="text-primary/60" />
+            </button>
+          )}
+
           <button className="w-full flex items-center justify-between px-4 py-3 rounded-xl border border-border bg-muted/30 hover:bg-muted/60 transition-colors text-sm text-foreground font-medium" data-testid="view-care-circle-btn">
             <div className="flex items-center gap-2.5">
               <Users size={15} className="text-primary" />
@@ -344,6 +364,9 @@ export default function FamilyProfile() {
           </button>
         </div>
       </div>
+
+      {/* Invite sheet */}
+      <FamilyInviteSheet open={inviteOpen} onOpenChange={setInviteOpen} />
 
       {/* ── Account Settings ── */}
       <div className="rounded-2xl border border-border bg-card overflow-hidden">

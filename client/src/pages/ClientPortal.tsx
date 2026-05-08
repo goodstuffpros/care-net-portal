@@ -13,10 +13,10 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Link2, Copy, Check, Mail, Search, Send } from "lucide-react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
+import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Caregiver",
@@ -36,78 +36,6 @@ export default function ClientPortalPage() {
   const { toast } = useToast();
   // ── Invite Family Member sheet (MC only) ──────────────────────────────────────
   const [familyInviteOpen, setFamilyInviteOpen] = useState(false);
-  const [familyInviteLink, setFamilyInviteLink] = useState("");
-  const [familyInviteEmail, setFamilyInviteEmail] = useState("");
-  const [familyInviteCopied, setFamilyInviteCopied] = useState(false);
-  const [familyInviteTab, setFamilyInviteTab] = useState<"new" | "existing">("new");
-  const [familyFindEmail, setFamilyFindEmail] = useState("");
-  const [familyFoundUser, setFamilyFoundUser] = useState<{ userId: number; name: string; avatarInitials: string; role: string } | null>(null);
-  const [familyFindStatus, setFamilyFindStatus] = useState<"idle" | "searching" | "not_found" | "not_family" | "found" | "sent">("idle");
-
-  const familyInviteMutation = useMutation({
-    mutationFn: (email?: string) => apiRequest("POST", "/api/invite/create", {
-      inviteType: "mc_to_family",
-      ...(email ? { invitedEmail: email } : {}),
-    }).then(r => r.json()),
-    onSuccess: (data) => {
-      if (data.inviteUrl) setFamilyInviteLink(data.inviteUrl);
-      if (familyInviteEmail) toast({ title: "Invite sent!", description: `Invitation emailed to ${familyInviteEmail}` });
-    },
-    onError: () => toast({ title: "Could not generate invite", variant: "destructive" }),
-  });
-
-  function handleOpenFamilyInvite() {
-    setFamilyInviteLink("");
-    setFamilyInviteEmail("");
-    setFamilyInviteCopied(false);
-    setFamilyInviteTab("new");
-    setFamilyFindEmail("");
-    setFamilyFoundUser(null);
-    setFamilyFindStatus("idle");
-    setFamilyInviteOpen(true);
-    familyInviteMutation.mutate(undefined);
-  }
-
-  function handleCopyFamilyLink() {
-    if (!familyInviteLink) return;
-    navigator.clipboard.writeText(familyInviteLink).then(() => {
-      setFamilyInviteCopied(true);
-      setTimeout(() => setFamilyInviteCopied(false), 2500);
-    });
-  }
-
-  async function handleFindFamilyOnCNP() {
-    if (!familyFindEmail.trim()) return;
-    setFamilyFindStatus("searching");
-    setFamilyFoundUser(null);
-    try {
-      const res = await apiRequest("GET", `/api/users/lookup-by-email?email=${encodeURIComponent(familyFindEmail.trim())}&lookingFor=family`);
-      const data = await res.json();
-      if (data.found) {
-        setFamilyFoundUser(data);
-        setFamilyFindStatus("found");
-      } else if (data.wrongRole) {
-        setFamilyFindStatus("not_family");
-      } else {
-        setFamilyFindStatus("not_found");
-      }
-    } catch {
-      setFamilyFindStatus("not_found");
-    }
-  }
-
-  const familyDirectConnectMutation = useMutation({
-    mutationFn: () => apiRequest("POST", "/api/invite/direct-connect", {
-      targetEmail: familyFindEmail.trim(),
-      targetUserId: familyFoundUser!.userId,
-      inviteType: "mc_to_family",
-    }).then(r => r.json()),
-    onSuccess: () => {
-      setFamilyFindStatus("sent");
-      toast({ title: "Connection request sent!", description: `${familyFoundUser?.name} will receive an email to accept your connection.` });
-    },
-    onError: () => toast({ title: "Could not send request", description: "Please try again.", variant: "destructive" }),
-  });
 
   const [editingClient, setEditingClient] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
@@ -305,7 +233,7 @@ export default function ClientPortalPage() {
                 size="sm"
                 variant="ghost"
                 className="h-7 px-2 gap-1.5 text-xs text-primary hover:text-primary"
-                onClick={handleOpenFamilyInvite}
+                onClick={() => setFamilyInviteOpen(true)}
                 data-testid="invite-family-btn"
               >
                 <UserPlus size={13} /> Invite Family
@@ -577,191 +505,8 @@ export default function ClientPortalPage() {
         </div>
       )}
 
-      {/* Invite Family Member Sheet (MC only) */}
-      <Sheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen}>
-        <SheetContent side="bottom" className="rounded-t-2xl pb-10">
-          <SheetHeader className="mb-4">
-            <SheetTitle className="flex items-center gap-2">
-              <UserPlus size={16} className="text-primary" />
-              Invite a Family Member
-            </SheetTitle>
-          </SheetHeader>
-
-          {/* Tab switcher */}
-          <div className="flex gap-1 p-1 bg-muted rounded-lg mb-5">
-            <button
-              type="button"
-              onClick={() => setFamilyInviteTab("existing")}
-              className={cn(
-                "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
-                familyInviteTab === "existing"
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid="family-invite-tab-existing"
-            >
-              Already on CNP
-            </button>
-            <button
-              type="button"
-              onClick={() => { setFamilyInviteTab("new"); if (!familyInviteLink) familyInviteMutation.mutate(undefined); }}
-              className={cn(
-                "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
-                familyInviteTab === "new"
-                  ? "bg-background shadow-sm text-foreground"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-              data-testid="family-invite-tab-new"
-            >
-              New to CNP
-            </button>
-          </div>
-
-          {/* Tab: Already on CNP */}
-          {familyInviteTab === "existing" && (
-            <div className="space-y-4">
-              {familyFindStatus !== "sent" ? (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    Enter the email address your family member uses for their Care Net Portal account. We'll find them and send a connection request directly.
-                  </p>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-muted-foreground">Family member's CNP email</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        type="email"
-                        placeholder="name@example.com"
-                        value={familyFindEmail}
-                        onChange={e => { setFamilyFindEmail(e.target.value); setFamilyFindStatus("idle"); setFamilyFoundUser(null); }}
-                        onKeyDown={e => e.key === "Enter" && handleFindFamilyOnCNP()}
-                        className="flex-1"
-                        data-testid="family-find-email-input"
-                      />
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="flex-shrink-0 gap-1.5"
-                        onClick={handleFindFamilyOnCNP}
-                        disabled={!familyFindEmail.trim() || familyFindStatus === "searching"}
-                        data-testid="family-find-cnp-btn"
-                      >
-                        <Search size={14} />
-                        {familyFindStatus === "searching" ? "Searching…" : "Find"}
-                      </Button>
-                    </div>
-                  </div>
-
-                  {familyFindStatus === "found" && familyFoundUser && (
-                    <div className="rounded-xl border border-border bg-muted/30 p-4 flex items-center gap-4">
-                      <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary flex-shrink-0">
-                        {familyFoundUser.avatarInitials}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-semibold text-sm">{familyFoundUser.name}</div>
-                        <div className="text-xs text-muted-foreground">Care Net Portal family member</div>
-                      </div>
-                      <Button
-                        size="sm"
-                        className="gap-1.5 flex-shrink-0"
-                        onClick={() => familyDirectConnectMutation.mutate()}
-                        disabled={familyDirectConnectMutation.isPending}
-                        data-testid="family-send-connect-btn"
-                      >
-                        {familyDirectConnectMutation.isPending
-                          ? "Sending…"
-                          : <><Send size={13} /> Connect</>}
-                      </Button>
-                    </div>
-                  )}
-
-                  {familyFindStatus === "not_found" && (
-                    <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
-                      No CNP account found for that email. They may not be on Care Net Portal yet — use the{" "}
-                      <button type="button" className="text-primary underline" onClick={() => setFamilyInviteTab("new")}>New to CNP</button>{" "}
-                      tab to send them an invite link.
-                    </div>
-                  )}
-
-                  {familyFindStatus === "not_family" && (
-                    <div className="rounded-lg bg-muted/40 border border-border p-3 text-xs text-muted-foreground">
-                      That email is registered but not as a family member account.
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="text-center py-8 space-y-3">
-                  <div className="w-12 h-12 rounded-full bg-green-100 dark:bg-green-950/30 flex items-center justify-center mx-auto">
-                    <UserCheck size={22} className="text-green-600 dark:text-green-400" />
-                  </div>
-                  <p className="font-semibold text-sm">Request sent to {familyFoundUser?.name}</p>
-                  <p className="text-xs text-muted-foreground max-w-xs mx-auto">
-                    They'll receive an email with a one-tap accept button. Once they accept, you'll both be connected on Care Net Portal.
-                  </p>
-                  <Button variant="outline" size="sm" onClick={() => setFamilyInviteOpen(false)}>Done</Button>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Tab: New to CNP — shareable link + email */}
-          {familyInviteTab === "new" && (
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Share this link</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground truncate font-mono">
-                    {familyInviteMutation.isPending ? "Generating link…" : familyInviteLink || "—"}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-shrink-0 gap-1.5"
-                    onClick={handleCopyFamilyLink}
-                    disabled={!familyInviteLink || familyInviteMutation.isPending}
-                    data-testid="family-copy-link-btn"
-                  >
-                    {familyInviteCopied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
-                  </Button>
-                </div>
-              </div>
-
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center"><span className="w-full border-t border-border" /></div>
-                <div className="relative flex justify-center text-xs"><span className="bg-background px-2 text-muted-foreground">or email it directly</span></div>
-              </div>
-
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Family member's email</Label>
-                <div className="flex gap-2">
-                  <Input
-                    type="email"
-                    placeholder="name@example.com"
-                    value={familyInviteEmail}
-                    onChange={e => setFamilyInviteEmail(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && familyInviteMutation.mutate(familyInviteEmail.trim())}
-                    className="flex-1"
-                    data-testid="family-invite-email-input"
-                  />
-                  <Button
-                    size="sm"
-                    className="flex-shrink-0 gap-1.5"
-                    onClick={() => familyInviteMutation.mutate(familyInviteEmail.trim())}
-                    disabled={!familyInviteEmail.trim() || familyInviteMutation.isPending}
-                    data-testid="family-send-email-btn"
-                  >
-                    <Mail size={13} />
-                    {familyInviteMutation.isPending ? "Sending…" : "Send"}
-                  </Button>
-                </div>
-              </div>
-
-              <p className="text-xs text-muted-foreground">
-                When they click the link, they'll be taken to a sign-up page pre-set for their role. After setting up their profile they'll have access to the Family Care Portal.
-              </p>
-            </div>
-          )}
-        </SheetContent>
-      </Sheet>
+      {/* Invite Family Member Sheet (MC only) — shared component */}
+      <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
 
       {/* Access Level Info */}
       <Card className="border-border">
