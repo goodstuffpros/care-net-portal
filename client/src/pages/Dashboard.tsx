@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakText } from "@/lib/ttsUtils";
+import ModuleIntro from "@/components/ModuleIntro";
 
 function formatTime(isoString: string) {
   return new Date(isoString).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -100,6 +101,7 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-6 w-full overflow-x-hidden">
+      <ModuleIntro moduleKey="dashboard" />
       {/* Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-border">
         <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">

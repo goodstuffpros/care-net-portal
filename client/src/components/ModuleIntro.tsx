@@ -27,6 +27,7 @@ import type { User } from "@shared/schema";
 //   familyImage — family-specific screenshot where it exists
 
 export type ModuleKey =
+  | "dashboard"
   | "schedule"
   | "care-log"
   | "messages"
@@ -52,6 +53,13 @@ interface ModuleLesson {
 }
 
 const LESSONS: Record<ModuleKey, ModuleLesson> = {
+  dashboard: {
+    title: "Your Dashboard",
+    image: `${API_BASE}/university/seed_mod02_dashboard.jpg`,
+    narration: "Welcome to your Dashboard. This is your home base every time you open Care Net Portal. The four stat tiles at the top give you an instant snapshot — tasks completed today, tasks still pending, urgent flags, and recent Care Log entries. Below that, the navigation tiles take you directly to every module in the app. Here is something most people love once they discover it — press and hold any tile, then drag it to a new position. Your layout saves automatically, so every time you open the app, the modules you use most are exactly where you put them.",
+    familyImage: `${API_BASE}/university/seed_fc01_dashboard.jpg`,
+    familyNarration: "Welcome to your Dashboard — your home base every time you open the Family Care Portal. The stat tiles at the top give you a quick snapshot of today’s activity. Below that, the navigation tiles take you to each section of the portal. You can personalize your layout — press and hold any tile, then drag it to a new position. Your arrangement saves automatically, so the things you check most often are always right where you left them.",
+  },
   schedule: {
     title: "Schedule",
     image: `${API_BASE}/university/seed_mod05_schedule.jpg`,
