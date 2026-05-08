@@ -335,11 +335,26 @@ export async function sendEmail(opts: {
     const { Resend } = await import("resend");
     const resend = new Resend(process.env.RESEND_API_KEY);
     const from = process.env.SMTP_FROM || "Care Net Portal <onboarding@resend.dev>";
+    // Strip HTML tags for plain-text fallback (spam filters require both versions)
+    const text = opts.html
+      .replace(/<a[^>]*href="([^"]+)"[^>]*>([^<]+)<\/a>/gi, "$2: $1")
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<\/p>/gi, "\n\n")
+      .replace(/<[^>]+>/g, "")
+      .replace(/&amp;/g, "&")
+      .replace(/&lt;/g, "<")
+      .replace(/&gt;/g, ">")
+      .replace(/&nbsp;/g, " ")
+      .replace(/[ \t]+/g, " ")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim();
     const result = await resend.emails.send({
       from,
       to: opts.to,
+      replyTo: "Care Net Portal <portal@carenetportal.com>",
       subject: opts.subject,
       html: opts.html,
+      text,
     });
     if (result.error) throw new Error(result.error.message);
   } else {
