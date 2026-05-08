@@ -1027,8 +1027,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <div className="flex-1 min-w-0" />
-
           {/* For Me — family/MC only, rose pill in top bar */}
           {isFamily && (
             <button
@@ -1041,113 +1039,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
-          {/* Notification Bell */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className={cn("relative flex-shrink-0 p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
-                <Bell size={18} />
-                {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
-                    {unreadCount > 9 ? "9+" : unreadCount}
-                  </span>
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              {notifications.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
-              ) : notifications.slice(0, 6).map(n => (
-                <DropdownMenuItem key={n.id} className={cn("flex flex-col items-start gap-1 py-3 cursor-pointer", !n.isRead && "bg-accent/30")}>
-                  <div className="flex items-center gap-2 w-full">
-                    <PriorityBadge priority={n.priority || "green"} />
-                    {!n.isRead && <span className="ml-auto w-2 h-2 rounded-full bg-primary" />}
-                  </div>
-                  <span className="text-sm font-medium">{n.title}</span>
-                  <span className="text-xs text-muted-foreground">{n.body}</span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex-1 min-w-0" />
 
-          {/* Voice Controls — Hey CareNet compact icon + chevron */}
+          {/* Voice Controls — Hey CareNet compact icon + chevron — disabled during beta */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (
-            <div className="flex-shrink-0 flex items-center">
-              <div className="relative flex items-center">
-                {/* Megaphone icon toggle */}
-                <button
-                  onClick={handleToggleHFM}
+            <div className="flex-shrink-0 flex items-center" title="Coming soon">
+              <div className="relative flex items-center opacity-30 cursor-not-allowed">
+                {/* Megaphone icon — non-interactive during beta */}
+                <div
                   data-testid="hfm-toggle-button"
-                  aria-label={hfmActive ? t("voice.hfm.deactivate") : t("voice.hfm.activate")}
-                  className={cn(
-                    "relative flex items-center justify-center w-8 h-8 rounded-l-full transition-all border",
-                    hfmActive
-                      ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
-                      : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                  )}
+                  aria-label="Hey CareNet — coming soon"
+                  className="relative flex items-center justify-center w-8 h-8 rounded-l-full border bg-muted/60 text-muted-foreground border-border"
                 >
-                  <Megaphone size={15} className={cn(hfmActive && "animate-pulse")} />
-                  {hfmActive && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
-                  )}
-                </button>
-
-                {/* Dropdown chevron — shift-only option */}
-                <div className="relative">
-                  <button
-                    onClick={() => setHfmMenuOpen(v => !v)}
-                    data-testid="hfm-menu-button"
-                    aria-label="Hey CareNet options"
-                    className={cn(
-                      "flex items-center justify-center w-5 h-8 rounded-r-full border-l-0 border transition-all",
-                      hfmActive
-                        ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
-                        : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
-                    )}
-                  >
-                    <ChevronDown size={10} className={cn("transition-transform", hfmMenuOpen && "rotate-180")} />
-                  </button>
-
-                  {hfmMenuOpen && (
-                    <>
-                      <div className="fixed inset-0 z-40" onClick={() => setHfmMenuOpen(false)} />
-                      <div className="absolute right-0 top-full mt-1.5 z-50 w-56 bg-popover border border-border rounded-xl shadow-lg py-1 text-sm">
-                        <div className="px-3 py-2.5">
-                          <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wide">Hey CareNet</p>
-                          <p className="text-xs text-muted-foreground mb-3">Say "Hey CareNet" to navigate or log hands-free.</p>
-                          <label className="flex items-start gap-3 cursor-pointer group">
-                            <div
-                              onClick={() => {
-                                setHfmShiftOnly(v => {
-                                  const next = !v;
-                                  if (next && activeShift?.clockedInAt && !hfmActive) {
-                                    recognizerRef.current?.startHFM();
-                                    setHfmActive(true);
-                                  }
-                                  return next;
-                                });
-                                setHfmMenuOpen(false);
-                              }}
-                              className={cn(
-                                "mt-0.5 w-8 h-4 rounded-full flex-shrink-0 relative transition-colors cursor-pointer",
-                                hfmShiftOnly ? "bg-primary" : "bg-muted-foreground/30"
-                              )}
-                            >
-                              <span className={cn(
-                                "absolute top-0.5 w-3 h-3 bg-white rounded-full shadow transition-transform",
-                                hfmShiftOnly ? "translate-x-4" : "translate-x-0.5"
-                              )} />
-                            </div>
-                            <div>
-                              <p className="text-foreground text-sm font-medium leading-tight">During shift only</p>
-                              <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">Auto-activates on clock-in, off on clock-out.</p>
-                            </div>
-                          </label>
-                        </div>
-                      </div>
-                    </>
-                  )}
+                  <Megaphone size={15} />
+                </div>
+                {/* Chevron — also disabled */}
+                <div className="flex items-center justify-center w-5 h-8 rounded-r-full border-l-0 border bg-muted/60 text-muted-foreground border-border">
+                  <ChevronDown size={10} />
                 </div>
               </div>
             </div>
@@ -1216,6 +1124,36 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </>
             )}
           </div>
+
+          {/* Notification Bell */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className={cn("relative flex-shrink-0 p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
+                <Bell size={18} />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
+              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {notifications.length === 0 ? (
+                <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
+              ) : notifications.slice(0, 6).map(n => (
+                <DropdownMenuItem key={n.id} className={cn("flex flex-col items-start gap-1 py-3 cursor-pointer", !n.isRead && "bg-accent/30")}>
+                  <div className="flex items-center gap-2 w-full">
+                    <PriorityBadge priority={n.priority || "green"} />
+                    {!n.isRead && <span className="ml-auto w-2 h-2 rounded-full bg-primary" />}
+                  </div>
+                  <span className="text-sm font-medium">{n.title}</span>
+                  <span className="text-xs text-muted-foreground">{n.body}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
 
           {/* ── Mobile-only: Invite + Profile ── */}
           {/* Invite a Friend — mobile icon button, real users only */}
