@@ -26,7 +26,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // POST /api/auth/apply — submit beta application + create account + send verification email
   app.post("/api/auth/apply", async (req: AuthRequest, res) => {
-    const { email, name, role, currentlyInCare, intent, agreedToConfidentiality, password } = req.body;
+    const { email, name, role, currentlyInCare, intent, agreedToConfidentiality, password, inviteToken: connectionInviteToken } = req.body;
     if (!email || !name || !role || !currentlyInCare || !intent || !agreedToConfidentiality || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -44,6 +44,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
 
     // Store application (auto-pending — will auto-approve on email verify)
+    // connectionInviteToken: if present, the invite will be auto-accepted after email verify
     db.insert(betaApplications).values({
       email: normalizedEmail,
       name: name.trim(),
@@ -53,6 +54,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       agreedToConfidentiality: !!agreedToConfidentiality,
       status: "pending",
       createdAt: new Date().toISOString(),
+      ...(connectionInviteToken ? { inviteToken: connectionInviteToken } : {}),
     }).run();
 
     // Create auth account immediately (unverified)
@@ -269,6 +271,43 @@ export function registerRoutes(httpServer: Server, app: Express) {
       subject: "You're in — Care Net Portal Beta",
       html: emailApprovalWelcomeTemplate(app_.name, loginUrl),
     }).catch(err => console.error("[auto-approve] email failed:", err?.message));
+
+    // Auto-accept connection invite if one was stored on the application
+    if (app_.inviteToken) {
+      try {
+        const connInvite = db.select().from(connectionInvites).where(eq(connectionInvites.token, app_.inviteToken)).get();
+        if (connInvite && connInvite.status === "pending") {
+          const now2 = new Date().toISOString();
+          // Assign clientId + role from invite
+          let clientId2 = connInvite.clientId ?? null;
+          if (connInvite.inviteType === "mc_to_family") {
+            if (clientId2) db.update(users).set({ clientId: clientId2, role: "secondary_family" }).where(eq(users.id, newUser.id)).run();
+          } else if (connInvite.inviteType === "mc_to_caregiver") {
+            if (clientId2) db.update(users).set({ clientId: clientId2 }).where(eq(users.id, newUser.id)).run();
+          } else if (connInvite.inviteType === "caregiver_to_mc") {
+            if (connInvite.senderUserId) {
+              const sender2 = db.select().from(users).where(eq(users.id, connInvite.senderUserId)).get();
+              if (sender2) db.update(users).set({ clientId: sender2.clientId }).where(eq(users.id, sender2.id)).run();
+              clientId2 = sender2?.clientId ?? null;
+            }
+            db.update(users).set({ clientId: clientId2, role: "primary_family" }).where(eq(users.id, newUser.id)).run();
+          }
+          db.update(connectionInvites).set({ status: "accepted", acceptedByUserId: newUser.id, acceptedAt: now2 })
+            .where(eq(connectionInvites.token, app_.inviteToken)).run();
+          // Notify the sender
+          if (connInvite.senderUserId) {
+            const senderAcc = db.select().from(authAccounts).where(eq(authAccounts.userId, connInvite.senderUserId)).get();
+            if (senderAcc?.email) {
+              sendEmail({
+                to: senderAcc.email,
+                subject: `${newUser.name} accepted your Care Net Portal invitation`,
+                html: `<div style="font-family:sans-serif;max-width:520px;margin:0 auto;padding:24px;"><p style="font-size:16px;"><strong>${newUser.name}</strong> just accepted your invitation and joined Care Net Portal.</p><p style="color:#666;">Your portals are now connected.</p></div>`,
+              }).catch(() => {});
+            }
+          }
+        }
+      } catch (e) { console.error("[verify] auto-accept invite failed:", e); }
+    }
 
     // Auto-login
     const sessionToken = await createSession(account.id, req);
