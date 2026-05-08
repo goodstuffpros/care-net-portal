@@ -223,29 +223,29 @@ export default function MessagesPage() {
       {/* Thread List */}
       <div className={cn("flex flex-col border-r border-border bg-background", activeThreadId ? "hidden md:flex w-72 flex-shrink-0" : "flex-1 md:w-72 md:flex-none")}>
         <div className="p-4 border-b border-border">
-          <div className="flex items-center justify-between mb-2">
-          <h1 className="text-base font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
-          <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 h-8" data-testid="new-thread-btn">
-                <Plus size={14} /> {t("messages.newThread")}
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>Create Chat Group</DialogTitle></DialogHeader>
-              <div className="space-y-4 py-2">
-                <div className="space-y-1.5">
-                  <Label>Group Name</Label>
-                  <Input value={newThreadName} onChange={e => setNewThreadName(e.target.value)} placeholder="e.g. Urgent Updates, Weekend Team" data-testid="thread-name-input" />
-                </div>
-                <Button className="w-full" onClick={() => createThreadMutation.mutate()} disabled={!newThreadName || createThreadMutation.isPending} data-testid="create-thread-btn">
-                  Create Chat Group
+          <h1 className="text-base font-bold mb-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
+          <div className="flex items-center justify-between gap-2">
+            <LessonLauncher pageKey="messages" />
+            <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm" className="gap-1.5 h-8 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
+                  <Plus size={14} /> {t("messages.newThread")}
                 </Button>
-              </div>
-            </DialogContent>
-          </Dialog>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader><DialogTitle>Create Chat Group</DialogTitle></DialogHeader>
+                <div className="space-y-4 py-2">
+                  <div className="space-y-1.5">
+                    <Label>Group Name</Label>
+                    <Input value={newThreadName} onChange={e => setNewThreadName(e.target.value)} placeholder="e.g. Urgent Updates, Weekend Team" data-testid="thread-name-input" />
+                  </div>
+                  <Button className="w-full" onClick={() => createThreadMutation.mutate()} disabled={!newThreadName || createThreadMutation.isPending} data-testid="create-thread-btn">
+                    Create Chat Group
+                  </Button>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
-          <LessonLauncher pageKey="messages" />
         </div>
         <div className="flex-1 overflow-y-auto">
           {threadsLoading ? (

@@ -262,30 +262,23 @@ export function LessonLauncher({ pageKey }: { pageKey: string }) {
 
   return (
     <>
-      {completed ? (
-        // Small icon — lesson done, but still accessible
-        <button
-          onClick={() => setOpen(true)}
-          className="flex items-center gap-1.5 text-muted-foreground/50 hover:text-muted-foreground transition-colors"
-          title="How this works"
-        >
-          <CheckCircle2 size={13} className="text-emerald-500/60" />
-          <span className="text-[10px]">How this works</span>
-        </button>
-      ) : (
-        // Prominent pill — lesson not yet done
-        <button
-          onClick={() => setOpen(true)}
-          className={cn(
-            "flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm",
-            trackColor, trackBorder, "text-white"
-          )}
-        >
-          <GraduationCap size={14} />
-          How this works
-          <Play size={11} className="opacity-70" />
-        </button>
-      )}
+      {/* Always show full pill — completed shows checkmark inside pill */}
+      <button
+        onClick={() => setOpen(true)}
+        className={cn(
+          "flex items-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm",
+          completed
+            ? "bg-emerald-600 border-emerald-500/30 text-white"
+            : cn(trackColor, trackBorder, "text-white")
+        )}
+        title="How this works"
+      >
+        {completed
+          ? <CheckCircle2 size={14} />
+          : <GraduationCap size={14} />}
+        How this works
+        {!completed && <Play size={11} className="opacity-70" />}
+      </button>
 
       {open && (
         <InlineLessonViewer

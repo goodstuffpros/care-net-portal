@@ -16,6 +16,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { Image, Video, Plus, Mic, MicOff, Trash2, Camera, Film, Circle, Square, RotateCcw, Download, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 const DEMO_USERS: Record<number, string> = {
   1: "Becky M.",
@@ -318,6 +319,7 @@ export default function MediaPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("media.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Photos · Videos · Voice</p>
           </div>
+          <LessonLauncher pageKey="media" />
         </div>
         <Dialog open={addOpen} onOpenChange={open => {
           setAddOpen(open);

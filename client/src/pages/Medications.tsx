@@ -805,8 +805,9 @@ export default function MedicationsPage() {
           <p className="text-sm text-muted-foreground mt-0.5">
             {activeMeds.length} active · {prnMeds.length} PRN · {archivedMeds.length} archived
           </p>
-          <div className="mt-2"><LessonLauncher pageKey="medications" /></div>
         </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+        <LessonLauncher pageKey="medications" />
         {isCaregiverRole(activeUser.role) && (
           <Button onClick={() => setAddOpen(true)} size="sm" data-testid="add-med-btn">
             <Plus size={14} className="mr-1" />
@@ -923,6 +924,7 @@ export default function MedicationsPage() {
             </DialogContent>
           </Dialog>
         )}
+        </div>
       </div>
 
       <Tabs defaultValue="active">
