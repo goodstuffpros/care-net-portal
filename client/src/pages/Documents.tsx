@@ -42,6 +42,7 @@ export default function DocumentsPage() {
   const { t } = useLang();
   const { toast } = useToast();
   const canDelete = isCaregiverRole(activeUser.role);
+  const canUpload = canDelete || activeUser.role === "primary_family";
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [addOpen, setAddOpen] = useState(false);
   const [form, setForm] = useState({
@@ -93,7 +94,7 @@ export default function DocumentsPage() {
           </div>
           <LessonLauncher pageKey="documents" />
         </div>
-        {canDelete && (
+        {canUpload && (
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-document-btn">
@@ -202,7 +203,7 @@ export default function DocumentsPage() {
         <div className="text-center py-16 text-muted-foreground">
           <FolderOpen size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No documents found</p>
-          <p className="text-sm mt-1">{canDelete ? "Add documents using the button above." : "No documents have been uploaded yet."}</p>
+          <p className="text-sm mt-1">{canUpload ? "Add documents using the button above." : "No documents have been uploaded yet."}</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
