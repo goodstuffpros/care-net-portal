@@ -72,6 +72,8 @@ export interface ActiveUser {
   avatarInitials: string;
   clientId: number | null;
   tempAccessEnd?: string;
+  // TODO: replace email-match with isAdmin DB column before public launch
+  isAdmin?: boolean;
 }
 
 // Helper: is this user a caregiver-level role?
@@ -140,6 +142,10 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
   const startPortalMode: PortalMode = isMCReal ? "family" : "dedicated";
 
+  // Admin email list — temporary until isAdmin DB column is wired pre-launch
+  const ADMIN_EMAILS = ["goodstuffpros@gmail.com", "becky@carenetportal.com"];
+  const isAdminEmail = ADMIN_EMAILS.includes(realUser?.email ?? "");
+
   // Build an ActiveUser from the real session if available, otherwise default to demo Becky
   const buildRealActiveUser = (): ActiveUser | null => {
     if (!realUser?.id || !realUser?.name || !realUser?.role) return null;
@@ -149,6 +155,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
       role: realUser.role as UserRole,
       avatarInitials: realUser.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().slice(0, 2),
       clientId: realUser.clientId ?? null,
+      isAdmin: isAdminEmail,
     };
   };
   const initialActiveUser = buildRealActiveUser() ?? DEMO_USERS[0];

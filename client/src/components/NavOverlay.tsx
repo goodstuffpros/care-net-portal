@@ -236,7 +236,7 @@ export default function NavOverlay({
 }: NavOverlayProps) {
   const [, navigate] = useLocation();
   const { t, lang, setLang } = useLang();
-  const { activeUser, setActiveUser, demoUsers, theme, toggleTheme, colorTheme, setColorTheme, portalMode, setPortalMode } = useApp();
+  const { activeUser, setActiveUser, demoUsers, theme, toggleTheme, colorTheme, setColorTheme, portalMode, setPortalMode, isRealSession } = useApp();
 
   // Apply saved order
   const orderedItems = (() => {
@@ -442,7 +442,10 @@ export default function NavOverlay({
 
         {/* ── Footer: Color Palette + User Switcher ── */}
         <div className="shrink-0 px-4 pt-2 pb-3 border-t border-border space-y-2.5">
-          {/* Portal Mode Toggle */}
+          {/* Portal Mode Toggle — demo users + admin accounts only.
+               Regular real users cannot switch portals; their role determines it.
+               TODO: replace isAdmin email-match with DB flag pre-launch. */}
+          {(!isRealSession || activeUser.isAdmin) && (
           <div className="flex items-center gap-2">
             <span className="text-[11px] text-muted-foreground flex-shrink-0">Portal mode</span>
             <div className="flex items-center rounded-lg border border-border overflow-hidden ml-1" style={{ fontSize: 11 }}>
@@ -473,6 +476,7 @@ export default function NavOverlay({
               </button>
             </div>
           </div>
+          )}
 
           {/* Color palette row — hidden in family mode (fixed rose) */}
           {portalMode !== "family" && (
