@@ -39,6 +39,7 @@ import type { TranslationKey } from "@/lib/i18n";
 
 import NavOverlay, { NAV_COLORS } from "@/components/NavOverlay";
 import { WellbeingModal, ProactiveNudgeBanner } from "@/components/WellbeingModal";
+import { NeedAMomentModal } from "@/components/NeedAMomentModal";
 
 const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; emergency?: boolean }[] = [
   { path: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -1442,6 +1443,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }
         }}
       />
+
+      {/* Need a Moment — floating heart, family roles only */}
+      <NeedAMomentModal />
 
       {/* AI Help Desk — floating, always visible */}
       <HelpDesk hfmActive={hfmActive} />
