@@ -18,7 +18,7 @@ import { useApp } from "@/App";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { Heart, X, Volume2, VolumeX, ChevronDown, Loader2 } from "lucide-react";
+import { Heart, X, Volume2, VolumeX, Loader2 } from "lucide-react";
 import { speakBecky, stopBecky, registerBeckyStateListener, unregisterBeckyStateListener } from "@/lib/ttsUtils";
 
 // ── Mood options (same scale, warmer language for family) ──────────────────────
@@ -89,13 +89,28 @@ interface CheckInResult {
   streak: { currentStreak: number; totalCheckIns: number };
 }
 
-export function NeedAMomentModal() {
+interface NeedAMomentModalProps {
+  /** If provided, the modal is controlled from outside (top bar pill). */
+  open?: boolean;
+  onClose?: () => void;
+}
+
+export function NeedAMomentModal({ open: externalOpen, onClose }: NeedAMomentModalProps = {}) {
   const { activeUser, selectedClientId } = useApp();
 
   const isFamily =
     activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
-  const [open, setOpen] = useState(false);
+  const [internalOpen, setInternalOpen] = useState(false);
+  // If controlled externally, use external state; otherwise use internal
+  const isControlled = externalOpen !== undefined;
+  const open = isControlled ? externalOpen : internalOpen;
+  const setOpen = isControlled
+    ? (val: boolean | ((prev: boolean) => boolean)) => {
+        const next = typeof val === "function" ? val(open) : val;
+        if (!next && onClose) onClose();
+      }
+    : setInternalOpen;
   const [step, setStep] = useState<"opening" | "writing" | "rating" | "response">("opening");
   const [message, setMessage] = useState("");
   const [moodRating, setMoodRating] = useState<number | null>(null);
@@ -199,24 +214,6 @@ export function NeedAMomentModal() {
 
   return (
     <>
-      {/* Floating heart button — sits above HelpDesk (bottom-6 + h-12 + gap = ~4.25rem) */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        data-testid="need-a-moment-toggle"
-        aria-label="Need a Moment"
-        className={cn(
-          "fixed z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
-          "bottom-[5.5rem] right-4",
-          open
-            ? "bg-rose-500 text-white"
-            : "bg-rose-500/90 hover:bg-rose-500 text-white"
-        )}
-      >
-        {open ? <ChevronDown className="w-4 h-4" /> : <Heart className="w-4 h-4 fill-white" />}
-        <span className="text-[8px] font-semibold leading-none tracking-wide opacity-90">
-          {open ? "Close" : "For Me"}
-        </span>
-      </button>
 
       {/* Panel */}
       {open && (

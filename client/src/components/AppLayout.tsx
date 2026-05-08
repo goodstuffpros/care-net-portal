@@ -14,7 +14,8 @@ import {
   Sparkles, Lock, StickyNote, MicOff, ClipboardSignature,
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
-  NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send
+  NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
+  Megaphone, Settings2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -240,6 +241,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       preConnInviteMutation.mutate();
     }
   }
+
+  // ── Need a Moment state (family) ────────────────────────────────────────────
+  const [needAMomentOpen, setNeedAMomentOpen] = useState(false);
 
   // ── Wellbeing state ──────────────────────────────────────────────────────────
   const [wellbeingOpen, setWellbeingOpen] = useState(false);
@@ -1017,15 +1021,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="flex-1 min-w-0" />
 
-          {/* Need a Friend — caregiver roles only, hidden in FCP */}
-          {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+          {/* For Me — family/MC only, rose pill in top bar */}
+          {isFamily && (
             <button
-              onClick={() => openWellbeing("manual")}
-              data-testid="need-a-friend-btn"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300"
+              onClick={() => setNeedAMomentOpen(true)}
+              data-testid="for-me-btn"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
             >
               <Heart size={11} className="fill-rose-400" />
-              <span className="hidden sm:inline">Need a friend</span>
+              <span className="hidden sm:inline">For Me</span>
             </button>
           )}
 
@@ -1059,28 +1063,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* Voice Controls — caregiver roles + family (hands-free situations) */}
+          {/* Voice Controls — Hey CareNet compact icon + chevron */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (
-            <div className="flex-shrink-0 flex items-center gap-1">
-
-              {/* ── Hey CareNet wake-word pill ── */}
+            <div className="flex-shrink-0 flex items-center">
               <div className="relative flex items-center">
-                {/* Main toggle — labeled pill */}
+                {/* Megaphone icon toggle */}
                 <button
                   onClick={handleToggleHFM}
                   data-testid="hfm-toggle-button"
                   aria-label={hfmActive ? t("voice.hfm.deactivate") : t("voice.hfm.activate")}
                   className={cn(
-                    "relative flex items-center gap-1.5 pl-2.5 pr-2 py-1 rounded-l-full text-xs font-medium transition-all border",
+                    "relative flex items-center justify-center w-8 h-8 rounded-l-full transition-all border",
                     hfmActive
                       ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
                       : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                   )}
                 >
-                  <Radio size={13} className={cn(hfmActive && "animate-pulse")} />
-                  <span>Hey CareNet</span>
+                  <Megaphone size={15} className={cn(hfmActive && "animate-pulse")} />
                   {hfmActive && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-primary animate-pulse" />
                   )}
                 </button>
 
@@ -1091,34 +1092,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     data-testid="hfm-menu-button"
                     aria-label="Hey CareNet options"
                     className={cn(
-                      "flex items-center justify-center w-6 h-[30px] rounded-r-full border-l-0 border transition-all text-xs",
+                      "flex items-center justify-center w-5 h-8 rounded-r-full border-l-0 border transition-all",
                       hfmActive
                         ? "bg-primary/10 text-primary border-primary/30 hover:bg-primary/20"
                         : "bg-muted/60 text-muted-foreground border-border hover:bg-muted hover:text-foreground"
                     )}
                   >
-                    <ChevronDown size={11} className={cn("transition-transform", hfmMenuOpen && "rotate-180")} />
+                    <ChevronDown size={10} className={cn("transition-transform", hfmMenuOpen && "rotate-180")} />
                   </button>
 
-                  {/* Dropdown menu */}
                   {hfmMenuOpen && (
                     <>
-                      {/* Backdrop */}
                       <div className="fixed inset-0 z-40" onClick={() => setHfmMenuOpen(false)} />
-                      <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-popover border border-border rounded-xl shadow-lg py-1 text-sm">
-                        <div className="px-3 py-2">
-                          <p className="text-xs text-muted-foreground font-medium mb-2 uppercase tracking-wide">Hey CareNet options</p>
+                      <div className="absolute right-0 top-full mt-1.5 z-50 w-56 bg-popover border border-border rounded-xl shadow-lg py-1 text-sm">
+                        <div className="px-3 py-2.5">
+                          <p className="text-xs text-muted-foreground font-medium mb-1 uppercase tracking-wide">Hey CareNet</p>
+                          <p className="text-xs text-muted-foreground mb-3">Say "Hey CareNet" to navigate or log hands-free.</p>
                           <label className="flex items-start gap-3 cursor-pointer group">
                             <div
                               onClick={() => {
                                 setHfmShiftOnly(v => {
                                   const next = !v;
-                                  // If enabling shift-only and currently on shift, activate now
                                   if (next && activeShift?.clockedInAt && !hfmActive) {
                                     recognizerRef.current?.startHFM();
                                     setHfmActive(true);
                                   }
-                                  // If disabling shift-only, leave current state as-is
                                   return next;
                                 });
                                 setHfmMenuOpen(false);
@@ -1135,9 +1133,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                             </div>
                             <div>
                               <p className="text-foreground text-sm font-medium leading-tight">During shift only</p>
-                              <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">
-                                Auto-activates when you clock in, turns off when you clock out.
-                              </p>
+                              <p className="text-muted-foreground text-xs mt-0.5 leading-relaxed">Auto-activates on clock-in, off on clock-out.</p>
                             </div>
                           </label>
                         </div>
@@ -1146,81 +1142,70 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   )}
                 </div>
               </div>
-
-              {/* Tap mic — disabled while HFM is on */}
-              {!hfmActive && (
-                <button
-                  onClick={handleVoiceMic}
-                  data-testid="voice-mic-button"
-                  aria-label={voiceStatus === "listening" ? t("voice.tap.cancel") : t("voice.tap.label")}
-                  className={cn(
-                    "relative p-2 rounded-lg transition-colors",
-                    voiceStatus === "listening"
-                      ? "bg-red-100 text-red-600 dark:bg-red-950/40 dark:text-red-400 hover:bg-red-200"
-                      : "hover:bg-muted text-muted-foreground"
-                  )}
-                >
-                  <Mic size={18} className={cn(voiceStatus === "listening" && "animate-pulse")} />
-                  {voiceStatus === "listening" && (
-                    <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse" />
-                  )}
-                </button>
-              )}
             </div>
           )}
 
-          {/* Color Theme Picker — desktop only, hidden in family portal */}
-          <div className={cn("relative", isFamilyPortal ? "hidden" : "hidden md:block")}>
+          {/* Gear — preferences dropdown (theme, color, language) */}
+          <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowThemePicker(p => !p)}
-              className="p-2 rounded-lg hover:bg-muted transition-colors"
-              aria-label="Color theme picker"
-              data-testid="color-theme-btn"
+              className={cn("p-2 rounded-lg transition-colors",
+                isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent" : "hover:bg-muted text-muted-foreground hover:text-foreground")}
+              aria-label="Preferences"
+              data-testid="prefs-btn"
             >
-              <Palette size={18} />
+              <Settings2 size={18} />
             </button>
             {showThemePicker && (
-              <div className="absolute right-0 top-10 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl p-3 flex gap-2">
-                {([
-                  { key: "teal", color: "#2a8c7a", label: "Teal" },
-                  { key: "sand", color: "#7a4a1f", label: "Sand" },
-                  { key: "navy", color: "#2a4a9a", label: "Navy" },
-                  { key: "lavender", color: "#6a3a9a", label: "Lavender" },
-                ] as { key: ColorTheme; color: string; label: string }[]).map(({ key, color, label }) => (
+              <>
+                <div className="fixed inset-0 z-40" onClick={() => setShowThemePicker(false)} />
+                <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-popover border border-border rounded-xl shadow-xl py-2">
+                  <p className="px-3 pb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preferences</p>
+
+                  {/* Light / Dark */}
                   <button
-                    key={key}
-                    onClick={() => { setColorTheme(key); setShowThemePicker(false); }}
-                    className={cn("w-7 h-7 rounded-full border-2 transition-all", colorTheme === key ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
-                    style={{ backgroundColor: color }}
-                    title={label}
-                    data-testid={`theme-color-${key}`}
-                  />
-                ))}
-              </div>
+                    onClick={() => { toggleTheme(); setShowThemePicker(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    data-testid="theme-toggle"
+                  >
+                    {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+                    <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
+                  </button>
+
+                  {/* Language */}
+                  <button
+                    onClick={() => { setLang(lang === "en" ? "es" : "en"); setShowThemePicker(false); }}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    data-testid="lang-toggle"
+                  >
+                    <span className="text-base leading-none">🌐</span>
+                    <span>{lang === "en" ? "Español" : "English"}</span>
+                  </button>
+
+                  <div className="px-3 pt-2 pb-1">
+                    <p className="text-xs text-muted-foreground mb-2">Accent color</p>
+                    <div className="flex gap-2">
+                      {([
+                        { key: "teal",     color: "#2a8c7a", label: "Teal" },
+                        { key: "sand",     color: "#7a4a1f", label: "Sand" },
+                        { key: "navy",     color: "#2a4a9a", label: "Navy" },
+                        { key: "lavender", color: "#6a3a9a", label: "Lavender" },
+                      ] as { key: ColorTheme; color: string; label: string }[]).map(({ key, color, label }) => (
+                        <button
+                          key={key}
+                          onClick={() => { setColorTheme(key); setShowThemePicker(false); }}
+                          className={cn("w-7 h-7 rounded-full border-2 transition-all", colorTheme === key ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
+                          style={{ backgroundColor: color }}
+                          title={label}
+                          data-testid={`theme-color-${key}`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </>
             )}
           </div>
-
-          {/* Language Toggle — desktop only (mobile uses sidebar) */}
-          <button
-            onClick={() => setLang(lang === "en" ? "es" : "en")}
-            className={cn("hidden md:block px-2.5 py-1.5 rounded-lg transition-colors text-xs font-semibold tracking-wide",
-              isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              : "hover:bg-muted text-muted-foreground hover:text-foreground")}
-            aria-label="Toggle language"
-            data-testid="lang-toggle"
-            title={lang === "en" ? "Cambiar a Español" : "Switch to English"}
-          >
-            {lang === "en" ? "ES" : "EN"}
-          </button>
-
-          {/* Theme Toggle — desktop only (mobile uses sidebar) */}
-          <button onClick={toggleTheme}
-            className={cn("hidden md:block p-2 rounded-lg transition-colors",
-              isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-              : "hover:bg-muted")}
-            aria-label="Toggle theme" data-testid="theme-toggle">
-            {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
 
           {/* ── Mobile-only: Invite + Profile ── */}
           {/* Invite a Friend — mobile icon button, real users only */}
@@ -1444,8 +1429,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       />
 
-      {/* Need a Moment — floating heart, family roles only */}
-      <NeedAMomentModal />
+      {/* Need a Moment — family roles only, controlled from top bar */}
+      <NeedAMomentModal open={needAMomentOpen} onClose={() => setNeedAMomentOpen(false)} />
 
       {/* AI Help Desk — floating, always visible */}
       <HelpDesk hfmActive={hfmActive} />
