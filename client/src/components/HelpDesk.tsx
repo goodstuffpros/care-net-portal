@@ -313,33 +313,36 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
     }
   }
 
-  const accentColor = isFamilyPortal
-    ? "bg-rose-600 hover:bg-rose-700"
-    : "bg-primary hover:bg-primary/90";
-
-  const accentText = isFamilyPortal ? "text-rose-600" : "text-primary";
-  const accentBorder = isFamilyPortal ? "border-rose-200 dark:border-rose-900" : "border-primary/20";
-  const accentBubble = isFamilyPortal ? "bg-rose-600 text-white" : "bg-primary text-primary-foreground";
+  // Help Desk always uses app primary (teal) — visually distinct from rose Need a Moment button
+  const accentColor = "bg-primary hover:bg-primary/90";
+  const accentText = "text-primary";
+  const accentBorder = "border-primary/20";
+  const accentBubble = "bg-primary text-primary-foreground";
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — teal, always bottom-5 right-5 */}
       <button
         onClick={open ? () => setOpen(false) : handleOpen}
         data-testid="helpdesk-toggle"
         className={cn(
-          "fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full shadow-lg flex items-center justify-center transition-all duration-200",
+          "fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
           wakeWordActive ? "bg-green-500" : accentColor,
           "text-white"
         )}
-        aria-label="Help"
+        aria-label="App Help"
       >
         {wakeWordActive
           ? <Mic className="w-5 h-5 animate-pulse" />
           : open
-          ? <ChevronDown className="w-5 h-5" />
-          : <MessageCircleHeart className="w-5 h-5" />
+          ? <ChevronDown className="w-4 h-4" />
+          : <MessageCircleHeart className="w-4 h-4" />
         }
+        {!wakeWordActive && (
+          <span className="text-[8px] font-semibold leading-none tracking-wide opacity-90">
+            {open ? "Close" : "App Help"}
+          </span>
+        )}
       </button>
 
       {/* Wake word hint — visible in all portals */}
