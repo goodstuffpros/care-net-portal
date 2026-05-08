@@ -10,6 +10,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, Sun, Moon, ChevronDown, BookHeart } from "lucide-react";
+import ModuleIntro from "@/components/ModuleIntro";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/lib/useLang";
@@ -303,6 +304,9 @@ export default function NavOverlay({
         role="dialog"
         aria-label="Navigation menu"
       >
+        {/* ── How This Works — fires once on first ever open ── */}
+        {isOpen && <ModuleIntro moduleKey="nav-overlay" />}
+
         {/* ── Header ── */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-border shrink-0">
           <div>

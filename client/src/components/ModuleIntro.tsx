@@ -28,6 +28,7 @@ import type { User } from "@shared/schema";
 
 export type ModuleKey =
   | "dashboard"
+  | "nav-overlay"
   | "schedule"
   | "care-log"
   | "messages"
@@ -56,9 +57,16 @@ const LESSONS: Record<ModuleKey, ModuleLesson> = {
   dashboard: {
     title: "Your Dashboard",
     image: `${API_BASE}/university/seed_mod02_dashboard.jpg`,
-    narration: "Welcome to your Dashboard. This is your home base every time you open Care Net Portal. The four stat tiles at the top give you an instant snapshot — tasks completed today, tasks still pending, urgent flags, and recent Care Log entries. Below that, the navigation tiles take you directly to every module in the app. Here is something most people love once they discover it — press and hold any tile, then drag it to a new position. Your layout saves automatically, so every time you open the app, the modules you use most are exactly where you put them.",
+    narration: "Welcome to your Dashboard. This is your home base every time you open Care Net Portal. The four stat tiles at the top give you an instant snapshot — tasks completed today, tasks still pending, urgent flags, and recent Care Log entries. Below that you will find today’s upcoming schedule and the most recent Care Log entries — so you can see what is coming and what has already been documented, all in one place.",
     familyImage: `${API_BASE}/university/seed_fc01_dashboard.jpg`,
-    familyNarration: "Welcome to your Dashboard — your home base every time you open the Family Care Portal. The stat tiles at the top give you a quick snapshot of today’s activity. Below that, the navigation tiles take you to each section of the portal. You can personalize your layout — press and hold any tile, then drag it to a new position. Your arrangement saves automatically, so the things you check most often are always right where you left them.",
+    familyNarration: "Welcome to your Dashboard — your home base every time you open the Family Care Portal. The stat tiles at the top give you a quick snapshot of today’s activity. Below that you will see your loved one’s upcoming schedule and the most recent Care Log entries — so you are always in the loop without having to dig.",
+  },
+  "nav-overlay": {
+    title: "Your Menu",
+    image: `${API_BASE}/university/seed_mod04_nav_overlay.jpg`,
+    narration: "This is your menu — the fastest way to get anywhere in Care Net Portal. Every module in the app has a tile right here. Tap any tile to go directly to that section. Now here is something worth knowing — you can make this menu yours. Press and hold any tile for a moment, then drag it to a new position. Your order saves automatically. Put the things you use every day at the top, and everything else wherever makes sense to you.",
+    familyImage: `${API_BASE}/university/seed_fc02_nav_overlay.jpg`,
+    familyNarration: "This is your menu — every section of the Family Care Portal is one tap away from here. Tap any tile to go directly to that part of the app. And you can make it your own — press and hold any tile, then drag it where you want it. Your layout saves automatically, so the things you check most often are always right at the top.",
   },
   schedule: {
     title: "Schedule",

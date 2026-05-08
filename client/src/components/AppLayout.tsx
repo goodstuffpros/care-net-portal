@@ -986,12 +986,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               : "bg-background/80 border-border"
           )}>
           <button
-            className={cn("p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")}
+            className={cn("flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted text-foreground")}
             onClick={() => setNavOverlayOpen(true)}
             data-testid="nav-overlay-toggle"
             aria-label="Open navigation menu"
           >
             <Menu size={20} />
+            <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">Menu</span>
           </button>
 
           {/* Mode/Role indicator — tappable, navigates to profile */}
