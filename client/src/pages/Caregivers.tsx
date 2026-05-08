@@ -16,6 +16,7 @@ import { useState } from "react";
 import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle, Link2, Mail, Copy, Check, Search, UserCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Primary Caregiver",
@@ -195,6 +196,7 @@ export default function CaregiversPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("caregivers.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Primary · Relief · Temp</p>
           </div>
+          <LessonLauncher pageKey="caregivers" />
         </div>
         {(canManage || isFamily) && (
           <div className="flex gap-2">

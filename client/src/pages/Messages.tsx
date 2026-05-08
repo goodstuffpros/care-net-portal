@@ -223,15 +223,16 @@ export default function MessagesPage() {
       {/* Thread List */}
       <div className={cn("flex flex-col border-r border-border bg-background", activeThreadId ? "hidden md:flex w-72 flex-shrink-0" : "flex-1 md:w-72 md:flex-none")}>
         <div className="p-4 border-b border-border">
-          <h1 className="text-base font-bold mb-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
-          <div className="flex items-center gap-2">
-            <LessonLauncher pageKey="messages" className="flex-1" />
-            <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="gap-1.5 flex-1 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
-                  <Plus size={14} /> {t("messages.newThread")}
-                </Button>
-              </DialogTrigger>
+          <div className="flex items-center justify-between mb-2">
+            <h1 className="text-base font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
+            <LessonLauncher pageKey="messages" />
+          </div>
+          <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="w-full gap-1.5 bg-green-600 hover:bg-green-700 text-white" data-testid="new-thread-btn">
+                <Plus size={14} /> {t("messages.newThread")}
+              </Button>
+            </DialogTrigger>
               <DialogContent>
                 <DialogHeader><DialogTitle>Create Chat Group</DialogTitle></DialogHeader>
                 <div className="space-y-4 py-2">
@@ -245,7 +246,6 @@ export default function MessagesPage() {
                 </div>
               </DialogContent>
             </Dialog>
-          </div>
         </div>
         <div className="flex-1 overflow-y-auto">
           {threadsLoading ? (

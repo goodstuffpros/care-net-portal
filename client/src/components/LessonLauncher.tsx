@@ -52,10 +52,13 @@ const PAGE_MAP: Record<string, LessonMap> = {
   notes:       { cgLessonId: "mod10_notifications", familyLessonId: "fc_08" },
   handoff:     { cgLessonId: "mod11_carescope",  familyLessonId: null },
   documents:   { cgLessonId: "mod13_media",       familyLessonId: null },
+  caregivers:  { cgLessonId: "mod11_carescope",    familyLessonId: null },
+  "client-portal": { cgLessonId: "mod03_client_profile", familyLessonId: null },
 };
 
 // ── All lesson data (duplicated here so component is self-contained) ───────────
 const ALL_LESSONS: Lesson[] = [
+  { id: "mod03_client_profile", title: "Client Profile", subtitle: "Module 3 · Core Onboarding", image: `${API_BASE}/university/seed_mod03_client_profile.jpg`, narration: "The Client Portal is the full profile for the person in your care. Background, preferences, medical history, emergency contacts, and care instructions all live here. Keep this complete — it is the foundation of everything the care team needs to know.", duration: "3 min", knowledgePoints: 4 },
   { id: "mod05_schedule",    title: "Schedule — Creation & Management",   subtitle: "Module 5 · Core Onboarding",  image: `${API_BASE}/university/seed_mod05_schedule.jpg`,         narration: "The Schedule keeps every caregiver and family member aligned on coverage. Tap the plus to add a shift or appointment. Set the date, time, and priority level. The Main Contact can also add appointments — you will receive an urgent red alert immediately so nothing gets missed.", duration: "4 min", knowledgePoints: 5 },
   { id: "mod06_carelog",     title: "Care Log — Creation & Management",   subtitle: "Module 6 · Core Onboarding",  image: `${API_BASE}/university/seed_mod06_carelog_list.jpg`,      narration: "The Care Log is the heart of the platform. Every shift gets a documented entry — what happened, what you observed, how the client was feeling. Fill in the title, write the full narrative, then set the priority. Normal for routine entries, Important for things the family should know, Urgent for anything requiring immediate attention.", duration: "4 min", knowledgePoints: 5 },
   { id: "mod07_medications", title: "Medications — Creation & Management", subtitle: "Module 7 · Core Onboarding", image: `${API_BASE}/university/seed_mod07_medications.jpg`,      narration: "Medications are grouped by time of day — Morning, Afternoon, and Evening — in alphabetical order. Each card shows name, dosage, prescribing doctor, and pharmacy. Tap a card to see the Rx number and admin log. As caregiver, you can add new medications. The Main Contact will receive an urgent alert when you do.", duration: "4 min", knowledgePoints: 5 },

@@ -282,74 +282,65 @@ export default function Notes() {
           </div>
           <LessonLauncher pageKey="notes" />
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={handleListenAll}
-            data-testid="notes-listen-all"
-            className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5 flex-1 justify-center"
-          >
-            <Volume2 size={13} /> Listen
-          </button>
-          {canEdit && (
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm" className="flex-1 bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-note-button">
-                  <Plus size={15} className="mr-1" /> {t("notes.add")}
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
-                <DialogHeader>
-                  <DialogTitle>Add Miscellaneous Note</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 pt-2">
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">Category</label>
-                    <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v as Category }))}>
-                      <SelectTrigger data-testid="note-category-select">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="household">Household</SelectItem>
-                        <SelectItem value="equipment">Equipment</SelectItem>
-                        <SelectItem value="safety">Safety</SelectItem>
-                        <SelectItem value="other">Other</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">Title</label>
-                    <Input
-                      placeholder="Brief description of the issue"
-                      value={form.title}
-                      onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                      data-testid="note-title-input"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium mb-1.5 block">Details</label>
-                    <Textarea
-                      placeholder="Describe what you observed, any actions taken, and what follow-up may be needed..."
-                      value={form.body}
-                      onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
-                      className="min-h-[100px]"
-                      data-testid="note-body-input"
-                    />
-                  </div>
-                  <div className="flex gap-2 justify-end">
-                    <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={!form.title.trim() || !form.body.trim() || createMutation.isPending}
-                      data-testid="note-submit-button"
-                    >
-                      {createMutation.isPending ? "Saving..." : "Save Note"}
-                    </Button>
-                  </div>
+        {canEdit && (
+          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-note-button">
+                <Plus size={15} className="mr-1" /> {t("notes.add")}
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle>Add Miscellaneous Note</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 pt-2">
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Category</label>
+                  <Select value={form.category} onValueChange={(v) => setForm(f => ({ ...f, category: v as Category }))}>
+                    <SelectTrigger data-testid="note-category-select">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="household">Household</SelectItem>
+                      <SelectItem value="equipment">Equipment</SelectItem>
+                      <SelectItem value="safety">Safety</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
-              </DialogContent>
-            </Dialog>
-          )}
-        </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Title</label>
+                  <Input
+                    placeholder="Brief description of the issue"
+                    value={form.title}
+                    onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
+                    data-testid="note-title-input"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium mb-1.5 block">Details</label>
+                  <Textarea
+                    placeholder="Describe what you observed, any actions taken, and what follow-up may be needed..."
+                    value={form.body}
+                    onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
+                    className="min-h-[100px]"
+                    data-testid="note-body-input"
+                  />
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!form.title.trim() || !form.body.trim() || createMutation.isPending}
+                    data-testid="note-submit-button"
+                  >
+                    {createMutation.isPending ? "Saving..." : "Save Note"}
+                  </Button>
+                </div>
+              </div>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
 
       {/* Filter bar */}

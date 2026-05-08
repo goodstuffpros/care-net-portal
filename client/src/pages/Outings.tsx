@@ -294,7 +294,7 @@ export default function OutingsPage() {
             </div>
             <p className="text-xs text-muted-foreground">📍 Location shown is simulated (Dallas, TX). In production, uses real GPS.</p>
             <Button
-              className="w-full gap-2"
+              className="w-full gap-2 bg-teal-600 hover:bg-teal-700 text-white"
               onClick={() => startMutation.mutate()}
               disabled={startMutation.isPending}
               data-testid="begin-outing-btn"

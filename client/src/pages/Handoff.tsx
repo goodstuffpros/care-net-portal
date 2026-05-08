@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
+import { LessonLauncher } from "@/components/LessonLauncher";
 
 export default function HandoffPage() {
   const { selectedClientId, activeUser } = useApp();
@@ -68,11 +69,12 @@ export default function HandoffPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("handoff.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{client?.name} · {today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</p>
           </div>
+          <LessonLauncher pageKey="handoff" />
         </div>
         <Button
           size="sm"
           onClick={() => setGenerated(true)}
-          className="gap-2 w-full"
+          className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white"
           data-testid="generate-report-btn"
         >
           <RefreshCw size={15} /> {t("handoff.submit")}

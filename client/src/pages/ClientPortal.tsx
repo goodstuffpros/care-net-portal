@@ -16,6 +16,7 @@ import { useState } from "react";
 import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
+import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -128,13 +129,16 @@ export default function ClientPortalPage() {
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
       <ModuleIntro moduleKey="client-portal" />
-      <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
-          <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />
-        </div>
-        <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("portal.title")}</h1>
-          <p className="text-xs text-muted-foreground truncate">Profile · Family access · Contacts</p>
+      <div className="pb-3 border-b border-border space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
+            <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("portal.title")}</h1>
+            <p className="text-xs text-muted-foreground truncate">Profile · Family access · Contacts</p>
+          </div>
+          <LessonLauncher pageKey="client-portal" />
         </div>
       </div>
 
