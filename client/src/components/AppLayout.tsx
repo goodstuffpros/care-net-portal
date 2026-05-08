@@ -986,7 +986,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
         <header className={cn(
-            "flex items-center gap-2 px-3 py-3 border-b backdrop-blur-sm flex-shrink-0 overflow-hidden",
+            "flex items-center gap-2 px-3 py-3 border-b backdrop-blur-sm flex-shrink-0 relative",
             isFamilyPortal
               ? "bg-sidebar border-sidebar-border"
               : "bg-background/80 border-border"
