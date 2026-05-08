@@ -16,12 +16,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, Di
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   Pill, Plus, Clock, AlertTriangle, CheckCircle2, ChevronDown,
   ChevronUp, Pencil, XCircle, Archive, ClipboardList,
   Loader2, Info, Calendar, User, Building2, Hash,
-  FlaskConical, Stethoscope, FileText
+  FlaskConical, Stethoscope, FileText, Search, CheckCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
@@ -338,6 +338,158 @@ function LogDoseDialog({
   );
 }
 
+// ─── RxNorm Drug Search Autocomplete ─────────────────────────────────────────
+interface RxSuggestion {
+  name: string;
+  rxcui: string;
+  synonym?: string;
+}
+
+function DrugSearchInput({
+  value,
+  onSelect,
+}: {
+  value: string;
+  onSelect: (name: string, genericName: string) => void;
+}) {
+  const [query, setQuery] = useState(value);
+  const [suggestions, setSuggestions] = useState<RxSuggestion[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false);
+  const [confirmed, setConfirmed] = useState(!!value);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, []);
+
+  const search = useCallback(async (term: string) => {
+    if (term.length < 2) { setSuggestions([]); setOpen(false); return; }
+    setLoading(true);
+    try {
+      // approximateTerm handles misspellings; returns up to 8 candidates
+      const res = await fetch(
+        `https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=${encodeURIComponent(term)}&maxEntries=8`
+      );
+      const data = await res.json();
+      const candidates = data?.approximateGroup?.candidate ?? [];
+      // Deduplicate by name (case-insensitive)
+      const seen = new Set<string>();
+      const results: RxSuggestion[] = [];
+      for (const c of candidates) {
+        const name: string = c.name ?? "";
+        const key = name.toLowerCase();
+        if (name && !seen.has(key)) {
+          seen.add(key);
+          results.push({ name, rxcui: c.rxcui ?? "", synonym: c.synonym });
+        }
+      }
+      setSuggestions(results);
+      setOpen(results.length > 0);
+    } catch {
+      setSuggestions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setQuery(val);
+    setConfirmed(false);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => search(val), 300);
+  };
+
+  const handlePick = async (s: RxSuggestion) => {
+    setQuery(s.name);
+    setOpen(false);
+    setConfirmed(true);
+    // Fetch generic name via RxNorm related info
+    let genericName = "";
+    try {
+      const res = await fetch(
+        `https://rxnav.nlm.nih.gov/REST/rxcui/${s.rxcui}/related.json?tty=IN`
+      );
+      const data = await res.json();
+      const groups = data?.relatedGroup?.conceptGroup ?? [];
+      for (const g of groups) {
+        const props = g?.conceptProperties ?? [];
+        if (props.length > 0) { genericName = props[0].name ?? ""; break; }
+      }
+    } catch { /* no-op */ }
+    onSelect(s.name, genericName);
+  };
+
+  return (
+    <div className="space-y-1.5" ref={containerRef}>
+      <Label className="text-xs">Name *</Label>
+      <div className="relative">
+        <div className="absolute left-2.5 top-1/2 -translate-y-1/2 pointer-events-none">
+          {loading
+            ? <Loader2 size={13} className="text-muted-foreground animate-spin" />
+            : confirmed
+            ? <CheckCheck size={13} className="text-teal-600" />
+            : <Search size={13} className="text-muted-foreground" />}
+        </div>
+        <Input
+          value={query}
+          onChange={handleChange}
+          onFocus={() => suggestions.length > 0 && setOpen(true)}
+          placeholder="Start typing a drug name…"
+          className="h-8 text-sm pl-7"
+          data-testid="med-name"
+          autoComplete="off"
+        />
+        {confirmed && (
+          <button
+            type="button"
+            onClick={() => { setQuery(""); setConfirmed(false); setSuggestions([]); onSelect("", ""); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+          >
+            <XCircle size={13} />
+          </button>
+        )}
+      </div>
+      {open && suggestions.length > 0 && (
+        <div className="absolute z-50 mt-1 w-full max-w-sm bg-popover border border-border rounded-lg shadow-lg overflow-hidden">
+          <div className="px-3 py-1.5 text-[10px] text-muted-foreground border-b border-border font-medium uppercase tracking-wider">
+            Verified drug names · tap to select
+          </div>
+          <ul className="max-h-52 overflow-y-auto">
+            {suggestions.map((s, i) => (
+              <li key={i}>
+                <button
+                  type="button"
+                  onMouseDown={() => handlePick(s)}
+                  className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-start gap-2"
+                >
+                  <Pill size={13} className="text-primary mt-0.5 flex-shrink-0" />
+                  <div>
+                    <div className="font-medium">{s.name}</div>
+                    {s.synonym && s.synonym !== s.name && (
+                      <div className="text-xs text-muted-foreground">{s.synonym}</div>
+                    )}
+                  </div>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      <p className="text-[10px] text-muted-foreground">Powered by NLM RxNorm · handles misspellings · select to confirm</p>
+    </div>
+  );
+}
+
 // ─── Add / Edit Medication Dialog ─────────────────────────────────────────────
 const EMPTY_MED_FORM = {
   name: "", genericName: "", form: "tablet", dosageAmount: "",
@@ -427,15 +579,27 @@ function MedFormDialog({
           <div className="space-y-3">
             <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Medication</div>
             <div className="grid grid-cols-2 gap-3">
-              <div className="space-y-1.5 col-span-2">
-                <Label className="text-xs">Name *</Label>
-                <Input value={form.name} onChange={e => set("name", e.target.value)}
-                  placeholder="e.g. Lisinopril" className="h-8 text-sm" data-testid="med-name" />
+              <div className="col-span-2 relative">
+                {isEdit ? (
+                  <div className="space-y-1.5">
+                    <Label className="text-xs">Name *</Label>
+                    <Input value={form.name} onChange={e => set("name", e.target.value)}
+                      className="h-8 text-sm" data-testid="med-name" />
+                  </div>
+                ) : (
+                  <DrugSearchInput
+                    value={form.name}
+                    onSelect={(name, genericName) => {
+                      set("name", name);
+                      if (genericName) set("genericName", genericName);
+                    }}
+                  />
+                )}
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Generic name</Label>
                 <Input value={form.genericName} onChange={e => set("genericName", e.target.value)}
-                  placeholder="Optional" className="h-8 text-sm" />
+                  placeholder={isEdit ? "" : "Auto-fills on selection"} className="h-8 text-sm" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs">Form</Label>
