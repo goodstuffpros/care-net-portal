@@ -980,13 +980,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
         <header className={cn(
-            "flex items-center gap-3 px-4 py-3 border-b backdrop-blur-sm flex-shrink-0",
+            "flex items-center gap-2 px-3 py-3 border-b backdrop-blur-sm flex-shrink-0 overflow-hidden",
             isFamilyPortal
               ? "bg-sidebar border-sidebar-border"
               : "bg-background/80 border-border"
           )}>
           <button
-            className={cn("flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted text-foreground")}
+            className={cn("flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted text-foreground")}
             onClick={() => setNavOverlayOpen(true)}
             data-testid="nav-overlay-toggle"
             aria-label="Open navigation menu"
@@ -999,12 +999,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <button
             onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
             data-testid="role-pill-header"
-            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity active:opacity-70",
+            className={cn("flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium transition-opacity active:opacity-70 min-w-0 shrink",
               isFamilyPortal ? "bg-sidebar-accent text-sidebar-foreground/80 border border-sidebar-border hover:bg-sidebar-primary/10"
               : isPreCare ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
               : "bg-muted text-muted-foreground hover:bg-muted/80")}>
-            {isFamilyPortal ? <Heart size={12} /> : isPreCare ? <Heart size={12} /> : <Shield size={12} />}
-            <span>{isFamilyPortal ? "Family Care" : isPreCare ? "Pre-Care Mode" : ROLE_LABELS[activeUser.role]}</span>
+            <span className="flex-shrink-0">{isFamilyPortal ? <Heart size={12} /> : isPreCare ? <Heart size={12} /> : <Shield size={12} />}</span>
+            <span className="truncate">{isFamilyPortal ? "Family Care" : isPreCare ? "Pre-Care Mode" : ROLE_LABELS[activeUser.role]}</span>
           </button>
 
           {/* Temp caregiver expiry badge */}
@@ -1014,7 +1014,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          <div className="flex-1" />
+          <div className="flex-1 min-w-0" />
 
           {/* Need a Friend — caregiver roles only, hidden in FCP */}
           {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
@@ -1031,7 +1031,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Notification Bell */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={cn("relative p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
+              <button className={cn("relative flex-shrink-0 p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
                 <Bell size={18} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
@@ -1060,7 +1060,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Voice Controls — caregiver roles + family (hands-free situations) */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (
-            <div className="flex items-center gap-1">
+            <div className="flex-shrink-0 flex items-center gap-1">
 
               {/* ── Hey CareNet wake-word pill ── */}
               <div className="relative flex items-center">
@@ -1229,7 +1229,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               data-testid="invite-friend-mobile"
               aria-label="Invite a Friend"
               className={cn(
-                "md:hidden p-2 rounded-lg transition-colors",
+                "md:hidden flex-shrink-0 p-2 rounded-lg transition-colors",
                 isFamilyPortal
                   ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
@@ -1240,7 +1240,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           )}
 
           {/* Profile / user menu — mobile only */}
-          <div className="md:hidden">
+          <div className="md:hidden flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
