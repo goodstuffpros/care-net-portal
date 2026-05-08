@@ -260,27 +260,27 @@ export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: st
 
   const completed = (progressData?.completed ?? []).some((r: any) => r.lessonId === lessonId);
 
-  // HIW is always red — "stop and learn this" signal
-  const trackColor = "bg-red-600";
-  const trackBorder = "border-red-500/30";
+  // HIW pill — violet/purple complements teal without competing with teal CTAs
+  const trackColor = "bg-violet-600";
+  const trackBorder = "border-violet-500/30";
 
   return (
     <>
-      {/* Always red pill — completed shows checkmark, uncompleted shows graduation cap */}
+      {/* Violet pill — smaller/thinner than before, still distinct from teal CTA */}
       <button
         onClick={() => setOpen(true)}
         className={cn(
-          "flex items-center justify-center gap-2 px-3.5 py-2 rounded-full border text-sm font-medium transition-all hover:opacity-90 shadow-sm flex-shrink-0",
+          "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all hover:opacity-90 flex-shrink-0",
           trackColor, trackBorder, "text-white",
           extraClass
         )}
         title="How this works"
       >
         {completed
-          ? <CheckCircle2 size={14} />
-          : <GraduationCap size={14} />}
+          ? <CheckCircle2 size={12} />
+          : <GraduationCap size={12} />}
         How this works
-        {!completed && <Play size={11} className="opacity-70" />}
+        {!completed && <Play size={10} className="opacity-70" />}
       </button>
 
       {open && (

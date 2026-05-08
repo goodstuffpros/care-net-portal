@@ -198,11 +198,15 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   });
 
   // ── Should we show? ──────────────────────────────────────────────────────
+  // DEV MODE: always show on every visit so the team can review all intros.
+  // Flip DEV_ALWAYS_SHOW to false when intros are finalized for production.
+  const DEV_ALWAYS_SHOW = true;
+
   useEffect(() => {
     const DEMO_KEY = `cnp_seen_module_${activeUser.id}_${moduleKey}`;
 
     function checkAndShow(seenList: string[], storageKey?: string) {
-      if (!seenList.includes(moduleKey) && !seenList.includes(DEMO_KEY)) {
+      if (DEV_ALWAYS_SHOW || (!seenList.includes(moduleKey) && !seenList.includes(DEMO_KEY))) {
         const t = setTimeout(() => setVisible(true), 700);
         return () => clearTimeout(t);
       }
