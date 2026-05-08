@@ -326,7 +326,7 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
         onClick={open ? () => setOpen(false) : handleOpen}
         data-testid="helpdesk-toggle"
         className={cn(
-          "fixed bottom-5 right-5 z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
+          "fixed bottom-6 right-4 z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
           wakeWordActive ? "bg-green-500" : accentColor,
           "text-white"
         )}
@@ -345,20 +345,20 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
         )}
       </button>
 
-      {/* Wake word hint — visible in all portals */}
+      {/* Wake word hint — floats just above the App Help button */}
       {voiceSupported && !open && (
-        <div className="fixed bottom-20 right-5 z-40 pointer-events-none">
+        <div className="fixed bottom-[4.25rem] right-5 z-40 pointer-events-none">
           <div className="text-xs text-muted-foreground/50 text-right pr-1">
             Say “Hey CareNet”
           </div>
         </div>
       )}
 
-      {/* Chat panel */}
+      {/* Chat panel — opens above the App Help button (bottom-20 + h-12 + gap) */}
       {open && (
         <div
           className={cn(
-            "fixed bottom-20 right-5 z-50 w-[360px] max-w-[calc(100vw-2.5rem)]",
+            "fixed bottom-[4.5rem] right-4 z-50 w-[360px] max-w-[calc(100vw-2.5rem)]",
             "rounded-2xl border border-border bg-background shadow-2xl",
             "flex flex-col overflow-hidden",
             "animate-in slide-in-from-bottom-4 duration-200"

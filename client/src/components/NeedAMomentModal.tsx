@@ -5,8 +5,8 @@
  * but with content tuned for unpaid family caregivers who can't clock out.
  *
  * Floating heart button renders itself (like HelpDesk).
- * Sits above the HelpDesk button: bottom-[4.5rem] right-5 on mobile,
- * bottom-[4.5rem] right-20 on md+ (to clear HelpDesk at bottom-5 right-5).
+ * Sits above the HelpDesk button: bottom-[4.25rem] right-4.
+ * HelpDesk is at bottom-6 right-4; NeedAMoment stacks above it with a small gap.
  *
  * Placeholder scripts are marked *** BECKY *** for easy find-replace when she writes the real ones.
  */
@@ -199,14 +199,14 @@ export function NeedAMomentModal() {
 
   return (
     <>
-      {/* Floating heart button — 20px gap above HelpDesk (bottom-5 = 20px, button 48px, gap 8px = 76px = ~[4.75rem]) */}
+      {/* Floating heart button — sits above HelpDesk (bottom-6 + h-12 + gap = ~4.25rem) */}
       <button
         onClick={() => setOpen(o => !o)}
         data-testid="need-a-moment-toggle"
         aria-label="Need a Moment"
         className={cn(
           "fixed z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200",
-          "bottom-[4.75rem] right-5",
+          "bottom-[4.25rem] right-4",
           open
             ? "bg-rose-500 text-white"
             : "bg-rose-500/90 hover:bg-rose-500 text-white"
@@ -226,8 +226,8 @@ export function NeedAMomentModal() {
             "rounded-2xl border border-rose-900/40 shadow-2xl",
             "flex flex-col overflow-hidden",
             "animate-in slide-in-from-bottom-4 duration-200",
-            // Sits above the For Me button (bottom ~4.75rem + 48px button + 8px gap)
-            "bottom-[9rem] right-5"
+            // Sits above the For Me button (bottom ~4.25rem + 48px button + 8px gap)
+            "bottom-[8.75rem] right-4"
           )}
           style={{ height: "480px", background: "hsl(345 18% 7%)" }}
           data-testid="need-a-moment-panel"
