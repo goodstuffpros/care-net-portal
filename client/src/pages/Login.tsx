@@ -17,6 +17,10 @@ export default function LoginPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
+  // Read invite token from URL hash query string: /#/login?invite=TOKEN
+  const hashQuery = window.location.hash.split("?")[1] || "";
+  const inviteTokenFromUrl = new URLSearchParams(hashQuery).get("invite") || sessionStorage.getItem("pending_invite_token") || null;
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -39,12 +43,10 @@ export default function LoginPage() {
         }
         throw new Error(body.message || "Login failed");
       }
-      // Success — check for pending invite token and accept it directly
-      const pendingInvite = sessionStorage.getItem("pending_invite_token");
-      if (pendingInvite) {
+      // Success — accept pending invite if token present in URL or sessionStorage
+      if (inviteTokenFromUrl) {
         try {
-          // Accept the invite using apiRequest so the __PORT_5000__ proxy is respected in production
-          const acceptRes = await apiRequest("POST", `/api/invite/${pendingInvite}/accept`, {});
+          const acceptRes = await apiRequest("POST", `/api/invite/${inviteTokenFromUrl}/accept`, {});
           const acceptData = await acceptRes.json();
           sessionStorage.removeItem("pending_invite_token");
           if (acceptData.success) {
