@@ -14,9 +14,9 @@ import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient, API_BASE } from "@/lib/queryClient";
 import { useApp } from "@/App";
-import { speakBecky, stopBecky } from "@/lib/ttsUtils";
+import { speakBecky, stopBecky, pauseBecky, resumeBecky, isBeckyPlaying, registerBeckyStateListener, unregisterBeckyStateListener } from "@/lib/ttsUtils";
 import { cn } from "@/lib/utils";
-import { X, Volume2, VolumeX, ChevronRight } from "lucide-react";
+import { X, Volume2, VolumeX, Pause, Play, ChevronRight } from "lucide-react";
 import type { User } from "@shared/schema";
 
 // ── Module → CNU lesson mapping ───────────────────────────────────────────────
@@ -178,6 +178,7 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
 
   const [visible, setVisible] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [audioFailed, setAudioFailed] = useState(false);
   const hasMarkedSeen = useRef(false);
@@ -230,6 +231,16 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
     }
   }, [activeUser.id, moduleKey, isRealSession, userData]);
 
+  // ── Subscribe to Becky state changes ────────────────────────────────────
+  useEffect(() => {
+    registerBeckyStateListener(({ isPlaying, isLoading: loading }) => {
+      setIsSpeaking(isPlaying);
+      setIsLoading(loading);
+      setIsPaused(!isPlaying && !loading && isBeckyPlaying() === false);
+    });
+    return () => unregisterBeckyStateListener();
+  }, []);
+
   // ── Auto-play when visible ───────────────────────────────────────────────
   useEffect(() => {
     if (!visible) return;
@@ -239,11 +250,12 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
     setIsLoading(true);
     setAudioFailed(false);
     setIsSpeaking(false);
+    setIsPaused(false);
 
     speakBecky(script)
       .then(() => {
-        setIsLoading(false);
-        setIsSpeaking(true);
+        // speakBecky resolves when audio ENDS (or errors)
+        // State is tracked via the Becky state listener — nothing to do here
       })
       .catch(() => {
         setIsLoading(false);
@@ -351,26 +363,57 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
           {lesson.title}
         </h2>
 
-        {/* Audio status */}
-        <div className="flex items-center gap-2 mb-4 h-5">
-          {isLoading ? (
-            <div className="flex items-center gap-1.5 text-white/60 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse [animation-delay:150ms]" />
-              <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse [animation-delay:300ms]" />
-              <span className="ml-1">Becky is explaining…</span>
-            </div>
-          ) : isSpeaking ? (
-            <div className="flex items-center gap-1.5 text-white/70 text-xs">
-              <Volume2 size={13} className="animate-pulse" />
-              <span>Becky is speaking</span>
-            </div>
-          ) : audioFailed ? (
-            <div className="flex items-center gap-1.5 text-white/50 text-xs">
-              <VolumeX size={13} />
-              <span>Audio unavailable — tap Got it to continue</span>
-            </div>
-          ) : null}
+        {/* Audio status + pause/play control */}
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-1.5 text-xs h-5">
+            {isLoading ? (
+              <>
+                <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse [animation-delay:150ms]" />
+                <span className="w-1.5 h-1.5 rounded-full bg-white/60 animate-pulse [animation-delay:300ms]" />
+                <span className="ml-1 text-white/60">Loading audio…</span>
+              </>
+            ) : isSpeaking ? (
+              <>
+                <Volume2 size={13} className="text-white/70 animate-pulse" />
+                <span className="text-white/70">Becky is speaking</span>
+              </>
+            ) : audioFailed ? (
+              <>
+                <VolumeX size={13} className="text-white/50" />
+                <span className="text-white/50">Audio unavailable</span>
+              </>
+            ) : isPaused ? (
+              <>
+                <Pause size={13} className="text-white/50" />
+                <span className="text-white/50">Paused</span>
+              </>
+            ) : null}
+          </div>
+
+          {/* Pause / Play / Replay button — visible whenever audio is active or paused */}
+          {!audioFailed && (isLoading || isSpeaking || isPaused) && (
+            <button
+              type="button"
+              onClick={() => {
+                if (isSpeaking) {
+                  pauseBecky();
+                  setIsSpeaking(false);
+                  setIsPaused(true);
+                } else if (isPaused) {
+                  resumeBecky();
+                  setIsSpeaking(true);
+                  setIsPaused(false);
+                }
+              }}
+              className="w-9 h-9 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-all flex-shrink-0"
+              aria-label={isSpeaking ? "Pause narration" : "Resume narration"}
+            >
+              {isSpeaking
+                ? <Pause size={15} className="text-white" />
+                : <Play size={15} className="text-white ml-0.5" />}
+            </button>
+          )}
         </div>
 
         {/* Got it button */}

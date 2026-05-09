@@ -117,6 +117,7 @@ export function getTTSState(): TTSState {
 // API key is server-side only. This fetches audio from our own backend.
 
 let beckyAudio: HTMLAudioElement | null = null;
+let beckyAbortController: AbortController | null = null;
 let beckyStateListener: ((state: { isPlaying: boolean; isLoading: boolean }) => void) | null = null;
 let beckyIsLoading = false;
 
@@ -134,6 +135,11 @@ function notifyBecky(isPlaying: boolean, isLoading: boolean) {
 const API_BASE = ("__PORT_5000__" as string).startsWith("__") ? "" : "__PORT_5000__";
 
 export async function speakBecky(text: string): Promise<void> {
+  // Cancel any in-flight fetch first
+  if (beckyAbortController) {
+    beckyAbortController.abort();
+    beckyAbortController = null;
+  }
   // Stop any currently playing Becky audio
   if (beckyAudio) {
     beckyAudio.pause();
@@ -146,18 +152,27 @@ export async function speakBecky(text: string): Promise<void> {
   beckyIsLoading = true;
   notifyBecky(false, true);
 
+  const controller = new AbortController();
+  beckyAbortController = controller;
+
   try {
     const response = await fetch(`${API_BASE}/api/tts/becky`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ text }),
+      signal: controller.signal,
     });
     if (!response.ok) throw new Error(`TTS error ${response.status}`);
 
     const blob = await response.blob();
+
+    // Check if stopBecky was called while we were fetching
+    if (controller.signal.aborted) return;
+
     const url = URL.createObjectURL(blob);
     const audio = new Audio(url);
     beckyAudio = audio;
+    beckyAbortController = null;
     beckyIsLoading = false;
     notifyBecky(false, false);
 
@@ -174,15 +189,22 @@ export async function speakBecky(text: string): Promise<void> {
       notifyBecky(false, false);
     };
     await audio.play();
-  } catch (err) {
+  } catch (err: any) {
     beckyIsLoading = false;
     beckyAudio = null;
+    if (beckyAbortController === controller) beckyAbortController = null;
     notifyBecky(false, false);
-    console.warn("Becky TTS failed:", err);
+    // Abort errors are expected — don't log them as warnings
+    if (err?.name !== "AbortError") console.warn("Becky TTS failed:", err);
   }
 }
 
 export function stopBecky() {
+  // Cancel any in-flight fetch — prevents audio from starting after dismiss
+  if (beckyAbortController) {
+    try { beckyAbortController.abort(); } catch (_) {}
+    beckyAbortController = null;
+  }
   if (beckyAudio) {
     // iOS Safari: pause BEFORE clearing src — clearing src first can prevent pause from firing
     try { beckyAudio.pause(); } catch (_) {}
@@ -190,6 +212,7 @@ export function stopBecky() {
     try { beckyAudio.load(); } catch (_) {} // forces iOS to release the audio session
     beckyAudio = null;
   }
+  beckyIsLoading = false;
   // Also cancel any browser speech synthesis in case it's running
   if (typeof window !== "undefined" && "speechSynthesis" in window) {
     try { window.speechSynthesis.cancel(); } catch (_) {}
@@ -199,4 +222,22 @@ export function stopBecky() {
 
 export function isBeckyPlaying(): boolean {
   return !!beckyAudio && !beckyAudio.paused;
+}
+
+export function isBeckyLoading(): boolean {
+  return beckyIsLoading;
+}
+
+export function pauseBecky() {
+  if (beckyAudio && !beckyAudio.paused) {
+    try { beckyAudio.pause(); } catch (_) {}
+    notifyBecky(false, false);
+  }
+}
+
+export function resumeBecky() {
+  if (beckyAudio && beckyAudio.paused) {
+    try { beckyAudio.play(); } catch (_) {}
+    notifyBecky(true, false);
+  }
 }
