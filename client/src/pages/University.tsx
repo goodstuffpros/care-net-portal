@@ -332,11 +332,8 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
 
       <div className="absolute inset-0 bg-gradient-to-b from-[hsl(175,55%,10%)] to-black pointer-events-none" />
 
-      {/* Top spacer — mirrors bottom button height so content is truly centered */}
-      <div className="relative flex-shrink-0" style={{ height: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))' }} />
-
-      {/* Center content — shrinks to fit, never overflows */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-6 gap-5 min-h-0">
+      {/* Center content — fills viewport, centers logo/text/player, padded so bottom button never overlaps */}
+      <div className="relative flex-1 flex flex-col items-center justify-center px-6 gap-5 min-h-0" style={{ paddingTop: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))', paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))' }}>
         {/* Logo mark — smaller on tight screens */}
         <div className="flex flex-col items-center gap-2">
           <svg width="52" height="43" viewBox="0 0 100 82" fill="none">
@@ -401,8 +398,8 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
         </div>
       </div>
 
-      {/* Bottom button — always visible, never pushed off screen */}
-      <div className="relative flex-shrink-0 px-6 pt-3" style={{ paddingBottom: 'max(2rem, env(safe-area-inset-bottom, 2rem))' }}>
+      {/* Bottom button — absolutely pinned, always visible */}
+      <div className="absolute bottom-0 left-0 right-0 px-6 pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}>
         <button
           onClick={() => { audioRef.current?.pause(); onClose(); }}
           className={cn(
