@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 import ModuleIntro from "@/components/ModuleIntro";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
+import ClientListEditor from "@/components/ClientListEditor";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Caregiver",
@@ -114,7 +115,7 @@ export default function ClientPortalPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
   });
 
-  const canEdit = activeUser.role === "caregiver";
+  const canEdit = activeUser.role === "caregiver" || activeUser.role === "primary_family";
 
   if (clientLoading) {
     return (
@@ -124,7 +125,32 @@ export default function ClientPortalPage() {
     );
   }
 
-  const allergies: string[] = client?.allergies ? JSON.parse(client.allergies) : [];
+  // Parse structured medical fields
+  type AllergyEntry = { name: string; severity: "mild" | "serious" | "life-threatening" };
+  type DiagnosisEntry = { name: string; severity: "managed" | "serious" | "critical"; dateNoted?: string };
+  type DeviceEntry = { device: string; notes?: string };
+
+  const allergies: AllergyEntry[] = (() => {
+    try {
+      const raw = JSON.parse(client?.allergies || "[]");
+      // Handle legacy plain string array
+      if (typeof raw[0] === "string") return raw.map((s: string) => ({ name: s, severity: "serious" as const }));
+      return raw;
+    } catch { return []; }
+  })();
+  const diagnoses: DiagnosisEntry[] = (() => { try { return JSON.parse(client?.diagnoses || "[]"); } catch { return []; } })();
+  const assistiveDevices: DeviceEntry[] = (() => { try { return JSON.parse(client?.assistiveDevices || "[]"); } catch { return []; } })();
+
+  const SEVERITY_ALLERGY_COLORS: Record<string, string> = {
+    "mild": "bg-yellow-50 text-yellow-700 dark:bg-yellow-950/30 dark:text-yellow-400 border-yellow-200 dark:border-yellow-900",
+    "serious": "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-900",
+    "life-threatening": "bg-red-100 text-red-900 dark:bg-red-950/60 dark:text-red-300 border-red-400 dark:border-red-700 font-bold",
+  };
+  const SEVERITY_DX_COLORS: Record<string, string> = {
+    "managed": "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border-teal-200 dark:border-teal-900",
+    "serious": "bg-orange-50 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400 border-orange-200 dark:border-orange-900",
+    "critical": "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-900",
+  };
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
@@ -156,46 +182,84 @@ export default function ClientPortalPage() {
             )}
           </div>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-5">
           {!editingClient ? (
-            <div className="grid sm:grid-cols-2 gap-4">
-              <div>
-                <div className="text-xs text-muted-foreground mb-1">Full Name</div>
-                <div className="text-sm font-medium">{client?.name}</div>
-              </div>
-              {client?.dateOfBirth && (
+            <div className="space-y-5">
+              {/* Basic info */}
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div>
-                  <div className="text-xs text-muted-foreground mb-1">Date of Birth</div>
-                  <div className="text-sm">{new Date(client.dateOfBirth).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</div>
+                  <div className="text-xs text-muted-foreground mb-1">Full Name</div>
+                  <div className="text-sm font-medium">{client?.name}</div>
                 </div>
-              )}
-              {client?.primaryCondition && (
-                <div className="sm:col-span-2">
-                  <div className="text-xs text-muted-foreground mb-1">Primary Condition</div>
-                  <div className="text-sm">{client.primaryCondition}</div>
-                </div>
-              )}
-              {allergies.length > 0 && (
-                <div>
-                  <div className="text-xs text-muted-foreground mb-1.5 flex items-center gap-1.5">
-                    <AlertTriangle size={11} className="text-red-500" /> Allergies & Contraindications
+                {client?.dateOfBirth && (
+                  <div>
+                    <div className="text-xs text-muted-foreground mb-1">Date of Birth</div>
+                    <div className="text-sm">{new Date(client.dateOfBirth).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</div>
                   </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {allergies.map(a => (
-                      <span key={a} className="text-xs px-2.5 py-1 rounded-full bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border border-red-200 dark:border-red-900 font-medium">{a}</span>
+                )}
+              </div>
+
+              {/* Diagnoses */}
+              {diagnoses.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Diagnoses</div>
+                  <div className="space-y-2">
+                    {diagnoses.map((d, i) => (
+                      <div key={i} className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="text-sm font-medium flex-1">{d.name}</div>
+                        <div className="flex items-center gap-2 flex-shrink-0">
+                          {d.dateNoted && <span className="text-xs text-muted-foreground">{new Date(d.dateNoted).toLocaleDateString([], { month: "short", year: "numeric" })}</span>}
+                          <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${SEVERITY_DX_COLORS[d.severity] || SEVERITY_DX_COLORS["managed"]}`}>{d.severity}</span>
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
               )}
+
+              {/* Allergies */}
+              {allergies.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2 flex items-center gap-1.5">
+                    <AlertTriangle size={11} className="text-red-500" /> Allergies & Contraindications
+                  </div>
+                  <div className="space-y-2">
+                    {allergies.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="text-sm font-medium">{a.name}</div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${SEVERITY_ALLERGY_COLORS[a.severity] || SEVERITY_ALLERGY_COLORS["serious"]}`}>{a.severity}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Assistive Devices */}
+              {assistiveDevices.length > 0 && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Assistive Devices</div>
+                  <div className="space-y-2">
+                    {assistiveDevices.map((d, i) => (
+                      <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="text-sm font-medium flex-1">{d.device}</div>
+                        {d.notes && <div className="text-xs text-muted-foreground flex-1 text-right">{d.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Care Notes */}
               {client?.notes && (
-                <div className="sm:col-span-2">
-                  <div className="text-xs text-muted-foreground mb-1">Care Notes</div>
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Care Notes</div>
                   <div className="text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg">{client.notes}</div>
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-5">
+              {/* Basic info */}
               <div className="grid sm:grid-cols-2 gap-3">
                 <div className="space-y-1.5">
                   <Label>Name</Label>
@@ -206,20 +270,53 @@ export default function ClientPortalPage() {
                   <Input type="date" value={editForm.dateOfBirth || ""} onChange={e => setEditForm(f => ({ ...f, dateOfBirth: e.target.value }))} />
                 </div>
               </div>
-              <div className="space-y-1.5">
-                <Label>Primary Condition</Label>
-                <Input value={editForm.primaryCondition || ""} onChange={e => setEditForm(f => ({ ...f, primaryCondition: e.target.value }))} />
-              </div>
+
+              {/* Diagnoses editor */}
+              <ClientListEditor
+                label="Diagnoses"
+                items={(() => { try { return JSON.parse(editForm.diagnoses || "[]"); } catch { return []; } })()}
+                onSave={items => setEditForm(f => ({ ...f, diagnoses: JSON.stringify(items) }))}
+                fields={[
+                  { key: "name", label: "Diagnosis name", type: "text", required: true },
+                  { key: "severity", label: "Severity", type: "select", options: ["managed", "serious", "critical"] },
+                  { key: "dateNoted", label: "Date noted", type: "date" },
+                ]}
+              />
+
+              {/* Allergies editor */}
+              <ClientListEditor
+                label="Allergies & Contraindications"
+                items={(() => { try { const r = JSON.parse(editForm.allergies || "[]"); return typeof r[0] === "string" ? r.map((s: string) => ({ name: s, severity: "serious" })) : r; } catch { return []; } })()}
+                onSave={items => setEditForm(f => ({ ...f, allergies: JSON.stringify(items) }))}
+                fields={[
+                  { key: "name", label: "Allergen or contraindication", type: "text", required: true },
+                  { key: "severity", label: "Severity", type: "select", options: ["mild", "serious", "life-threatening"] },
+                ]}
+              />
+
+              {/* Assistive devices editor */}
+              <ClientListEditor
+                label="Assistive Devices"
+                items={(() => { try { return JSON.parse(editForm.assistiveDevices || "[]"); } catch { return []; } })()}
+                onSave={items => setEditForm(f => ({ ...f, assistiveDevices: JSON.stringify(items) }))}
+                fields={[
+                  { key: "device", label: "Device name", type: "text", required: true },
+                  { key: "notes", label: "Notes (optional)", type: "text" },
+                ]}
+              />
+
+              {/* Care Notes */}
               <div className="space-y-1.5">
                 <Label>Care Notes</Label>
                 <Textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={3} />
               </div>
+
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => updateClientMutation.mutate(editForm)} disabled={updateClientMutation.isPending} className="gap-1.5" data-testid="save-client-btn">
-                  <Save size={13} /> Save
+                <Button size="sm" onClick={() => updateClientMutation.mutate(editForm)} disabled={updateClientMutation.isPending} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="save-client-btn">
+                  <Save size={13} /> Save Changes
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setEditingClient(false)}>
-                  <X size={13} />
+                  <X size={13} /> Cancel
                 </Button>
               </div>
             </div>

@@ -35,7 +35,9 @@ export const clients = sqliteTable("clients", {
   name: text("name").notNull(),
   dateOfBirth: text("date_of_birth"),
   primaryCondition: text("primary_condition"),
-  allergies: text("allergies"), // JSON array string
+  allergies: text("allergies"), // JSON array of { name, severity: 'mild'|'serious'|'life-threatening' }
+  diagnoses: text("diagnoses"), // JSON array of { name, severity: 'managed'|'serious'|'critical', dateNoted }
+  assistiveDevices: text("assistive_devices"), // JSON array of { device, notes }
   notes: text("notes"),
   caregiverId: integer("caregiver_id").notNull(),
   primaryContactId: integer("primary_contact_id"), // user id of primary family contact

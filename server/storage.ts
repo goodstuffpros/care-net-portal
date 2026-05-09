@@ -384,6 +384,10 @@ try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN custom_certificatio
 try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN photo_url TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN display_name TEXT`); } catch {}
 
+// clients — extended medical profile fields
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN diagnoses TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN assistive_devices TEXT`); } catch {}
+
 // shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS shifts (
@@ -850,8 +854,8 @@ function seedIfEmpty() {
 
   // Seed clients
   db.insert(clients).values([
-    { name: "Robert Johnson", dateOfBirth: "1942-03-15", primaryCondition: "Post-stroke recovery, mild cognitive impairment", allergies: '["Penicillin","Sulfa drugs"]', notes: "Prefers morning routines early. Enjoys classical music. Has a small dog named Max.", caregiverId: 1, primaryContactId: 4, isActive: true, appMode: "caregiver" },
-    { name: "Eleanor Williams", dateOfBirth: "1938-11-22", primaryCondition: "Parkinson's disease, Type 2 diabetes", allergies: '["Shellfish","Aspirin"]', notes: "Very independent spirit. Needs reminders but resists help. Loves gardening conversation.", caregiverId: 1, primaryContactId: 6, isActive: true, appMode: "caregiver" },
+    { name: "Robert Johnson", dateOfBirth: "1942-03-15", primaryCondition: "Post-stroke recovery, mild cognitive impairment", allergies: '[{"name":"Penicillin","severity":"serious"},{"name":"Sulfa drugs","severity":"serious"}]', diagnoses: '[{"name":"Ischemic Stroke (2023)","severity":"serious","dateNoted":"2023-04-10"},{"name":"Mild Cognitive Impairment","severity":"managed","dateNoted":"2023-06-15"},{"name":"Hypertension","severity":"managed","dateNoted":"2018-02-01"},{"name":"Type 2 Diabetes","severity":"managed","dateNoted":"2015-09-12"}]', assistiveDevices: '[{"device":"Walker","notes":"Standard walker, required for all ambulation"},{"device":"Hearing Aid","notes":"Right ear only. Keep charged overnight."},{"device":"Blood Pressure Monitor","notes":"Log readings each morning"}]', notes: "Prefers morning routines early. Enjoys classical music. Has a small dog named Max.", caregiverId: 1, primaryContactId: 4, isActive: true, appMode: "caregiver" },
+    { name: "Eleanor Williams", dateOfBirth: "1938-11-22", primaryCondition: "Parkinson's disease, Type 2 diabetes", allergies: '[{"name":"Shellfish","severity":"life-threatening"},{"name":"Aspirin","severity":"serious"}]', diagnoses: '[{"name":"Parkinson\'s Disease","severity":"serious","dateNoted":"2019-03-22"},{"name":"Type 2 Diabetes","severity":"managed","dateNoted":"2012-07-08"},{"name":"Osteoporosis","severity":"managed","dateNoted":"2020-11-30"}]', assistiveDevices: '[{"device":"Prescription Glasses","notes":"Bifocals. Always on nightstand."},{"device":"Cane","notes":"Used on uneven surfaces or stairs"},{"device":"Glucose Monitor","notes":"Check before every meal"}]', notes: "Very independent spirit. Needs reminders but resists help. Loves gardening conversation.", caregiverId: 1, primaryContactId: 6, isActive: true, appMode: "caregiver" },
     { name: "Frank Garcia", dateOfBirth: "1948-06-10", primaryCondition: "Post-surgery recovery, mild arthritis", allergies: '["NSAIDs"]', notes: "Recently discharged from hospital. Family managing care together before hiring a caregiver.", caregiverId: 8, primaryContactId: 8, isActive: true, appMode: "precare" },
   ]).run();
 
