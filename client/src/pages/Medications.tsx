@@ -1008,10 +1008,13 @@ export default function MedicationsPage() {
                 <span>Your caregiver will receive an <strong>urgent alert</strong> to review and confirm this addition.</span>
               </div>
               <div className="space-y-4 py-1">
-                <div className="space-y-1.5 relative">
-                  <DrugSearchInput
+                <div className="space-y-1.5">
+                  <Label>Medication Name <span className="text-red-500">*</span></Label>
+                  <Input
                     value={mcMedForm.name}
-                    onSelect={(name) => setMcMedForm(f => ({ ...f, name }))}
+                    onChange={e => setMcMedForm(f => ({ ...f, name: e.target.value }))}
+                    placeholder="e.g. Insulin, Metformin"
+                    data-testid="mc-med-name"
                   />
                 </div>
                 <div className="space-y-1.5">
@@ -1081,15 +1084,16 @@ export default function MedicationsPage() {
                     data-testid="mc-med-notes"
                   />
                 </div>
-                <Button
+                <button
                   type="button"
-                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
-                  onClick={() => mcMedMutation.mutate()}
-                  disabled={!mcMedForm.name || !mcMedForm.dosage || mcMedMutation.isPending}
+                  onClick={() => { if (!mcMedForm.name.trim() || !mcMedForm.dosage.trim()) { toast({ title: "Please enter medication name and dosage", variant: "destructive" }); return; } mcMedMutation.mutate(); }}
+                  disabled={mcMedMutation.isPending}
                   data-testid="mc-save-med-btn"
+                  style={{ background: '#0d9488', color: '#fff' }}
+                  className="w-full rounded-md px-4 py-2.5 text-sm font-medium disabled:opacity-50"
                 >
                   {mcMedMutation.isPending ? "Saving…" : "Add to Regimen & Notify Caregiver"}
-                </Button>
+                </button>
               </div>
             </DialogContent>
           </Dialog>
