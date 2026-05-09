@@ -44,7 +44,14 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!valid || !token) return;
+    if (!token) {
+      toast({ title: "Link expired", description: "This reset link is invalid. Request a new one.", variant: "destructive" });
+      return;
+    }
+    if (!valid) {
+      toast({ title: "Check your passwords", description: "Passwords must match and be at least 8 characters.", variant: "destructive" });
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiRequest("POST", "/api/auth/reset-password", { token, newPassword: password });
@@ -166,7 +173,7 @@ export default function ResetPasswordPage() {
             <Button
               type="submit"
               className="w-full"
-              disabled={loading || !valid}
+              disabled={loading}
               data-testid="button-save-password"
             >
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Saving…</> : "Save new password"}
