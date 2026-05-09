@@ -6,7 +6,7 @@ import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDis
 import { db } from "./db";
 import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
-import { eq, and, lt } from "drizzle-orm";
+import { eq, and, lt, desc, sql } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
 import {
@@ -2363,5 +2363,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
     rawDb.close();
     res.json({ success: true });
+  });
+
+  // TEMP DEBUG — remove before launch
+  app.get("/api/debug/invite-state", (req, res) => {
+    const recentInvites = db.select().from(connectionInvites)
+      .orderBy(desc(connectionInvites.createdAt))
+      .limit(5).all();
+    const realUsers = db.select().from(users)
+      .where(sql`${users.id} >= 10`).all();
+    res.json({ recentInvites, realUsers });
   });
 }
