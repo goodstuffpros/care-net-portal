@@ -899,6 +899,8 @@ export default function MedicationsPage() {
 
   // ── MC: Add to Regimen ─────────────────────────────────────────────────
   const [mcMedOpen, setMcMedOpen] = useState(false);
+  const mcNameRef = useRef<HTMLInputElement>(null);
+  const mcDosageRef = useRef<HTMLInputElement>(null);
   const [mcMedForm, setMcMedForm] = useState({
     name: "", dosage: "", frequency: "", scheduleType: "scheduled" as "scheduled" | "as_needed",
     prescribingDoctor: "", pharmacy: "", instructions: "", notes: "",
@@ -1011,6 +1013,7 @@ export default function MedicationsPage() {
                 <div className="space-y-1.5">
                   <Label>Medication Name <span className="text-red-500">*</span></Label>
                   <Input
+                    ref={mcNameRef}
                     value={mcMedForm.name}
                     onChange={e => setMcMedForm(f => ({ ...f, name: e.target.value }))}
                     placeholder="e.g. Insulin, Metformin"
@@ -1020,6 +1023,7 @@ export default function MedicationsPage() {
                 <div className="space-y-1.5">
                   <Label>Dosage <span className="text-red-500">*</span></Label>
                   <Input
+                    ref={mcDosageRef}
                     value={mcMedForm.dosage}
                     onChange={e => setMcMedForm(f => ({ ...f, dosage: e.target.value }))}
                     placeholder="e.g. 25mg"
@@ -1087,16 +1091,13 @@ export default function MedicationsPage() {
                 <button
                   type="button"
                   onClick={() => {
-                    // Read from DOM as fallback for iOS Safari onChange issues
-                    const nameEl = document.querySelector('[data-testid="mc-med-name"]') as HTMLInputElement | null;
-                    const dosageEl = document.querySelector('[data-testid="mc-med-dosage"]') as HTMLInputElement | null;
-                    const nameVal = nameEl?.value?.trim() || mcMedForm.name.trim();
-                    const dosageVal = dosageEl?.value?.trim() || mcMedForm.dosage.trim();
+                    // Use refs for bulletproof value reading on iOS/Android
+                    const nameVal = (mcNameRef.current?.value ?? "").trim() || mcMedForm.name.trim();
+                    const dosageVal = (mcDosageRef.current?.value ?? "").trim() || mcMedForm.dosage.trim();
                     if (!nameVal || !dosageVal) {
                       toast({ title: "Please enter medication name and dosage", variant: "destructive" });
                       return;
                     }
-                    // Pass DOM values directly to mutation (bypasses stale closure)
                     mcMedMutation.mutate({ name: nameVal, dosage: dosageVal });
                   }}
                   disabled={mcMedMutation.isPending}
