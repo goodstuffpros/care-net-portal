@@ -182,6 +182,7 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [audioFailed, setAudioFailed] = useState(false);
   const hasMarkedSeen = useRef(false);
+  const hasDismissed = useRef(false); // permanent guard — never resets in this mount
 
   // ── Fetch user to read seenModules ───────────────────────────────────────
   const { data: userData } = useQuery<User>({
@@ -207,8 +208,12 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
     const DEMO_KEY = `cnp_seen_module_${activeUser.id}_${moduleKey}`;
 
     function checkAndShow(seenList: string[], storageKey?: string) {
+      // Never re-show if user already dismissed it this mount
+      if (hasDismissed.current) return;
       if (DEV_ALWAYS_SHOW || (!seenList.includes(moduleKey) && !seenList.includes(DEMO_KEY))) {
-        const t = setTimeout(() => setVisible(true), 700);
+        const t = setTimeout(() => {
+          if (!hasDismissed.current) setVisible(true);
+        }, 700);
         return () => clearTimeout(t);
       }
     }
@@ -281,13 +286,12 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   function markSeen() {
     if (hasMarkedSeen.current) return;
     hasMarkedSeen.current = true;
+    hasDismissed.current = true; // permanent — blocks any re-show from userData refetch
     // Stop audio immediately — iOS needs pause() called synchronously in the touch handler
     stopBecky();
     setIsLoading(false);
     setIsSpeaking(false);
     setVisible(false);
-    // Reset for next visit (DEV_ALWAYS_SHOW mode)
-    setTimeout(() => { hasMarkedSeen.current = false; }, 1000);
 
     if (isRealSession) {
       try {
