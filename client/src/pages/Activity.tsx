@@ -47,7 +47,8 @@ const SEEN_BY_DEMO: Record<number, string[]> = {
   4: ["Linda J."],
   5: ["Robert Jr.", "Linda J."],
 };
-function getSeenBy(logId: number): string[] {
+function getSeenBy(logId: number, realSession: boolean): string[] {
+  if (realSession) return []; // real sessions: no fake seen-by data
   return SEEN_BY_DEMO[logId % 5 + 1] || [];
 }
 
@@ -61,7 +62,7 @@ function formatTime(iso: string) {
 }
 
 export default function ActivityPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, isRealSession } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -556,7 +557,7 @@ export default function ActivityPage() {
         <div className="space-y-2">
           {filtered.map(log => {
             const Icon = CATEGORY_ICONS[log.category] || ClipboardList;
-            const seenBy = getSeenBy(log.id);
+            const seenBy = getSeenBy(log.id, isRealSession);
             return (
               <div
                 key={log.id}

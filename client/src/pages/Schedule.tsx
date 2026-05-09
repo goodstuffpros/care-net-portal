@@ -52,7 +52,8 @@ const SEEN_BY_DEMO: Record<number, string[]> = {
   5: ["Robert Jr.", "Linda J.", "Becky M."],
 };
 
-function getSeenBy(eventId: number): string[] {
+function getSeenBy(eventId: number, realSession: boolean): string[] {
+  if (realSession) return [];
   return SEEN_BY_DEMO[eventId % 5 + 1] || [];
 }
 
@@ -92,7 +93,7 @@ function maxDateOneYear(): string {
 }
 
 export default function SchedulePage() {
-  const { activeUser, selectedClientId, portalMode } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
   const { toast } = useToast();
@@ -297,7 +298,7 @@ export default function SchedulePage() {
     const Icon = TYPE_ICONS[event.type] || Calendar;
     const late = event.isCompleted && event.completedAt && isLateCompletion(event.scheduledAt, event.completedAt);
     const isExcused = excusedIds.has(event.id);
-    const seenBy = getSeenBy(event.id);
+    const seenBy = getSeenBy(event.id, isRealSession);
     return (
       <div key={event.id} className={cn("p-4 rounded-xl border bg-card transition-all", event.isCompleted && "opacity-70")} data-testid={`event-card-${event.id}`}>
         <div className="flex items-start gap-3">

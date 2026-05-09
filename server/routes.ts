@@ -1354,7 +1354,23 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Users
-  app.get("/api/users", (_, res) => res.json(storage.getUsers()));
+  // GET /api/users — returns only users in the same care circle (same clientId).
+  // Demo mode (no auth cookie) returns all users so the switcher works.
+  app.get("/api/users", (req: AuthRequest, res) => {
+    const allUsers = storage.getUsers();
+    const authUserId = (req as any).authUserId as number | undefined;
+    if (!authUserId) {
+      // Unauthenticated / demo — return all (demo switcher needs this)
+      return res.json(allUsers);
+    }
+    const me = allUsers.find(u => u.id === authUserId);
+    if (!me?.clientId) {
+      // Authenticated but no clientId yet (onboarding) — return just themselves
+      return res.json(allUsers.filter(u => u.id === authUserId));
+    }
+    // Return only users who share the same clientId (the real care circle)
+    return res.json(allUsers.filter(u => u.clientId === me.clientId));
+  });
   app.get("/api/users/:id", (req, res) => {
     const user = storage.getUserById(Number(req.params.id));
     if (!user) return res.status(404).json({ message: "User not found" });
