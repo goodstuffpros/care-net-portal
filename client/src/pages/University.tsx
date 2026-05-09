@@ -332,8 +332,8 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
 
       <div className="absolute inset-0 bg-gradient-to-b from-[hsl(175,55%,10%)] to-black pointer-events-none" />
 
-      {/* Center content — fills viewport, centers logo/text/player, padded so bottom button never overlaps */}
-      <div className="relative flex-1 flex flex-col items-center justify-center px-6 gap-5 min-h-0" style={{ paddingTop: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))', paddingBottom: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))' }}>
+      {/* Center content — top-aligned with 20vh push, bottom cleared for pinned button */}
+      <div className="relative flex-1 flex flex-col items-center justify-start px-6 gap-5 overflow-hidden" style={{ paddingTop: '20vh', paddingBottom: '8rem' }}>
         {/* Logo mark — smaller on tight screens */}
         <div className="flex flex-col items-center gap-2">
           <svg width="52" height="43" viewBox="0 0 100 82" fill="none">
