@@ -1315,8 +1315,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
-          {/* Profile / user menu — mobile only */}
-          <div className="md:hidden flex-shrink-0">
+          {/* Profile / user menu — visible on all screen sizes */}
+          <div className="flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button

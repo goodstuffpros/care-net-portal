@@ -235,12 +235,11 @@ export default function ClientPortalPage() {
             {isPrimaryFC && (
               <Button
                 size="sm"
-                variant="ghost"
-                className="h-7 px-2 gap-1.5 text-xs text-primary hover:text-primary"
+                className="h-8 px-3 gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white"
                 onClick={() => setFamilyInviteOpen(true)}
                 data-testid="invite-family-btn"
               >
-                <UserPlus size={13} /> Invite Family
+                <UserPlus size={13} /> Invite Family Member
               </Button>
             )}
           </CardTitle>
