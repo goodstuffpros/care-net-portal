@@ -4,7 +4,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useApp, isCaregiverRole } from "@/App";
 import { PriorityBadge } from "@/components/AppLayout";
-import { speakText } from "@/lib/ttsUtils";
+import { speakBecky } from "@/lib/ttsUtils";
 import type { MiscNote } from "@shared/schema";
 import { cn } from "@/lib/utils";
 import {
@@ -57,7 +57,7 @@ function NoteCard({
   const timeStr = ts.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
 
   const handleListen = () => {
-    speakText(`${note.title}. ${note.body}`);
+    speakBecky(`${note.title}. ${note.body}`);
   };
 
   return (
@@ -265,7 +265,7 @@ export default function Notes() {
     const allActive = filterNotes(active);
     if (allActive.length === 0) return;
     const text = allActive.map(n => `${n.title}: ${n.body}`).join(". Next note: ");
-    speakText(text);
+    speakBecky(text);
   };
 
   return (

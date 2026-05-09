@@ -14,7 +14,7 @@ import {
   Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { speakText } from "@/lib/ttsUtils";
+import { speakBecky } from "@/lib/ttsUtils";
 import ModuleIntro from "@/components/ModuleIntro";
 
 function formatTime(isoString: string) {
@@ -126,7 +126,7 @@ export default function DashboardPage() {
           <button
             onClick={() => {
               const summaryText = `Today's overview for ${client?.name || "your client"}. You have ${pendingToday} pending and ${completedToday} completed items today. ${urgentItems.length > 0 ? `There are ${urgentItems.length} urgent items requiring attention.` : "No urgent items at this time."} ${recentActivity.length > 0 ? `Recent activity: ${recentActivity[0]?.title}.` : ""}`;
-              speakText(summaryText);
+              speakBecky(summaryText);
             }}
             data-testid="dashboard-listen"
             className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary transition-colors px-3 py-2 rounded-lg border border-border hover:border-primary/30 hover:bg-primary/5"
