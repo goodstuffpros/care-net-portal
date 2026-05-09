@@ -157,7 +157,7 @@ export default function ArchivePage() {
             <div className="flex items-center gap-3">
               <Sparkles size={20} className="text-primary animate-pulse" />
               <div>
-                <div className="font-medium text-sm">Generating AI Summaries...</div>
+                <div className="font-medium text-sm">Generating CareNet Summaries...</div>
                 <div className="text-xs text-muted-foreground mt-0.5">Creating both plain-language and clinical versions.</div>
               </div>
             </div>
@@ -172,7 +172,7 @@ export default function ArchivePage() {
         <div className="text-center py-16 text-muted-foreground">
           <Archive size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No summaries yet</p>
-          <p className="text-sm mt-1">Use 'Generate' to create AI-powered care summaries.</p>
+          <p className="text-sm mt-1">Use 'Generate' to create CareNet care summaries.</p>
         </div>
       ) : filtered.map(summary => {
         const Icon = PERIOD_ICONS[summary.period] || Calendar;

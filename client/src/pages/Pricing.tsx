@@ -22,7 +22,7 @@ const PORTAL_FEATURES = [
   { icon: Calendar, text: "Schedule management with shift tracking" },
   { icon: Activity, text: "Medication & vitals tracking" },
   { icon: Image, text: "Media sharing — photos, videos, updates" },
-  { icon: Archive, text: "Monthly AI care summaries" },
+  { icon: Archive, text: "Monthly CareNet care summaries" },
   { icon: Award, text: "Badge system — transparent performance scoring" },
   { icon: Shield, text: "Flag system — yellow/red accountability alerts" },
   { icon: Sparkles, text: "Care Scope — module-level accountability controls" },

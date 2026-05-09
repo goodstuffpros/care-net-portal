@@ -133,7 +133,7 @@ const CAREGIVER_TRACK: Track = {
     },
     {
       id: "mod12_archive",
-      title: "Archive & AI Summaries",
+      title: "Archive & CareNet Summaries",
       subtitle: "Module 12 · Daily Use",
       image: `${API_BASE}/university/seed_mod12_archive.jpg`,
       narration: "The Archive stores all past shift summaries and generated reports. Tap Generate Summary — the green button — to create a new report from recent Care Log entries and Schedule data. CareNet reads the documentation and produces a structured summary you can share with family, physicians, or agencies.",
@@ -160,7 +160,7 @@ const CAREGIVER_TRACK: Track = {
       title: "Collection of Thoughts",
       subtitle: "Module 15 · Caregiver Only",
       image: `${API_BASE}/university/seed_mod15_thoughts.jpg`,
-      narration: "Collection of Thoughts is your private caregiver journal — visible only to you. No family member or admin can see anything written here. Use it to process difficult days, capture observations you are still working through, or reflect on moments you want to remember. You can optionally let AI lightly polish your writing before you save it.",
+      narration: "Collection of Thoughts is your private caregiver journal — visible only to you. No family member or admin can see anything written here. Use it to process difficult days, capture observations you are still working through, or reflect on moments you want to remember. You can optionally let CareNet lightly polish your writing before you save it.",
       duration: "2 min", knowledgePoints: 3,
     },
     {

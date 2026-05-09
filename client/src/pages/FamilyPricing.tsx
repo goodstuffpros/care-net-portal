@@ -23,7 +23,7 @@ const FCP_FEATURES = [
   { icon: Calendar, text: "Schedule visibility — see every shift and appointment" },
   { icon: Activity, text: "Medication & vitals tracking" },
   { icon: Image, text: "Shared photos & videos from daily care" },
-  { icon: Sparkles, text: "Monthly AI care summaries — the full picture at a glance" },
+  { icon: Sparkles, text: "Monthly CareNet care summaries — the full picture at a glance" },
   { icon: Users, text: "Invite your whole family — siblings, out-of-town relatives" },
   { icon: Shield, text: "Private and secure — only your circle sees your portal" },
 ];
@@ -40,7 +40,7 @@ const FREE_DURING_BETA = [
 const FAQ = [
   {
     q: "What is the Family Care portal?",
-    a: "The Family Care portal is for families who are coordinating care themselves — without a dedicated hired caregiver. It gives you care logs, a shared family inbox, schedule tracking, medications, and monthly AI summaries. Everything you need to stay organized and keep everyone on the same page.",
+    a: "The Family Care portal is for families who are coordinating care themselves — without a dedicated hired caregiver. It gives you care logs, a shared family inbox, schedule tracking, medications, and monthly CareNet summaries. Everything you need to stay organized and keep everyone on the same page.",
   },
   {
     q: "I already have a caregiver. Do I need this?",
