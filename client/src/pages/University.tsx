@@ -136,7 +136,7 @@ const CAREGIVER_TRACK: Track = {
       title: "Archive & AI Summaries",
       subtitle: "Module 12 · Daily Use",
       image: `${API_BASE}/university/seed_mod12_archive.jpg`,
-      narration: "The Archive stores all past shift summaries and generated reports. Tap Generate Summary — the green button — to create a new report from recent Care Log entries and Schedule data. AI reads the documentation and produces a structured summary you can share with family, physicians, or agencies.",
+      narration: "The Archive stores all past shift summaries and generated reports. Tap Generate Summary — the green button — to create a new report from recent Care Log entries and Schedule data. CareNet reads the documentation and produces a structured summary you can share with family, physicians, or agencies.",
       duration: "4 min", knowledgePoints: 5,
     },
     {
