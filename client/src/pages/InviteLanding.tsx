@@ -26,29 +26,44 @@ export default function InviteLanding({ token }: { token: string }) {
   // Check if user is logged in
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  // If we were redirected here after login, auto-attempt accept
+  const justLoggedIn = sessionStorage.getItem("pending_invite_token") === token;
 
   useEffect(() => {
-    // Check auth
-    fetch("/api/auth/me", { credentials: "include" })
-      .then(r => r.ok ? r.json() : null)
-      .then(data => {
-        setIsLoggedIn(!!data?.account);
-        setCheckingAuth(false);
-      })
-      .catch(() => { setCheckingAuth(false); });
+    // Check auth + validate invite in parallel
+    Promise.all([
+      fetch("/api/auth/me", { credentials: "include" })
+        .then(r => r.ok ? r.json() : null)
+        .catch(() => null),
+      apiRequest("GET", `/api/invite/${token}`)
+        .then(r => r.json())
+        .catch(() => null),
+    ]).then(([authData, inviteData]) => {
+      const loggedIn = !!authData?.account;
+      setIsLoggedIn(loggedIn);
+      setCheckingAuth(false);
 
-    // Validate invite token
-    apiRequest("GET", `/api/invite/${token}`)
-      .then(r => r.json())
-      .then(data => {
-        if (data.valid) setInvite(data);
-        else setError(data.message || "This invite is not valid.");
-        setLoading(false);
-      })
-      .catch(() => {
-        setError("Could not load invite details. Please try again.");
-        setLoading(false);
-      });
+      if (inviteData?.valid) setInvite(inviteData);
+      else setError(inviteData?.message || "This invite is not valid.");
+      setLoading(false);
+
+      // Auto-accept if we just redirected here after login
+      if (loggedIn && justLoggedIn && inviteData?.valid) {
+        sessionStorage.removeItem("pending_invite_token");
+        setAccepting(true);
+        apiRequest("POST", `/api/invite/${token}/accept`, {})
+          .then(r => r.json())
+          .then(data => {
+            if (data.success) {
+              setAccepted(true);
+              setTimeout(() => { window.location.href = "/"; }, 2500);
+            } else {
+              setAccepting(false);
+            }
+          })
+          .catch(() => setAccepting(false));
+      }
+    });
   }, [token]);
 
   async function handleAccept() {
