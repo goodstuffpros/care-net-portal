@@ -282,10 +282,16 @@ export default function CaregiversPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Invite button — always show for family, conditionally for CG */}
-          <Button size="sm" variant={isFamily ? "default" : "outline"} className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
-            <Link2 size={15} /> {isFamily ? "Invite a Caregiver" : "Invite"}
-          </Button>
+          {/* Invite button — family sees "Invite a Caregiver", CG sees dedicated MC invite button */}
+          {isFamily ? (
+            <Button size="sm" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+              <Link2 size={15} /> Invite a Caregiver
+            </Button>
+          ) : (
+            <Button size="sm" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-mc-btn">
+              <UserPlus size={15} /> Add Family Contact (MC)
+            </Button>
+          )}
           </div>
         )}
       </div>
