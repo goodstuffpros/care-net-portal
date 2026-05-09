@@ -2374,4 +2374,17 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       .where(sql`${users.id} >= 10`).all();
     res.json({ recentInvites, realUsers });
   });
+
+  // TEMP: manually wire Becky (11) to James Roberts (clientId 4) — remove after confirmed
+  app.post("/api/debug/connect-becky", (req, res) => {
+    // Give Becky clientId 4 (James Roberts / David's client)
+    db.update(users).set({ clientId: 4 }).where(eq(users.id, 11)).run();
+    // Mark the most recent invite as accepted
+    db.update(connectionInvites).set({
+      status: "accepted",
+      acceptedByUserId: 10,
+      acceptedAt: new Date().toISOString(),
+    }).where(eq(connectionInvites.id, 7)).run();
+    res.json({ success: true, message: "Becky linked to clientId 4" });
+  });
 }
