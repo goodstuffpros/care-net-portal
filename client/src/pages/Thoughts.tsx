@@ -572,12 +572,12 @@ export default function ThoughtsPage() {
     <div className="px-4 md:px-8 py-8 max-w-3xl mx-auto">
       <ModuleIntro moduleKey="thoughts" />
       {/* Page header */}
-      <div className="flex items-start justify-between mb-8 gap-4">
+      <div className="flex items-start justify-between mb-8 gap-3">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2.5 mb-1">
-            <BookHeart size={22} className="text-primary" />
+            <BookHeart size={22} className="text-primary flex-shrink-0" />
             <h1
-              className="text-xl font-bold text-foreground"
+              className="text-xl font-bold text-foreground leading-tight"
               style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}
               data-testid="thoughts-page-title"
             >
@@ -588,19 +588,20 @@ export default function ThoughtsPage() {
             Stories and memories your client shares — a gift being prepared for the family.
           </p>
         </div>
-        <LessonLauncher pageKey="thoughts" />
-
-        {!isUnlocked && (
-          <Button
-            onClick={() => setShowAddDialog(true)}
-            size="sm"
-            className="gap-2 flex-shrink-0"
-            data-testid="add-thought-btn"
-          >
-            <Plus size={15} />
-            New Entry
-          </Button>
-        )}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <LessonLauncher pageKey="thoughts" />
+          {!isUnlocked && (
+            <Button
+              onClick={() => setShowAddDialog(true)}
+              size="sm"
+              className="gap-1.5"
+              data-testid="add-thought-btn"
+            >
+              <Plus size={15} />
+              New Entry
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Locked badge */}
