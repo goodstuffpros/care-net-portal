@@ -212,7 +212,7 @@ function EntryDialog({
             {initialValues?.body ? "Edit Entry" : "New Entry"}
           </DialogTitle>
           <DialogDescription className="text-muted-foreground text-sm">
-            Capture a memory, story, or thought shared by your client.
+            Record something your client shared — in their words, as best you can. It doesn't have to be complete.
           </DialogDescription>
         </DialogHeader>
 
@@ -224,7 +224,7 @@ function EntryDialog({
             </label>
             <Input
               data-testid="thought-title-input"
-              placeholder="e.g. The summer of '58"
+              placeholder="e.g. The summer of ‘58, or Dad’s story about the old neighborhood"
               value={form.title}
               onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
             />
@@ -237,7 +237,7 @@ function EntryDialog({
             </label>
             <Textarea
               data-testid="thought-body-input"
-              placeholder="Write what your client shared — in their words, as best you can remember…"
+              placeholder="Write what your client shared — a story, a memory, a reflection. In their words, as best you can recall. Incomplete is okay."
               value={form.body}
               onChange={e => setForm(f => ({ ...f, body: e.target.value }))}
               rows={5}
@@ -426,7 +426,7 @@ export default function ThoughtsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "thoughts"] });
       setShowAddDialog(false);
-      toast({ title: "Entry added", description: "Your thought has been saved." });
+      toast({ title: "Entry added", description: "Their story has been saved." });
     },
     onError: () => toast({ title: "Error", description: "Could not save entry.", variant: "destructive" }),
   });
@@ -526,7 +526,8 @@ export default function ThoughtsPage() {
             A Collection of Thoughts
           </h1>
           <p className="text-sm text-muted-foreground max-w-sm mx-auto leading-relaxed">
-            A gift from your care team — memories, stories, and musings your loved one shared during their care journey.
+            These are the stories, memories, and reflections your loved one shared during their time with their caregiver.
+            Words and moments, some perhaps never told before — preserved here as a lasting gift.
           </p>
           {/* Unlock note */}
           {unlockStatus?.unlockNote && (
@@ -584,7 +585,7 @@ export default function ThoughtsPage() {
             </h1>
           </div>
           <p className="text-sm text-muted-foreground">
-            Private journal of memories, stories, and musings — locked until care concludes.
+            Stories and memories your client shares — a gift being prepared for the family.
           </p>
         </div>
         <LessonLauncher pageKey="thoughts" />
@@ -607,8 +608,8 @@ export default function ThoughtsPage() {
         <div className="flex items-center gap-2.5 mb-6 px-4 py-2.5 bg-muted/50 rounded-lg border border-border/60 text-sm text-muted-foreground">
           <Lock size={14} className="text-muted-foreground/70 flex-shrink-0" />
           <span>
-            This collection is <strong>locked</strong> — only you and your care team can see it.
-            When care concludes, you can gift it to the family.
+            This collection is <strong>private</strong> — held here until care concludes.
+            When the time comes, you can gift it to the family as a keepsake of their loved one's voice.
           </span>
         </div>
       )}
@@ -636,7 +637,9 @@ export default function ThoughtsPage() {
           </div>
           <h3 className="font-medium text-foreground mb-1">No entries yet</h3>
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            When your client shares a memory or story, tap <strong>New Entry</strong> to capture it before it fades.
+            Your client will share things during your time together — stories, memories, reflections.
+            Tap <strong>New Entry</strong> to capture what they share before it fades.
+            Even fragments are worth saving.
           </p>
         </div>
       ) : (
@@ -657,7 +660,7 @@ export default function ThoughtsPage() {
       {!isUnlocked && entries.length > 0 && (
         <div className="mt-10 border-t border-border pt-7 flex flex-col items-center text-center gap-3">
           <p className="text-sm text-muted-foreground max-w-xs leading-relaxed">
-            When care has concluded, you can gift this entire collection to the family as a lasting keepsake.
+            When care concludes, gift this collection to the family — their loved one's stories and memories, preserved through you.
           </p>
           <Button
             data-testid="gift-collection-btn"

@@ -160,7 +160,7 @@ const CAREGIVER_TRACK: Track = {
       title: "Collection of Thoughts",
       subtitle: "Module 15 · Caregiver Only",
       image: `${API_BASE}/university/seed_mod15_thoughts.jpg`,
-      narration: "Collection of Thoughts is your private caregiver journal — visible only to you. No family member or admin can see anything written here. Use it to process difficult days, capture observations you are still working through, or reflect on moments you want to remember. You can optionally let CareNet lightly polish your writing before you save it.",
+      narration: "Collection of Thoughts captures what your client shares with you — their stories, memories, and reflections that surface during the hours you spend together. Stories from a lifetime. Their hometown, their parents, how they met their spouse, moments their own children may never have heard. You have a bond with this person that opens doors no one else can. Write what they share, in their words, as best you can. It does not need to be complete. Even fragments are worth saving. When care concludes, you can gift the entire collection to the family. It is their loved one's voice — preserved through you.",
       duration: "2 min", knowledgePoints: 3,
     },
     {

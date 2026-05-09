@@ -143,7 +143,7 @@ const LESSONS: Record<ModuleKey, ModuleLesson> = {
   thoughts: {
     title: "Collection of Thoughts",
     image: `${API_BASE}/university/seed_mod15_thoughts.jpg`,
-    narration: "Collection of Thoughts is your private journal inside Care Net Portal. This is a space for personal reflections, things worth remembering, and the moments that matter in this work. It is visible only to you.",
+    narration: "Collection of Thoughts is one of the most meaningful features in Care Net Portal. As you sit with your client day after day, they will share things — stories from decades ago, memories of their parents, the way they met their spouse, moments their own children may have never heard. A CG builds a bond that opens those doors. This is where you capture what they share. Write it in their words as best you can. It does not have to be perfect. When care concludes, you can gift this entire collection to the family — their loved one's voice, preserved. That is the treasure.",
   },
   patterns: {
     title: "Wellness Trends",
