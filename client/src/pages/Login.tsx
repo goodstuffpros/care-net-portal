@@ -39,9 +39,17 @@ export default function LoginPage() {
         }
         throw new Error(body.message || "Login failed");
       }
-      // Success — hard reload so AppContext re-fetches auth state
-      window.location.hash = "/";
-      window.location.reload();
+      // Success — check for pending invite token first
+      const pendingInvite = sessionStorage.getItem("pending_invite_token");
+      if (pendingInvite) {
+        // Redirect to invite landing so it can auto-accept now that user is logged in
+        window.location.href = "/#/invite/" + pendingInvite;
+        window.location.reload();
+      } else {
+        // Normal login — hard reload so AppContext re-fetches auth state
+        window.location.hash = "/";
+        window.location.reload();
+      }
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {

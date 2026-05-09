@@ -179,9 +179,24 @@ export default function InviteLanding({ token }: { token: string }) {
           </Button>
 
           {!isLoggedIn && (
-            <p className="text-center text-xs text-[#BAB9B4]">
-              You'll be guided through a quick account setup first.
-            </p>
+            <div className="text-center space-y-2">
+              <p className="text-xs text-[#BAB9B4]">
+                New to Care Net Portal? You'll create your account first, then connect automatically.
+              </p>
+              <p className="text-xs text-[#7A7974]">
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  onClick={() => {
+                    sessionStorage.setItem("pending_invite_token", token);
+                    window.location.href = "/#/login?invite=" + token;
+                  }}
+                  className="font-semibold text-[#01696F] underline underline-offset-2"
+                >
+                  Log in to accept
+                </button>
+              </p>
+            </div>
           )}
         </div>
 
