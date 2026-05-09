@@ -168,11 +168,22 @@ function useDragOrder<T extends { path: string }>(
       }
     }
 
+    function onCancel(e: PointerEvent) {
+      const d = ds.current;
+      if (!d || e.pointerId !== d.pointerId) return;
+      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
+      ds.current = null;
+      setDraggingIdx(null);
+      setOverIdx(null);
+    }
+
     document.addEventListener("pointermove", onMove, { passive: true });
     document.addEventListener("pointerup", onUp);
+    document.addEventListener("pointercancel", onCancel);
     return () => {
       document.removeEventListener("pointermove", onMove);
       document.removeEventListener("pointerup", onUp);
+      document.removeEventListener("pointercancel", onCancel);
     };
   }, [onSave]);
 
@@ -370,10 +381,10 @@ export default function NavOverlay({
         </div>
 
         {/* ── Grid ── */}
-        <div className="flex-1 p-3">
-          {/* 4 columns always — no scroll needed */}
+        <div className="flex-1 p-2">
+          {/* 4 columns always — compact tiles for all screen sizes */}
           <div
-            className="grid grid-cols-4 gap-2.5"
+            className="grid grid-cols-4 gap-1.5"
             style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
           >
             {regularItems.map((item, idx) => {
@@ -394,7 +405,7 @@ export default function NavOverlay({
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
                   style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-2 p-3 rounded-2xl border cursor-pointer select-none",
+                    "flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
                     item.bg || "bg-muted border-border",
                     isDragging && "opacity-40 scale-95 ring-2 ring-primary/50",
@@ -402,8 +413,8 @@ export default function NavOverlay({
                     !isDragging && !isOver && "active:scale-95 hover:shadow-md hover:scale-[1.02]"
                   )}
                 >
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center bg-white/60 dark:bg-black/20">
-                    <Icon size={20} className={item.color || "text-foreground"} />
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/60 dark:bg-black/20">
+                    <Icon size={18} className={item.color || "text-foreground"} />
                   </div>
                   <span className={cn(
                     "text-[10px] font-semibold text-center leading-tight",
