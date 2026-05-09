@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,9 +58,9 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Hard reload so AppContext re-fetches auth state with updated clientId
-      window.location.hash = "/";
-      window.location.reload();
+      // Invalidate auth cache then navigate — avoids hard reload loop
+      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
+      navigate("/");
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {
