@@ -444,6 +444,14 @@ function DrugSearchInput({
           value={query}
           onChange={handleChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
+          onBlur={() => {
+            // Accept whatever is typed even if not picked from dropdown
+            if (query.trim() && !confirmed) {
+              setConfirmed(true);
+              onSelect(query.trim(), "");
+            }
+            setTimeout(() => setOpen(false), 150);
+          }}
           placeholder="Start typing a drug name…"
           className="h-8 text-sm pl-7"
           data-testid="med-name"
@@ -469,7 +477,7 @@ function DrugSearchInput({
               <li key={i}>
                 <button
                   type="button"
-                  onMouseDown={() => handlePick(s)}
+                  onPointerDown={(e) => { e.preventDefault(); handlePick(s); }}
                   className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent flex items-start gap-2"
                 >
                   <Pill size={13} className="text-primary mt-0.5 flex-shrink-0" />
@@ -1074,7 +1082,8 @@ export default function MedicationsPage() {
                   />
                 </div>
                 <Button
-                  className="w-full"
+                  type="button"
+                  className="w-full bg-teal-600 hover:bg-teal-700 text-white"
                   onClick={() => mcMedMutation.mutate()}
                   disabled={!mcMedForm.name || !mcMedForm.dosage || mcMedMutation.isPending}
                   data-testid="mc-save-med-btn"
