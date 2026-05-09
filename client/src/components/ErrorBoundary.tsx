@@ -6,6 +6,7 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  errorMessage?: string;
 }
 
 export class ErrorBoundary extends Component<Props, State> {
@@ -14,8 +15,8 @@ export class ErrorBoundary extends Component<Props, State> {
     this.state = { hasError: false };
   }
 
-  static getDerivedStateFromError(): State {
-    return { hasError: true };
+  static getDerivedStateFromError(error: Error): State {
+    return { hasError: true, errorMessage: error?.message || String(error) };
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }) {
@@ -24,13 +25,13 @@ export class ErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
-      return <CrashPage onRetry={() => this.setState({ hasError: false })} />;
+      return <CrashPage errorMessage={this.state.errorMessage} onRetry={() => this.setState({ hasError: false, errorMessage: undefined })} />;
     }
     return this.props.children;
   }
 }
 
-function CrashPage({ onRetry }: { onRetry: () => void }) {
+function CrashPage({ onRetry, errorMessage }: { onRetry: () => void; errorMessage?: string }) {
   return (
     <div
       className="min-h-screen flex flex-col items-center justify-center px-6 py-12"
@@ -165,6 +166,12 @@ function CrashPage({ onRetry }: { onRetry: () => void }) {
           <br />
           We'll be back up soon.
         </p>
+
+        {errorMessage && (
+          <div className="mb-6 px-4 py-3 rounded-lg text-xs text-left font-mono break-all" style={{ background: "hsl(0,0%,94%)", color: "hsl(0,60%,40%)" }}>
+            {errorMessage}
+          </div>
+        )}
 
         <button
           type="button"
