@@ -430,6 +430,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true, message: `Approved and invite sent to ${app_.email}` });
   });
 
+  // TEMP: one-time admin password reset — remove after use
+  app.post("/api/admin/set-password", async (req: AuthRequest, res) => {
+    const { email, password, secret } = req.body;
+    if (secret !== "cnp-admin-2026") return res.status(403).json({ message: "forbidden" });
+    if (!email || !password) return res.status(400).json({ message: "email and password required" });
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
+    if (!account) return res.status(404).json({ message: "account not found" });
+    const newHash = await hashPassword(password);
+    db.update(authAccounts).set({ passwordHash: newHash, passwordResetToken: null, passwordResetExpiry: null })
+      .where(eq(authAccounts.id, account.id)).run();
+    res.json({ success: true, message: `Password updated for ${email}` });
+  });
+
   // POST /api/admin/applications/:id/deny
   app.post("/api/admin/applications/:id/deny", async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id);
