@@ -1726,6 +1726,47 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getDocumentAccessLog(Number(req.params.id)));
   });
 
+  // DELETE /api/admin/users/:id — full account wipe (admin only)
+  // Removes: users row, auth_accounts, auth_sessions, notifications, badge data,
+  // connection invites, beta application — leaves client-side care data intact
+  // (use /api/admin/beta-cleanup/wipe first if you want care data gone too)
+  app.delete("/api/admin/users/:id", (req, res) => {
+    const userId = Number(req.params.id);
+    if (!userId || userId <= 5) {
+      return res.status(400).json({ message: "Cannot delete demo/seed users (id 1–5)." });
+    }
+    try {
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!user) return res.status(404).json({ message: "User not found" });
+      const authAccount = db.select().from(authAccounts).where(eq(authAccounts.userId, userId)).get();
+      // 1. Revoke + delete all sessions
+      if (authAccount) {
+        db.delete(authSessions).where(eq(authSessions.authAccountId, authAccount.id)).run();
+      }
+      // 2. Delete auth account
+      if (authAccount) {
+        db.delete(authAccounts).where(eq(authAccounts.id, authAccount.id)).run();
+      }
+      // 3. Delete beta application by email
+      if (authAccount?.email) {
+        db.delete(betaApplications).where(eq(betaApplications.email, authAccount.email)).run();
+      }
+      // 4. Delete notifications
+      db.delete(notifications).where(eq(notifications.userId, userId)).run();
+      // 5. Delete badge surveys + scores
+      db.delete(badgeSurveys).where(eq(badgeSurveys.submittedByUserId, userId)).run();
+      db.delete(badgeScores).where(eq(badgeScores.userId, userId)).run();
+      // 6. Delete connection invites (sent or received)
+      db.delete(connectionInvites).where(eq(connectionInvites.invitedByUserId, userId)).run();
+      db.delete(connectionInvites).where(eq(connectionInvites.acceptedByUserId, userId)).run();
+      // 7. Finally delete the user row
+      db.delete(users).where(eq(users.id, userId)).run();
+      res.json({ success: true, deletedUserId: userId, email: authAccount?.email ?? null });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
   // Outings
   app.get("/api/clients/:clientId/outings", (req, res) => {
     res.json(storage.getOutingsByClient(Number(req.params.clientId)));

@@ -778,6 +778,8 @@ function BetaCleanupTab() {
     queryFn: () => apiRequest("GET", "/api/admin/beta-cleanup/users").then(r => r.json()),
   });
 
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+
   const wipeMutation = useMutation({
     mutationFn: (payload: { userId: number; clientId: number; categories: string[] }) =>
       apiRequest("POST", "/api/admin/beta-cleanup/wipe", payload).then(r => r.json()),
@@ -789,6 +791,20 @@ function BetaCleanupTab() {
       toast({ title: "Wipe complete", description: `${Object.values(data.wiped as Record<string,number>).reduce((a,b)=>a+b,0)} entries removed.` });
     },
     onError: (err: any) => toast({ title: "Wipe failed", description: err?.message, variant: "destructive" }),
+  });
+
+  const deleteAccountMutation = useMutation({
+    mutationFn: (userId: number) =>
+      apiRequest("DELETE", `/api/admin/users/${userId}`).then(r => r.json()),
+    onSuccess: (data) => {
+      setSelectedUser(null);
+      setDeleteConfirm(false);
+      setSelectedCats(new Set());
+      setLastWipeResult(null);
+      refetch();
+      toast({ title: "Account deleted", description: `${data.email ?? "User"} removed completely.` });
+    },
+    onError: (err: any) => toast({ title: "Delete failed", description: err?.message, variant: "destructive" }),
   });
 
   function toggleCat(key: string) {
@@ -979,6 +995,45 @@ function BetaCleanupTab() {
               </div>
             </div>
           )}
+
+          {/* Danger zone — Delete Account */}
+          <div className="pt-2 mt-2 border-t border-white/10">
+            <p className="text-xs text-white/30 uppercase tracking-wider font-medium mb-2">Danger Zone</p>
+            {!deleteConfirm ? (
+              <button
+                type="button"
+                onClick={() => setDeleteConfirm(true)}
+                className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-transparent border border-red-800/50 text-red-400 text-xs font-medium hover:bg-red-950/30 transition-all"
+                data-testid="delete-account-btn"
+              >
+                <Trash2 size={12} /> Delete Entire Account
+              </button>
+            ) : (
+              <div className="space-y-2 p-3 rounded-lg bg-red-950/30 border border-red-700/50">
+                <p className="text-xs text-red-300 text-center leading-relaxed">
+                  Permanently delete <span className="font-semibold">{selectedUser.name}</span>'s account, login credentials, and all session data? Care entries are unaffected unless wiped above first.
+                </p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setDeleteConfirm(false)}
+                    className="flex-1 py-1.5 rounded-lg bg-white/5 border border-white/10 text-white/60 text-xs hover:bg-white/10 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteAccountMutation.mutate(selectedUser.id)}
+                    disabled={deleteAccountMutation.isPending}
+                    className="flex-1 py-1.5 rounded-lg bg-red-700 border border-red-600 text-white text-xs font-semibold hover:bg-red-600 transition-all disabled:opacity-50"
+                    data-testid="delete-account-confirm-btn"
+                  >
+                    {deleteAccountMutation.isPending ? "Deleting…" : "Yes, delete account"}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
