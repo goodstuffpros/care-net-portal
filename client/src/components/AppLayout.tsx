@@ -1525,6 +1525,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Need a Moment — family roles only, controlled from top bar */}
       <NeedAMomentModal open={needAMomentOpen} onClose={() => setNeedAMomentOpen(false)} />
 
+      {/* Wellbeing — floating rose heart, CG only, stacked above App Help */}
+      {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+        <button
+          type="button"
+          onClick={() => openWellbeing("manual")}
+          aria-label="Open Wellbeing check-in"
+          className="fixed bottom-[5.5rem] right-4 z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200 bg-rose-600 hover:bg-rose-500 active:scale-95"
+        >
+          <Heart size={18} className="fill-white text-white" />
+          <span className="text-[9px] font-semibold text-white leading-none">For Me</span>
+        </button>
+      )}
+
       {/* AI Help Desk — floating, always visible */}
       <HelpDesk hfmActive={hfmActive} />
 

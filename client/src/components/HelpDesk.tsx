@@ -358,7 +358,7 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
       {open && (
         <div
           className={cn(
-            "fixed bottom-[5rem] right-4 z-50 w-[360px] max-w-[calc(100vw-2.5rem)]",
+            "fixed bottom-[5rem] right-4 z-50 w-[360px] max-w-[calc(100vw-2.5rem)] max-h-[calc(100vh-10rem)]",
             "rounded-2xl border border-border bg-background shadow-2xl",
             "flex flex-col overflow-hidden",
             "animate-in slide-in-from-bottom-4 duration-200"
