@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { UserPlus, Shield, Clock, Users, CalendarClock, CheckCircle2, AlertCircle, Link2, Mail, Copy, Check, Search, UserCheck, Send } from "lucide-react";
+import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Mail, Search, UserCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LessonLauncher } from "@/components/LessonLauncher";
@@ -125,7 +125,6 @@ export default function CaregiversPage() {
   function handleOpenInvite() {
     setInviteLink("");
     setInviteEmail("");
-    setCopied(false);
     setFindEmail("");
     setFoundUser(null);
     setFindStatus("idle");
@@ -420,38 +419,12 @@ export default function CaregiversPage() {
             </div>
           )}
 
-          {/* Tab: New to CNP — shareable link + email */}
+          {/* Tab: New to CNP — email only */}
           {inviteTab === "new" && (
             <div className="space-y-4">
-              {/* Copy link row */}
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Share this link</Label>
-                <div className="flex gap-2">
-                  <div className="flex-1 rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground truncate font-mono">
-                    {createInviteMutation.isPending ? "Generating link…" : inviteLink || "—"}
-                  </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="flex-shrink-0 gap-1.5"
-                    onClick={handleCopyLink}
-                    disabled={!inviteLink || createInviteMutation.isPending}
-                    data-testid="copy-invite-link-btn"
-                  >
-                    {copied ? <Check size={14} className="text-green-500" /> : <Copy size={14} />}
-                    {copied ? "Copied" : "Copy"}
-                  </Button>
-                </div>
-                <p className="text-[11px] text-muted-foreground">Link expires in 7 days. Anyone with it can join as a {inviteLabel}.</p>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-px bg-border" />
-                <span className="text-xs text-muted-foreground">or send by email</span>
-                <div className="flex-1 h-px bg-border" />
-              </div>
-
-              {/* Email row */}
+              <p className="text-xs text-muted-foreground">
+                Enter the email address of the {isFamily ? "caregiver" : "family contact"} you'd like to invite. They'll receive an email with a link to create their Care Net Portal account and connect with you.
+              </p>
               <div className="space-y-1.5">
                 <Label className="text-xs text-muted-foreground">Email address</Label>
                 <div className="flex gap-2">
@@ -460,6 +433,7 @@ export default function CaregiversPage() {
                     placeholder="name@example.com"
                     value={inviteEmail}
                     onChange={e => setInviteEmail(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && inviteEmail && createInviteMutation.mutate(inviteEmail)}
                     className="flex-1"
                     data-testid="invite-email-input"
                   />
@@ -470,9 +444,10 @@ export default function CaregiversPage() {
                     disabled={!inviteEmail || createInviteMutation.isPending}
                     data-testid="send-invite-email-btn"
                   >
-                    <Mail size={14} /> Send
+                    <Mail size={14} /> {createInviteMutation.isPending ? "Sending…" : "Send Invite"}
                   </Button>
                 </div>
+                <p className="text-[11px] text-muted-foreground">Invite link expires in 7 days.</p>
               </div>
             </div>
           )}
