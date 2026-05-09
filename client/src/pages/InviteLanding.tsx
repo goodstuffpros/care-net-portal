@@ -40,6 +40,7 @@ export default function InviteLanding({ token }: { token: string }) {
   // Detect in-app browser on mount
   const inAppBrowser = isInAppBrowser();
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+  const [inAppCopied, setInAppCopied] = useState(false);
 
   useEffect(() => {
     // Check auth + validate invite in parallel
@@ -121,28 +122,36 @@ export default function InviteLanding({ token }: { token: string }) {
           <div className="w-14 h-14 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4">
             <ExternalLink className="w-7 h-7 text-[#01696F]" />
           </div>
-          <h2 className="text-xl font-semibold text-[#28251D] mb-2">Open in your browser</h2>
-          <p className="text-[#7A7974] text-sm mb-5 leading-relaxed">
-            This invite link needs to open in Safari or Chrome — not inside Messenger.
-            Tap the button below or copy the link and paste it into your browser.
+          <h2 className="text-xl font-semibold text-[#28251D] mb-2">One more step</h2>
+          <p className="text-[#7A7974] text-sm mb-2 leading-relaxed">
+            This link needs to open in <strong>Safari or Chrome</strong> — Messenger can't complete the connection.
           </p>
-          <a
-            href={currentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full bg-[#01696F] hover:bg-[#0C4E54] text-white font-medium py-3 px-4 rounded-xl text-sm transition-colors mb-3"
-          >
-            Open in Browser
-          </a>
+          <p className="text-[#7A7974] text-sm mb-5 leading-relaxed">
+            Copy the link below, then open Safari or Chrome and paste it in the address bar.
+          </p>
+
+          {/* Copyable URL box */}
+          <div className="bg-[#F7F6F2] border border-[#D4D1CA] rounded-xl px-3 py-2.5 mb-4 text-left">
+            <p className="text-xs text-[#7A7974] mb-1 font-medium">Your invite link</p>
+            <p className="text-xs text-[#28251D] break-all leading-relaxed font-mono select-all">{currentUrl}</p>
+          </div>
+
           <button
             type="button"
             onClick={() => {
-              navigator.clipboard?.writeText(currentUrl);
+              navigator.clipboard?.writeText(currentUrl).then(() => {
+                setInAppCopied(true);
+                setTimeout(() => setInAppCopied(false), 3000);
+              });
             }}
-            className="text-xs text-[#01696F] underline underline-offset-2"
+            className="w-full bg-[#01696F] text-white font-medium py-3 px-4 rounded-xl text-sm transition-colors mb-3"
           >
-            Copy link to paste in browser
+            {inAppCopied ? "✓ Link copied!" : "Copy link"}
           </button>
+
+          <p className="text-xs text-[#BAB9B4] leading-relaxed">
+            After copying, open Safari or Chrome, tap the address bar, and paste.
+          </p>
         </div>
       </div>
     );

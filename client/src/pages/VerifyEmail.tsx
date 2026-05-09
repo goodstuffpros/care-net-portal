@@ -28,6 +28,7 @@ export default function VerifyEmailPage({ token }: Props) {
   const [stage, setStage] = useState<Stage>("verifying");
   const inAppBrowser = isInAppBrowser();
   const currentUrl = typeof window !== "undefined" ? window.location.href : "";
+  const [inAppCopied, setInAppCopied] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [userName, setUserName] = useState("");
   const [slowLoad, setSlowLoad] = useState(false);
@@ -79,21 +80,20 @@ export default function VerifyEmailPage({ token }: Props) {
           <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
             Email verification links need to open in Safari or Chrome — not inside Messenger or another app.
           </p>
-          <a
-            href={currentUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="block w-full bg-primary text-primary-foreground font-medium py-2.5 px-4 rounded-xl text-sm transition-opacity hover:opacity-90 mb-3"
-          >
-            Open in Browser
-          </a>
+          <div className="bg-muted border border-border rounded-xl px-3 py-2.5 mb-4 text-left">
+            <p className="text-xs text-muted-foreground mb-1 font-medium">Your verification link</p>
+            <p className="text-xs text-foreground break-all leading-relaxed font-mono select-all">{currentUrl}</p>
+          </div>
           <button
             type="button"
-            onClick={() => navigator.clipboard?.writeText(currentUrl)}
-            className="text-xs text-primary underline underline-offset-2"
+            onClick={() => navigator.clipboard?.writeText(currentUrl).then(() => { setInAppCopied(true); setTimeout(() => setInAppCopied(false), 3000); })}
+            className="w-full bg-primary text-primary-foreground font-medium py-2.5 px-4 rounded-xl text-sm transition-opacity hover:opacity-90 mb-3"
           >
-            Copy link
+            {inAppCopied ? "✓ Link copied!" : "Copy link"}
           </button>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            After copying, open Safari or Chrome, tap the address bar, and paste.
+          </p>
         </div>
       </div>
     );
