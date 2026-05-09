@@ -905,9 +905,9 @@ export default function MedicationsPage() {
   });
 
   const mcMedMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
-      name: mcMedForm.name,
-      dosage: mcMedForm.dosage,
+    mutationFn: (overrides?: { name?: string; dosage?: string }) => apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
+      name: overrides?.name ?? mcMedForm.name,
+      dosage: overrides?.dosage ?? mcMedForm.dosage,
       frequency: mcMedForm.frequency,
       scheduleType: mcMedForm.scheduleType,
       prescribingDoctor: mcMedForm.prescribingDoctor,
@@ -1086,7 +1086,19 @@ export default function MedicationsPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => { if (!mcMedForm.name.trim() || !mcMedForm.dosage.trim()) { toast({ title: "Please enter medication name and dosage", variant: "destructive" }); return; } mcMedMutation.mutate(); }}
+                  onClick={() => {
+                    // Read from DOM as fallback for iOS Safari onChange issues
+                    const nameEl = document.querySelector('[data-testid="mc-med-name"]') as HTMLInputElement | null;
+                    const dosageEl = document.querySelector('[data-testid="mc-med-dosage"]') as HTMLInputElement | null;
+                    const nameVal = nameEl?.value?.trim() || mcMedForm.name.trim();
+                    const dosageVal = dosageEl?.value?.trim() || mcMedForm.dosage.trim();
+                    if (!nameVal || !dosageVal) {
+                      toast({ title: "Please enter medication name and dosage", variant: "destructive" });
+                      return;
+                    }
+                    // Pass DOM values directly to mutation (bypasses stale closure)
+                    mcMedMutation.mutate({ name: nameVal, dosage: dosageVal });
+                  }}
                   disabled={mcMedMutation.isPending}
                   data-testid="mc-save-med-btn"
                   style={{ background: '#0d9488', color: '#fff' }}
