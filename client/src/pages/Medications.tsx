@@ -195,7 +195,7 @@ function MedCard({
                 <span>{med.pharmacy}</span>
               </div>
             )}
-            {med.rxNumber && !isFamilyPortal && (
+            {med.rxNumber && (
               <div className="flex gap-1.5 items-center">
                 <Hash size={10} className="text-muted-foreground flex-shrink-0" />
                 <span className="text-muted-foreground">Rx: </span>
@@ -841,7 +841,7 @@ export default function MedicationsPage() {
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
   const { toast } = useToast();
-  const canEdit = isCaregiverRole(activeUser.role);
+  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family";
   const isMC = activeUser.role === "primary_family";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
@@ -888,54 +888,17 @@ export default function MedicationsPage() {
   const eveningMeds   = scheduledMeds.filter(m => getTimeGroups(m).has("evening")).sort(sortAlpha);
 
   const createMutation = useMutation({
-    mutationFn: (data: any) => apiRequest("POST", `/api/clients/${selectedClientId}/medications`, data),
+    mutationFn: (data: any) => apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
+      ...data,
+      addedByRole: activeUser.role,
+      addedByUserId: activeUser.id,
+    }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "medications"] });
       setAddOpen(false);
-      toast({ title: "Medication added" });
+      toast({ title: isMC ? "Added to regimen" : "Medication added", description: isMC ? "Caregiver has been notified." : undefined });
     },
-    onError: () => toast({ title: "Error adding medication", variant: "destructive" }),
-  });
-
-  // ── MC: Add to Regimen ─────────────────────────────────────────────────
-  const [mcMedOpen, setMcMedOpen] = useState(false);
-  const mcNameRef = useRef<HTMLInputElement>(null);
-  const mcDosageRef = useRef<HTMLInputElement>(null);
-  const [mcMedForm, setMcMedForm] = useState({
-    name: "", dosage: "", frequency: "", scheduleType: "scheduled" as "scheduled" | "as_needed",
-    prescribingDoctor: "", pharmacy: "", instructions: "", notes: "",
-  });
-
-  const mcMedMutation = useMutation({
-    mutationFn: (overrides?: { name?: string; dosage?: string }) => {
-      const rawDosage = overrides?.dosage ?? mcMedForm.dosage;
-      // Parse numeric part from dosage string e.g. "25 mg" -> 25, "100mg" -> 100
-      const dosageNum = parseFloat(rawDosage.replace(/[^0-9.]/g, "")) || 0;
-      const dosageUnitMatch = rawDosage.match(/[a-zA-Z%]+/);
-      const dosageUnit = dosageUnitMatch ? dosageUnitMatch[0].toLowerCase() : "mg";
-      return apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
-        name: overrides?.name ?? mcMedForm.name,
-        dosageAmount: dosageNum,
-        dosageUnit,
-        frequency: mcMedForm.frequency || undefined,
-        frequencyNote: mcMedForm.frequency || undefined,
-        scheduleType: mcMedForm.scheduleType,
-        prescribingPhysician: mcMedForm.prescribingDoctor || undefined,
-        pharmacy: mcMedForm.pharmacy || undefined,
-        instructions: mcMedForm.instructions || undefined,
-        notes: mcMedForm.notes || undefined,
-        status: "active",
-        addedByRole: "primary_family",
-        addedByUserId: activeUser.id,
-      });
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "medications"] });
-      setMcMedOpen(false);
-      setMcMedForm({ name: "", dosage: "", frequency: "", scheduleType: "scheduled", prescribingDoctor: "", pharmacy: "", instructions: "", notes: "" });
-      toast({ title: "Added to regimen", description: "Caregiver has been notified." });
-    },
-    onError: (err: any) => toast({ title: "Could not save medication", description: err?.message || "Please check all fields and try again.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Error saving medication", description: err?.message, variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
@@ -992,132 +955,11 @@ export default function MedicationsPage() {
           </div>
           <LessonLauncher pageKey="medications" />
         </div>
-        {isCaregiverRole(activeUser.role) && (
+        {(isCaregiverRole(activeUser.role) || isMC) && (
           <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
             <Plus size={14} />
-            Add Medication
+            {isMC ? "Add to Regimen" : "Add Medication"}
           </Button>
-        )}
-        {activeUser.role === "primary_family" && (
-          <Dialog open={mcMedOpen} onOpenChange={setMcMedOpen}>
-            <DialogTrigger asChild>
-              <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="mc-add-med-btn">
-                <Plus size={14} />
-                Add to Regimen
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
-                <DialogTitle className="flex items-center gap-2">
-                  <Pill size={18} className="text-rose-600" /> Add to Medication Regimen
-                </DialogTitle>
-              </DialogHeader>
-              {/* MC info banner */}
-              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
-                <span className="mt-0.5">⚠️</span>
-                <span>Your caregiver will receive an <strong>urgent alert</strong> to review and confirm this addition.</span>
-              </div>
-              <div className="space-y-4 py-1">
-                <div className="space-y-1.5">
-                  <Label>Medication Name <span className="text-red-500">*</span></Label>
-                  <Input
-                    ref={mcNameRef}
-                    value={mcMedForm.name}
-                    onChange={e => setMcMedForm(f => ({ ...f, name: e.target.value }))}
-                    placeholder="e.g. Insulin, Metformin"
-                    data-testid="mc-med-name"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Dosage <span className="text-red-500">*</span></Label>
-                  <Input
-                    ref={mcDosageRef}
-                    value={mcMedForm.dosage}
-                    onChange={e => setMcMedForm(f => ({ ...f, dosage: e.target.value }))}
-                    placeholder="e.g. 25mg"
-                    data-testid="mc-med-dosage"
-                  />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <Label>Frequency</Label>
-                    <Input
-                      value={mcMedForm.frequency}
-                      onChange={e => setMcMedForm(f => ({ ...f, frequency: e.target.value }))}
-                      placeholder="e.g. Twice daily"
-                      data-testid="mc-med-frequency"
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label>Type</Label>
-                    <Select value={mcMedForm.scheduleType} onValueChange={v => setMcMedForm(f => ({ ...f, scheduleType: v as any }))}>
-                      <SelectTrigger data-testid="mc-med-schedule-type"><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="scheduled">Scheduled</SelectItem>
-                        <SelectItem value="as_needed">As Needed (PRN)</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Prescribing Doctor</Label>
-                  <Input
-                    value={mcMedForm.prescribingDoctor}
-                    onChange={e => setMcMedForm(f => ({ ...f, prescribingDoctor: e.target.value }))}
-                    placeholder="e.g. Dr. Williams"
-                    data-testid="mc-med-doctor"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Pharmacy</Label>
-                  <Input
-                    value={mcMedForm.pharmacy}
-                    onChange={e => setMcMedForm(f => ({ ...f, pharmacy: e.target.value }))}
-                    placeholder="e.g. CVS on Main St."
-                    data-testid="mc-med-pharmacy"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Administration Instructions</Label>
-                  <Input
-                    value={mcMedForm.instructions}
-                    onChange={e => setMcMedForm(f => ({ ...f, instructions: e.target.value }))}
-                    placeholder="e.g. Take with food"
-                    data-testid="mc-med-instructions"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Notes for Caregiver</Label>
-                  <Textarea
-                    value={mcMedForm.notes}
-                    onChange={e => setMcMedForm(f => ({ ...f, notes: e.target.value }))}
-                    placeholder="Any relevant context, side effects to watch, or special instructions..."
-                    rows={3}
-                    data-testid="mc-med-notes"
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => {
-                    // Use refs for bulletproof value reading on iOS/Android
-                    const nameVal = (mcNameRef.current?.value ?? "").trim() || mcMedForm.name.trim();
-                    const dosageVal = (mcDosageRef.current?.value ?? "").trim() || mcMedForm.dosage.trim();
-                    if (!nameVal || !dosageVal) {
-                      toast({ title: "Please enter medication name and dosage", variant: "destructive" });
-                      return;
-                    }
-                    mcMedMutation.mutate({ name: nameVal, dosage: dosageVal });
-                  }}
-                  disabled={mcMedMutation.isPending}
-                  data-testid="mc-save-med-btn"
-                  style={{ background: '#0d9488', color: '#fff' }}
-                  className="w-full rounded-md px-4 py-2.5 text-sm font-medium disabled:opacity-50"
-                >
-                  {mcMedMutation.isPending ? "Saving…" : "Add to Regimen & Notify Caregiver"}
-                </button>
-              </div>
-            </DialogContent>
-          </Dialog>
         )}
       </div>
 
@@ -1126,9 +968,7 @@ export default function MedicationsPage() {
           <TabsTrigger value="active" className="text-xs px-3">
             Active {activeMeds.length > 0 && <span className="ml-1 bg-primary/15 text-primary rounded-full px-1.5 text-[10px]">{activeMeds.length}</span>}
           </TabsTrigger>
-          {!isFamilyPortal && !isFamily && (
-            <TabsTrigger value="log" className="text-xs px-3">Admin Log</TabsTrigger>
-          )}
+          <TabsTrigger value="log" className="text-xs px-3">Admin Log</TabsTrigger>
           <TabsTrigger value="archive" className="text-xs px-3">
             Archive {archivedMeds.length > 0 && <span className="ml-1 bg-muted text-muted-foreground rounded-full px-1.5 text-[10px]">{archivedMeds.length}</span>}
           </TabsTrigger>
