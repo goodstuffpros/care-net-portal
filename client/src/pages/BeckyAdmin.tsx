@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -725,9 +725,269 @@ function HelpdeskTab() {
   );
 }
 
+// ── Beta Cleanup Tab ─────────────────────────────────────────────────────────────────
+
+interface CleanupUser {
+  id: number;
+  name: string;
+  role: string;
+  email: string;
+  clientId: number | null;
+  counts: Record<string, number>;
+}
+
+const CATEGORY_META: { key: string; label: string; icon: React.ReactNode; color: string }[] = [
+  { key: "careLogs",       label: "Care Log",       icon: <NotebookPen size={13} />,  color: "text-teal-400" },
+  { key: "scheduleEvents", label: "Schedule",       icon: <CalendarDays size={13} />, color: "text-blue-400" },
+  { key: "vitals",         label: "Vitals",         icon: <Activity size={13} />,     color: "text-red-400" },
+  { key: "medications",    label: "Medications",    icon: <Pill size={13} />,         color: "text-purple-400" },
+  { key: "thoughts",       label: "Coll. of Thoughts", icon: <Heart size={13} />,    color: "text-rose-400" },
+  { key: "media",          label: "Media",          icon: <Image size={13} />,        color: "text-amber-400" },
+  { key: "documents",      label: "Documents",      icon: <FolderOpen size={13} />,   color: "text-emerald-400" },
+];
+
+function RolePill({ role }: { role: string }) {
+  const colors: Record<string, string> = {
+    caregiver: "bg-teal-900/50 text-teal-300 border-teal-700",
+    primary_family: "bg-blue-900/50 text-blue-300 border-blue-700",
+    secondary_family: "bg-slate-700/50 text-slate-300 border-slate-600",
+    multi_caregiver: "bg-purple-900/50 text-purple-300 border-purple-700",
+  };
+  const label: Record<string, string> = {
+    caregiver: "Caregiver",
+    primary_family: "Main Contact",
+    secondary_family: "Family",
+    multi_caregiver: "CG",
+  };
+  return (
+    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", colors[role] ?? "bg-slate-700 text-slate-300 border-slate-600")}>
+      {label[role] ?? role}
+    </span>
+  );
+}
+
+function BetaCleanupTab() {
+  const { toast } = useToast();
+  const [selectedUser, setSelectedUser] = useState<CleanupUser | null>(null);
+  const [selectedCats, setSelectedCats] = useState<Set<string>>(new Set());
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [lastWipeResult, setLastWipeResult] = useState<Record<string, number> | null>(null);
+
+  const { data: users = [], isLoading, refetch } = useQuery<CleanupUser[]>({
+    queryKey: ["/api/admin/beta-cleanup/users"],
+    queryFn: () => apiRequest("GET", "/api/admin/beta-cleanup/users").then(r => r.json()),
+  });
+
+  const wipeMutation = useMutation({
+    mutationFn: (payload: { userId: number; clientId: number; categories: string[] }) =>
+      apiRequest("POST", "/api/admin/beta-cleanup/wipe", payload).then(r => r.json()),
+    onSuccess: (data) => {
+      setLastWipeResult(data.wiped);
+      setConfirmOpen(false);
+      setSelectedCats(new Set());
+      refetch();
+      toast({ title: "Wipe complete", description: `${Object.values(data.wiped as Record<string,number>).reduce((a,b)=>a+b,0)} entries removed.` });
+    },
+    onError: (err: any) => toast({ title: "Wipe failed", description: err?.message, variant: "destructive" }),
+  });
+
+  function toggleCat(key: string) {
+    setSelectedCats(prev => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function selectAllCats() {
+    setSelectedCats(new Set(CATEGORY_META.map(c => c.key)));
+  }
+
+  function clearAllCats() {
+    setSelectedCats(new Set());
+  }
+
+  function handleWipe() {
+    if (!selectedUser || !selectedUser.clientId || selectedCats.size === 0) return;
+    wipeMutation.mutate({
+      userId: selectedUser.id,
+      clientId: selectedUser.clientId,
+      categories: Array.from(selectedCats),
+    });
+  }
+
+  const totalToWipe = selectedUser
+    ? Array.from(selectedCats).reduce((sum, key) => sum + (selectedUser.counts[key] ?? 0), 0)
+    : 0;
+
+  return (
+    <div className="space-y-5">
+      {/* Info banner */}
+      <div className="flex items-start gap-2.5 p-3 rounded-lg bg-amber-950/30 border border-amber-700/40">
+        <ShieldAlert size={14} className="text-amber-400 flex-shrink-0 mt-0.5" />
+        <p className="text-xs text-amber-200/80 leading-relaxed">
+          <span className="font-semibold text-amber-300">Beta Cleanup Tool</span> — Selectively wipe test data for any real user while keeping their account and profile intact. Demo users (seed data) are excluded from this list. This action is permanent.
+        </p>
+      </div>
+
+      {/* User list */}
+      {isLoading ? (
+        <div className="text-white/40 text-sm text-center py-8">Loading users…</div>
+      ) : users.length === 0 ? (
+        <div className="text-white/40 text-sm text-center py-8">No beta users yet.</div>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-xs text-white/40 uppercase tracking-wider font-medium">Select a user</p>
+          {users.map(u => (
+            <button
+              key={u.id}
+              type="button"
+              onClick={() => { setSelectedUser(u); setSelectedCats(new Set()); setLastWipeResult(null); }}
+              className={cn(
+                "w-full text-left p-3 rounded-xl border transition-all",
+                selectedUser?.id === u.id
+                  ? "bg-rose-900/30 border-rose-600/50"
+                  : "bg-white/5 border-white/10 hover:bg-white/10"
+              )}
+              data-testid={`cleanup-user-${u.id}`}
+            >
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <User size={14} className="text-white/40 flex-shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-white text-sm font-medium truncate">{u.name}</div>
+                    <div className="text-white/40 text-xs truncate">{u.email}</div>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  <RolePill role={u.role} />
+                  <span className={cn(
+                    "text-xs font-mono px-2 py-0.5 rounded-full border",
+                    u.counts.total > 0
+                      ? "bg-rose-900/40 text-rose-300 border-rose-700/50"
+                      : "bg-white/5 text-white/30 border-white/10"
+                  )}>
+                    {u.counts.total} entries
+                  </span>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Selected user — category picker */}
+      {selectedUser && (
+        <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/10">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-white">{selectedUser.name}</p>
+            <div className="flex gap-2">
+              <button type="button" onClick={selectAllCats} className="text-xs text-white/40 hover:text-white/70 transition-colors">Select all</button>
+              <span className="text-white/20">|</span>
+              <button type="button" onClick={clearAllCats} className="text-xs text-white/40 hover:text-white/70 transition-colors">Clear</button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {CATEGORY_META.map(cat => {
+              const count = selectedUser.counts[cat.key] ?? 0;
+              const isSelected = selectedCats.has(cat.key);
+              return (
+                <button
+                  key={cat.key}
+                  type="button"
+                  onClick={() => toggleCat(cat.key)}
+                  disabled={count === 0}
+                  className={cn(
+                    "flex items-center justify-between gap-2 px-3 py-2.5 rounded-lg border text-left transition-all",
+                    count === 0
+                      ? "opacity-30 cursor-not-allowed bg-white/3 border-white/5"
+                      : isSelected
+                        ? "bg-rose-900/40 border-rose-600/50"
+                        : "bg-white/5 border-white/10 hover:bg-white/10"
+                  )}
+                  data-testid={`cat-toggle-${cat.key}`}
+                >
+                  <span className={cn("flex items-center gap-1.5 text-xs", isSelected ? "text-rose-200" : "text-white/60")}>
+                    <span className={cat.color}>{cat.icon}</span>
+                    {cat.label}
+                  </span>
+                  <span className={cn(
+                    "text-xs font-mono px-1.5 py-0.5 rounded border",
+                    isSelected ? "bg-rose-800/50 text-rose-200 border-rose-600/50" : "bg-white/5 text-white/40 border-white/10"
+                  )}>{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Wipe button */}
+          {selectedCats.size > 0 && (
+            <div className="pt-1">
+              {!confirmOpen ? (
+                <button
+                  type="button"
+                  onClick={() => setConfirmOpen(true)}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-rose-700/30 border border-rose-600/40 text-rose-300 text-sm font-medium hover:bg-rose-700/50 transition-all"
+                  data-testid="wipe-btn"
+                >
+                  <Eraser size={14} />
+                  Wipe {totalToWipe} {totalToWipe === 1 ? "entry" : "entries"} from {Array.from(selectedCats).length} {Array.from(selectedCats).length === 1 ? "category" : "categories"}
+                </button>
+              ) : (
+                <div className="space-y-2">
+                  <p className="text-xs text-rose-300 text-center">
+                    Permanently delete {totalToWipe} entries for <span className="font-semibold">{selectedUser.name}</span>? This cannot be undone.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setConfirmOpen(false)}
+                      className="flex-1 py-2 rounded-lg bg-white/5 border border-white/10 text-white/60 text-sm hover:bg-white/10 transition-all"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleWipe}
+                      disabled={wipeMutation.isPending}
+                      className="flex-1 py-2 rounded-lg bg-rose-700 border border-rose-600 text-white text-sm font-semibold hover:bg-rose-600 transition-all disabled:opacity-50"
+                      data-testid="wipe-confirm-btn"
+                    >
+                      {wipeMutation.isPending ? "Wiping…" : "Yes, wipe it"}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Last wipe result */}
+          {lastWipeResult && (
+            <div className="p-3 rounded-lg bg-emerald-950/30 border border-emerald-700/40">
+              <p className="text-xs text-emerald-300 font-semibold mb-1.5">Wipe complete — entries removed:</p>
+              <div className="grid grid-cols-2 gap-1">
+                {Object.entries(lastWipeResult).map(([key, count]) => {
+                  const meta = CATEGORY_META.find(c => c.key === key);
+                  return (
+                    <div key={key} className="flex items-center gap-1.5 text-xs text-emerald-200/70">
+                      <span className={meta?.color ?? "text-white/40"}>{meta?.icon}</span>
+                      {meta?.label ?? key}: <span className="font-mono text-emerald-300">{String(count)}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk">("library");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup">("library");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
 
@@ -812,6 +1072,15 @@ export default function BeckyAdminPage() {
             >
               <MessageCircleHeart size={14} /> Help Desk
             </button>
+            <button
+              onClick={() => setActiveTab("cleanup")}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                activeTab === "cleanup" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
+              )}
+            >
+              <Eraser size={14} /> Cleanup
+            </button>
           </div>
         </div>
       </div>
@@ -823,6 +1092,9 @@ export default function BeckyAdminPage() {
 
         {/* Help Desk tab */}
         {activeTab === "helpdesk" && <HelpdeskTab />}
+
+        {/* Beta Cleanup tab */}
+        {activeTab === "cleanup" && <BetaCleanupTab />}
 
         {/* Library tab — only render when on library tab */}
         {activeTab === "library" && (<>

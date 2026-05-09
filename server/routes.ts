@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql } from "drizzle-orm";
 import path from "path";
@@ -1075,6 +1075,87 @@ Please follow up with this user. The conversation above contains everything need
         .where(eq(helpdeskEscalations.id, id))
         .run();
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // BETA CLEANUP ADMIN ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/admin/beta-cleanup/users — all real (non-demo) users with entry counts
+  app.get("/api/admin/beta-cleanup/users", (req, res) => {
+    try {
+      const allUsers = db.select().from(users).all();
+      // Exclude demo users (id 1-5) by default — they're seed data, not beta testers
+      const betaUsers = allUsers.filter(u => u.id > 5);
+      const result = betaUsers.map(u => {
+        const clientId = u.clientId;
+        const counts: Record<string, number> = {
+          careLogs: clientId ? db.select().from(activityLogs).where(and(eq(activityLogs.clientId, clientId), eq(activityLogs.loggedByUserId, u.id))).all().length : 0,
+          scheduleEvents: clientId ? db.select().from(scheduleEvents).where(eq(scheduleEvents.clientId, clientId)).all().length : 0,
+          vitals: clientId ? db.select().from(vitals).where(and(eq(vitals.clientId, clientId), eq(vitals.recordedByUserId, u.id))).all().length : 0,
+          medications: clientId ? db.select().from(medications).where(eq(medications.clientId, clientId)).all().length : 0,
+          thoughts: clientId ? db.select().from(thoughtEntries).where(eq(thoughtEntries.clientId, clientId)).all().length : 0,
+          media: clientId ? db.select().from(mediaItems).where(eq(mediaItems.clientId, clientId)).all().length : 0,
+          documents: clientId ? db.select().from(documents).where(eq(documents.clientId, clientId)).all().length : 0,
+        };
+        counts.total = Object.values(counts).reduce((a, b) => a + b, 0);
+        return { id: u.id, name: u.name, role: u.role, email: u.email, clientId, counts };
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/admin/beta-cleanup/wipe — selective wipe for a user
+  // Body: { userId, clientId, categories: string[] }
+  // categories: 'careLogs' | 'scheduleEvents' | 'vitals' | 'medications' | 'thoughts' | 'media' | 'documents'
+  app.post("/api/admin/beta-cleanup/wipe", (req, res) => {
+    const { userId, clientId, categories } = req.body as { userId: number; clientId: number; categories: string[] };
+    if (!userId || !clientId || !categories?.length) {
+      return res.status(400).json({ message: "userId, clientId, and categories required" });
+    }
+    const wiped: Record<string, number> = {};
+    try {
+      if (categories.includes("careLogs")) {
+        const rows = db.select().from(activityLogs).where(and(eq(activityLogs.clientId, clientId), eq(activityLogs.loggedByUserId, userId))).all();
+        rows.forEach(r => db.delete(activityLogs).where(eq(activityLogs.id, r.id)).run());
+        wiped.careLogs = rows.length;
+      }
+      if (categories.includes("scheduleEvents")) {
+        const rows = db.select().from(scheduleEvents).where(eq(scheduleEvents.clientId, clientId)).all();
+        rows.forEach(r => db.delete(scheduleEvents).where(eq(scheduleEvents.id, r.id)).run());
+        wiped.scheduleEvents = rows.length;
+      }
+      if (categories.includes("vitals")) {
+        const rows = db.select().from(vitals).where(and(eq(vitals.clientId, clientId), eq(vitals.recordedByUserId, userId))).all();
+        rows.forEach(r => db.delete(vitals).where(eq(vitals.id, r.id)).run());
+        wiped.vitals = rows.length;
+      }
+      if (categories.includes("medications")) {
+        const rows = db.select().from(medications).where(eq(medications.clientId, clientId)).all();
+        rows.forEach(r => db.delete(medications).where(eq(medications.id, r.id)).run());
+        wiped.medications = rows.length;
+      }
+      if (categories.includes("thoughts")) {
+        const rows = db.select().from(thoughtEntries).where(eq(thoughtEntries.clientId, clientId)).all();
+        rows.forEach(r => db.delete(thoughtEntries).where(eq(thoughtEntries.id, r.id)).run());
+        wiped.thoughts = rows.length;
+      }
+      if (categories.includes("media")) {
+        const rows = db.select().from(mediaItems).where(eq(mediaItems.clientId, clientId)).all();
+        rows.forEach(r => db.delete(mediaItems).where(eq(mediaItems.id, r.id)).run());
+        wiped.media = rows.length;
+      }
+      if (categories.includes("documents")) {
+        const rows = db.select().from(documents).where(and(eq(documents.clientId, clientId), eq(documents.uploadedByUserId, userId))).all();
+        rows.forEach(r => db.delete(documents).where(eq(documents.id, r.id)).run());
+        wiped.documents = rows.length;
+      }
+      res.json({ success: true, wiped });
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }
