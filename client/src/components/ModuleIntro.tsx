@@ -200,8 +200,8 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
 
   // ── Should we show? ──────────────────────────────────────────────────────
   // DEV MODE: always show on every visit so the team can review all intros.
-  // Flip DEV_ALWAYS_SHOW to false when intros are finalized for production.
-  const DEV_ALWAYS_SHOW = true;
+  // Flipped to false for beta — real users only see each intro once.
+  const DEV_ALWAYS_SHOW = false;
 
   useEffect(() => {
     const DEMO_KEY = `cnp_seen_module_${activeUser.id}_${moduleKey}`;
