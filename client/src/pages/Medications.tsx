@@ -18,7 +18,7 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect, useCallback } from "react";
 import {
-  Pill, Plus, Clock, AlertTriangle, CheckCircle2, ChevronDown,
+  Pill, Plus, Clock, AlertTriangle, CheckCircle2, Circle, ChevronDown,
   ChevronUp, Pencil, XCircle, Archive, ClipboardList,
   Loader2, Info, Calendar, User, Building2, Hash,
   FlaskConical, Stethoscope, FileText, Search, CheckCheck
@@ -142,18 +142,15 @@ function MedCard({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className={cn(
-                    "h-7 w-7 transition-colors",
-                    givenToday && "bg-teal-50 dark:bg-teal-950/30"
-                  )}
+                  className="h-7 w-7 transition-colors"
                   onClick={() => onLogDose(med)}
                   data-testid={`log-dose-${med.id}`}
                   title={givenToday ? "Dose logged today — log again" : "Log dose"}
                 >
                   {givenToday ? (
-                    <CheckCircle2 size={14} className="text-teal-600 fill-teal-600" />
+                    <CheckCircle2 size={16} className="text-emerald-600 fill-emerald-600" />
                   ) : (
-                    <CheckCircle2 size={14} className="text-muted-foreground/60" />
+                    <Circle size={16} className="text-emerald-500" />
                   )}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(med)} data-testid={`edit-med-${med.id}`} title="Edit">
