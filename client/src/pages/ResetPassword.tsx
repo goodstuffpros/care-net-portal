@@ -53,6 +53,8 @@ export default function ResetPasswordPage() {
         throw new Error(body.message || "Reset failed");
       }
       setDone(true);
+      // Auto-redirect to login after 2s — don't make them find the button
+      setTimeout(() => { window.location.href = "/#/login"; }, 2000);
     } catch (err: any) {
       toast({ title: "Reset failed", description: err.message, variant: "destructive" });
     } finally {
@@ -86,9 +88,8 @@ export default function ResetPasswordPage() {
           </div>
           <h2 className="text-xl font-semibold mb-2">Password updated</h2>
           <p className="text-sm text-muted-foreground mb-6">
-            Your password has been changed. All existing sessions have been signed out.
+            Your password has been changed. Taking you to sign in…
           </p>
-          <Button onClick={() => navigate("/login")}>Sign in</Button>
         </div>
       </div>
     );
