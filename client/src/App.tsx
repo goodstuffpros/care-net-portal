@@ -255,7 +255,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
       <AppContext.Provider value={{
         activeUser,
         setActiveUser,
-        demoUsers: DEMO_USERS,
+        demoUsers: isRealSession ? [] : DEMO_USERS,
         selectedClientId,
         setSelectedClientId,
         theme,
