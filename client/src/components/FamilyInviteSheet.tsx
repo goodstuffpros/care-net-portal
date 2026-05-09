@@ -20,7 +20,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { cn } from "@/lib/utils";
 import { UserPlus, Copy, Check, Mail, Search, Send, UserCheck } from "lucide-react";
 
-type FindStatus = "idle" | "searching" | "not_found" | "not_family" | "found" | "sent";
+type FindStatus = "idle" | "searching" | "invalid_email" | "not_found" | "not_family" | "found" | "sent";
 type FoundUser = { userId: number; name: string; avatarInitials: string; role: string };
 
 interface Props {
@@ -107,6 +107,14 @@ export default function FamilyInviteSheet({ open, onOpenChange }: Props) {
 
   async function handleFind() {
     if (!findEmail.trim()) return;
+    // Basic email sanity check before hitting the API
+    const emailVal = findEmail.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal) && !emailVal.includes("..");
+    if (!emailOk) {
+      setFindStatus("invalid_email");
+      setFoundUser(null);
+      return;
+    }
     setFindStatus("searching");
     setFoundUser(null);
     try {
@@ -230,6 +238,12 @@ export default function FamilyInviteSheet({ open, onOpenChange }: Props) {
                         ? "Sending…"
                         : <><Send size={13} /> Connect</>}
                     </Button>
+                  </div>
+                )}
+
+                {findStatus === "invalid_email" && (
+                  <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400">
+                    That doesn't look like a valid email address — double-check for typos (extra dots, missing @, etc.) and try again.
                   </div>
                 )}
 

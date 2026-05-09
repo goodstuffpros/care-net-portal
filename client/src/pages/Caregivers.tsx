@@ -53,7 +53,7 @@ export default function CaregiversPage() {
   const [inviteTab, setInviteTab] = useState<"new" | "existing">("existing");
   const [findEmail, setFindEmail] = useState("");
   const [foundUser, setFoundUser] = useState<{ userId: number; name: string; avatarInitials: string; role: string } | null>(null);
-  const [findStatus, setFindStatus] = useState<"idle" | "searching" | "not_found" | "not_caregiver" | "found" | "sent">("idle");
+  const [findStatus, setFindStatus] = useState<"idle" | "searching" | "invalid_email" | "not_found" | "not_caregiver" | "found" | "sent">("idle");
   const canManage = activeUser.role === "caregiver" || activeUser.role === "facilitator";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
@@ -91,6 +91,14 @@ export default function CaregiversPage() {
 
   async function handleFindOnCNP() {
     if (!findEmail.trim()) return;
+    // Basic email sanity check
+    const emailVal = findEmail.trim();
+    const emailOk = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal) && !emailVal.includes("..");
+    if (!emailOk) {
+      setFindStatus("invalid_email");
+      setFoundUser(null);
+      return;
+    }
     setFindStatus("searching");
     setFoundUser(null);
     try {
@@ -398,6 +406,12 @@ export default function CaregiversPage() {
                           ? "Sending…"
                           : <><Send size={13} /> Connect</>}
                       </Button>
+                    </div>
+                  )}
+
+                  {findStatus === "invalid_email" && (
+                    <div className="rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 p-3 text-xs text-amber-700 dark:text-amber-400">
+                      That doesn't look like a valid email address — double-check for typos (extra dots, missing @, etc.) and try again.
                     </div>
                   )}
 
