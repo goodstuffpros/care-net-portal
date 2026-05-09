@@ -47,8 +47,9 @@ export default function VerifyEmailPage({ token }: Props) {
         // Invalidate auth cache so the app re-fetches the session
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         setStage("success");
-        // Redirect into app after a brief moment
-        setTimeout(() => navigate("/"), 800);
+        // Redirect to login after a moment — more reliable on mobile where the
+        // email client opens links in a sandboxed in-app browser (no shared cookies)
+        setTimeout(() => navigate("/login?verified=1"), 1800);
       })
       .catch(() => {
         setStage("error");
@@ -82,10 +83,10 @@ export default function VerifyEmailPage({ token }: Props) {
             <CheckCircle2 className="w-8 h-8 text-emerald-600 dark:text-emerald-400" />
           </div>
           <h2 className="text-xl font-semibold mb-2">
-            {userName ? `You're in, ${userName}!` : "Email verified!"}
+            {userName ? `You're verified, ${userName}!` : "Email verified!"}
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-            Your account is active. Taking you to profile setup now…
+            Your account is ready. Taking you to sign in — open the app in your regular browser if this doesn't redirect automatically.
           </p>
           <div className="flex justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />

@@ -11,15 +11,17 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Eye, EyeOff, Heart, Mail } from "lucide-react";
+import { Loader2, Eye, EyeOff, Heart, Mail, CheckCircle2 } from "lucide-react";
 
 export default function LoginPage() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
-  // Read invite token from URL hash query string: /#/login?invite=TOKEN
+  // Read invite token + verified flag from URL hash query string: /#/login?invite=TOKEN&verified=1
   const hashQuery = window.location.hash.split("?")[1] || "";
-  const inviteTokenFromUrl = new URLSearchParams(hashQuery).get("invite") || sessionStorage.getItem("pending_invite_token") || null;
+  const hashParams = new URLSearchParams(hashQuery);
+  const inviteTokenFromUrl = hashParams.get("invite") || sessionStorage.getItem("pending_invite_token") || null;
+  const justVerified = hashParams.get("verified") === "1";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -138,6 +140,15 @@ export default function LoginPage() {
           </div>
           <h1 className="text-xl font-semibold text-foreground">Care Net Portal</h1>
           <p className="text-sm text-muted-foreground mt-1">Sign in to your account</p>
+          {/* Verified banner */}
+          {justVerified && (
+            <div className="flex items-center gap-2 mt-3 px-3 py-2 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800">
+              <CheckCircle2 size={14} className="text-emerald-600 dark:text-emerald-400 flex-shrink-0" />
+              <p className="text-xs text-emerald-800 dark:text-emerald-300">
+                Email verified! Sign in below to get started.
+              </p>
+            </div>
+          )}
         </div>
 
         {/* Card */}
