@@ -127,6 +127,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true, user: { id: user!.id, name: user!.name, role: user!.role, email: account.email } });
   });
 
+  // TEMP DEBUG — remove after diagnosing login loop
+  app.get("/api/debug/account-state", async (req: AuthRequest, res) => {
+    const { email } = req.query as { email?: string };
+    if (!email) return res.status(400).json({ message: "email required" });
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
+    if (!account) return res.json({ found: false });
+    const user = account.userId ? db.select().from(users).where(eq(users.id, account.userId)).get() : null;
+    const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, email.toLowerCase())).get();
+    res.json({
+      found: true,
+      emailVerified: account.emailVerified,
+      hasUserId: !!account.userId,
+      userId: account.userId,
+      userRole: user?.role ?? null,
+      onboardingCompletedAt: user?.onboardingCompletedAt ?? null,
+      appStatus: app_?.status ?? null,
+      appRole: app_?.role ?? null,
+    });
+  });
+
   // POST /api/auth/logout
   app.post("/api/auth/logout", async (req: AuthRequest, res) => {
     const token = getTokenFromRequest(req);
