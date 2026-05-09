@@ -513,6 +513,12 @@ const TIME_SLOTS = [
   { label: "Night",     emoji: "🌛", times: ["22:00"] },
 ] as const;
 
+/** Returns true if ALL times in the array are "canonical" slot times (no specificity) */
+function areSlotTimes(times: string[]): boolean {
+  const canonical = new Set(TIME_SLOTS.flatMap(s => s.times));
+  return times.every(t => canonical.has(t));
+}
+
 /** Given a scheduledTimes array, derive which TIME_SLOTS are selected */
 function timesToSlots(times: string[]): string[] {
   const selected = new Set<string>();
@@ -532,12 +538,23 @@ function slotsToTimes(slots: string[]): string[] {
   return slots.flatMap(s => TIME_SLOTS.find(ts => ts.label === s)?.times ?? []);
 }
 
+/** Format a 24hr "HH:MM" string to "9:00 AM" style */
+function fmt24to12(t: string): string {
+  if (!/^\d{1,2}:\d{2}$/.test((t ?? "").trim())) return t;
+  const [h, m] = t.split(":").map(Number);
+  const d = new Date(); d.setHours(h, m, 0, 0);
+  if (isNaN(d.getTime())) return t;
+  return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+}
+
 // ─── Add / Edit Medication Dialog ─────────────────────────────────────────────
 const EMPTY_MED_FORM = {
   name: "", genericName: "", form: "tablet", dosageAmount: "",
   dosageUnit: "mg", strength: "",
   scheduleType: "scheduled", frequency: "once_daily",
-  selectedSlots: ["Morning"] as string[],  // replaces raw scheduledTimes
+  selectedSlots: ["Morning"] as string[],
+  useSpecificTimes: false,
+  specificTimes: [] as string[],           // e.g. ["09:00", "14:00", "19:00"]
   frequencyNote: "",
   prescribingPhysician: "", pharmacy: "", rxNumber: "",
   purpose: "", instructions: "", sideEffectsToWatch: "",
@@ -548,6 +565,8 @@ const EMPTY_MED_FORM = {
 function buildFormFromExisting(existing: Medication) {
   let existingTimes: string[] = ["08:00"];
   try { existingTimes = JSON.parse(existing.scheduledTimes || "[]") || ["08:00"]; } catch {}
+  // If stored times are non-canonical (i.e. specific), turn on the specific-times mode
+  const hasSpecific = existingTimes.length > 0 && !areSlotTimes(existingTimes);
   return {
     ...EMPTY_MED_FORM,
     name: existing.name,
@@ -558,7 +577,11 @@ function buildFormFromExisting(existing: Medication) {
     strength: existing.strength || "",
     scheduleType: existing.scheduleType,
     frequency: existing.frequency || "once_daily",
-    selectedSlots: existing.scheduleType === "as_needed" ? ["Morning"] : (timesToSlots(existingTimes).length ? timesToSlots(existingTimes) : ["Morning"]),
+    selectedSlots: existing.scheduleType === "as_needed" ? ["Morning"]
+      : hasSpecific ? timesToSlots(existingTimes).length ? timesToSlots(existingTimes) : ["Morning"]
+      : timesToSlots(existingTimes).length ? timesToSlots(existingTimes) : ["Morning"],
+    useSpecificTimes: existing.scheduleType !== "as_needed" && hasSpecific,
+    specificTimes: hasSpecific ? existingTimes : [],
     frequencyNote: existing.frequencyNote || "",
     prescribingPhysician: existing.prescribingPhysician || "",
     pharmacy: existing.pharmacy || "",
@@ -606,8 +629,22 @@ function MedFormDialog({
     });
   };
 
+  const addSpecificTime = () => set("specificTimes", [...form.specificTimes, "09:00"]);
+  const removeSpecificTime = (i: number) =>
+    set("specificTimes", form.specificTimes.filter((_, idx) => idx !== i));
+  const updateSpecificTime = (i: number, val: string) =>
+    set("specificTimes", form.specificTimes.map((t, idx) => idx === i ? val : t));
+
   const handleSubmit = () => {
-    const times = isPRN ? undefined : slotsToTimes(form.selectedSlots);
+    let times: string[] | undefined;
+    if (!isPRN) {
+      if (form.useSpecificTimes && form.specificTimes.length > 0) {
+        // Sort specific times chronologically
+        times = [...form.specificTimes].sort();
+      } else {
+        times = slotsToTimes(form.selectedSlots);
+      }
+    }
     onSubmit({
       name: form.name,
       genericName: form.genericName || undefined,
@@ -728,29 +765,91 @@ function MedFormDialog({
                       </SelectContent>
                     </Select>
                   </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs">Time of day <span className="text-muted-foreground">(select all that apply)</span></Label>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {TIME_SLOTS.map(slot => {
-                        const selected = form.selectedSlots.includes(slot.label);
-                        return (
-                          <button
-                            key={slot.label}
-                            type="button"
-                            onClick={() => toggleSlot(slot.label)}
-                            className={cn(
-                              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all",
-                              selected
-                                ? "border-primary bg-primary/10 text-primary"
-                                : "border-border text-muted-foreground hover:border-primary/50"
-                            )}
-                          >
-                            <span>{slot.emoji}</span>
-                            {slot.label}
-                          </button>
-                        );
-                      })}
-                    </div>
+                  <div className="space-y-2 col-span-2">
+                    {/* General time-of-day — hidden when specific times are on */}
+                    {!form.useSpecificTimes && (
+                      <div className="space-y-1.5">
+                        <Label className="text-xs">Time of day <span className="text-muted-foreground">(select all that apply)</span></Label>
+                        <div className="flex gap-1.5 flex-wrap">
+                          {TIME_SLOTS.map(slot => {
+                            const selected = form.selectedSlots.includes(slot.label);
+                            return (
+                              <button
+                                key={slot.label}
+                                type="button"
+                                onClick={() => toggleSlot(slot.label)}
+                                className={cn(
+                                  "flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                                  selected
+                                    ? "border-primary bg-primary/10 text-primary"
+                                    : "border-border text-muted-foreground hover:border-primary/50"
+                                )}
+                              >
+                                <span>{slot.emoji}</span>
+                                {slot.label}
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Specific times toggle */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const next = !form.useSpecificTimes;
+                        setForm(prev => ({
+                          ...prev,
+                          useSpecificTimes: next,
+                          // Pre-seed one entry when turning on
+                          specificTimes: next && prev.specificTimes.length === 0 ? ["09:00"] : prev.specificTimes,
+                        }));
+                      }}
+                      className={cn(
+                        "flex items-center gap-1.5 text-xs font-medium px-2.5 py-1.5 rounded-lg border transition-all",
+                        form.useSpecificTimes
+                          ? "border-teal-500 bg-teal-50 dark:bg-teal-950/30 text-teal-700 dark:text-teal-300"
+                          : "border-border text-muted-foreground hover:border-teal-400"
+                      )}
+                    >
+                      <Clock size={12} />
+                      {form.useSpecificTimes ? "Using specific times" : "Set specific times"}
+                    </button>
+
+                    {/* Specific times list */}
+                    {form.useSpecificTimes && (
+                      <div className="space-y-2 pl-1">
+                        <p className="text-[10px] text-muted-foreground">Exact times this medication must be taken — overrides general time of day</p>
+                        {form.specificTimes.map((t, i) => (
+                          <div key={i} className="flex items-center gap-2">
+                            <input
+                              type="time"
+                              value={t}
+                              onChange={e => updateSpecificTime(i, e.target.value)}
+                              className="h-9 rounded-md border border-input bg-background px-3 text-sm flex-1 min-w-0 focus:outline-none focus:ring-2 focus:ring-ring"
+                            />
+                            <span className="text-xs text-muted-foreground min-w-[52px]">{fmt24to12(t)}</span>
+                            <button
+                              type="button"
+                              onClick={() => removeSpecificTime(i)}
+                              className="text-muted-foreground hover:text-red-500 flex-shrink-0"
+                              aria-label="Remove time"
+                            >
+                              <XCircle size={15} />
+                            </button>
+                          </div>
+                        ))}
+                        <button
+                          type="button"
+                          onClick={addSpecificTime}
+                          className="flex items-center gap-1 text-xs text-teal-600 hover:text-teal-700 font-medium mt-1"
+                        >
+                          <Plus size={13} />
+                          Add time
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
