@@ -42,8 +42,8 @@ export default function ResetPasswordPage() {
   const passwordStrong = password.length >= 8;
   const valid = passwordStrong && passwordsMatch && password.length > 0;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!token) {
       toast({ title: "Link expired", description: "This reset link is invalid. Request a new one.", variant: "destructive" });
       return;
@@ -171,7 +171,8 @@ export default function ResetPasswordPage() {
             </div>
 
             <Button
-              type="submit"
+              type="button"
+              onClick={handleSubmit as any}
               className="w-full"
               disabled={loading}
               data-testid="button-save-password"

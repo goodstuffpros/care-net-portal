@@ -43,8 +43,8 @@ export default function CompleteSignupPage() {
   const passwordStrong = password.length >= 8;
   const valid = passwordStrong && passwordsMatch && password.length > 0;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!valid || !token) return;
     setLoading(true);
     try {
@@ -172,9 +172,10 @@ export default function CompleteSignupPage() {
             </div>
 
             <Button
-              type="submit"
+              type="button"
+              onClick={handleSubmit as any}
               className="w-full"
-              disabled={loading || !valid}
+              disabled={loading}
               data-testid="button-create-account"
             >
               {loading ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</> : "Create account"}
