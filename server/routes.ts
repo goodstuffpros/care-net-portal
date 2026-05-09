@@ -1726,6 +1726,24 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getDocumentAccessLog(Number(req.params.id)));
   });
 
+  // POST /api/admin/users/:id/set-password — force-set password for any real user (admin only)
+  app.post("/api/admin/users/:id/set-password", async (req, res) => {
+    const userId = Number(req.params.id);
+    const { password } = req.body;
+    if (!userId || userId <= 5) return res.status(400).json({ message: "Cannot modify demo/seed users." });
+    if (!password || password.length < 6) return res.status(400).json({ message: "Password must be at least 6 characters." });
+    try {
+      const account = db.select().from(authAccounts).where(eq(authAccounts.userId, userId)).get();
+      if (!account) return res.status(404).json({ message: "Auth account not found for that user." });
+      const { hashPassword } = await import("./auth");
+      const hashed = await hashPassword(password);
+      db.update(authAccounts).set({ passwordHash: hashed }).where(eq(authAccounts.id, account.id)).run();
+      res.json({ success: true, message: `Password updated for user ${userId} (${account.email})` });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message || "Failed to set password" });
+    }
+  });
+
   // DELETE /api/admin/users/:id — full account wipe (admin only)
   // Removes: users row, auth_accounts, auth_sessions, notifications, badge data,
   // connection invites, beta application — leaves client-side care data intact

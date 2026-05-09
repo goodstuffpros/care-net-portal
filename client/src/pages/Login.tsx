@@ -45,14 +45,21 @@ export default function LoginPage() {
         }
         throw new Error(body.message || "Login failed");
       }
-      // Success — accept pending invite if token present in URL or sessionStorage
+      // Success — accept pending invite if token present
       if (inviteTokenFromUrl) {
+        // Small delay to let the browser fully commit the session cookie before
+        // firing the accept request — critical on Android Chrome
+        await new Promise(resolve => setTimeout(resolve, 300));
         try {
           const acceptRes = await apiRequest("POST", `/api/invite/${inviteTokenFromUrl}/accept`, {});
           const acceptData = await acceptRes.json();
           sessionStorage.removeItem("pending_invite_token");
           if (acceptData.success) {
             toast({ title: "Connected!", description: "Your portals are now linked. Taking you in..." });
+            // Full reload so cookie is fully committed and RealAuthGate picks up new clientId
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            window.location.href = "/#/";
+            return;
           } else {
             console.warn("[invite accept]", acceptData.message);
           }
@@ -60,7 +67,7 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Invalidate auth cache then navigate — avoids hard reload loop
+      // Normal login — invalidate cache then navigate
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       navigate("/");
     } catch (err: any) {
