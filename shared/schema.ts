@@ -22,6 +22,7 @@ export const users = sqliteTable("users", {
   tempAccessReason: text("temp_access_reason"), // 'vacation' | 'illness' | 'other'
   seenModules: text("seen_modules").default("[]"),
   navOrder: text("nav_order").default("[]"), // JSON array of module keys user has already seen intro for
+  timezone: text("timezone"),               // IANA timezone string, e.g. "America/Chicago"
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

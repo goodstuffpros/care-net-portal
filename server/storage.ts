@@ -344,6 +344,7 @@ try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } 
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN nav_order TEXT DEFAULT '[]'`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN timezone TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"all":true}'`); } catch {}
 
 // schedule_events — columns added after initial release

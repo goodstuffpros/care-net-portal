@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings
+  Megaphone, Settings, Globe, ChevronRight, Search
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,11 +121,71 @@ export function PriorityBadge({ priority }: { priority: string }) {
   );
 }
 
+// ─── Timezone list (IANA, sorted US-first then globally) ─────────────────────────
+// Each entry: { value: IANA string, label: friendly display name }
+const TIMEZONES = [
+  // ─ United States ─
+  { value: "America/New_York",      label: "Eastern Time (ET)" },
+  { value: "America/Chicago",       label: "Central Time (CT)" },
+  { value: "America/Denver",        label: "Mountain Time (MT)" },
+  { value: "America/Phoenix",       label: "Mountain Time – Arizona (no DST)" },
+  { value: "America/Los_Angeles",   label: "Pacific Time (PT)" },
+  { value: "America/Anchorage",     label: "Alaska Time (AKT)" },
+  { value: "Pacific/Honolulu",      label: "Hawaii Time (HT)" },
+  // ─ Canada ─
+  { value: "America/Halifax",       label: "Atlantic Time – Canada" },
+  { value: "America/Toronto",       label: "Eastern Time – Toronto" },
+  { value: "America/Winnipeg",      label: "Central Time – Winnipeg" },
+  { value: "America/Edmonton",      label: "Mountain Time – Edmonton" },
+  { value: "America/Vancouver",     label: "Pacific Time – Vancouver" },
+  { value: "America/St_Johns",      label: "Newfoundland Time" },
+  // ─ Latin America ─
+  { value: "America/Mexico_City",   label: "Mexico City" },
+  { value: "America/Bogota",        label: "Bogotá / Lima / Quito" },
+  { value: "America/Sao_Paulo",     label: "São Paulo (BRT)" },
+  { value: "America/Argentina/Buenos_Aires", label: "Buenos Aires" },
+  { value: "America/Santiago",      label: "Santiago" },
+  // ─ Europe ─
+  { value: "Europe/London",         label: "London (GMT/BST)" },
+  { value: "Europe/Paris",          label: "Paris / Madrid / Rome (CET)" },
+  { value: "Europe/Berlin",         label: "Berlin / Amsterdam / Brussels" },
+  { value: "Europe/Helsinki",       label: "Helsinki / Kyiv (EET)" },
+  { value: "Europe/Moscow",         label: "Moscow (MSK)" },
+  // ─ Africa ─
+  { value: "Africa/Cairo",          label: "Cairo (EET)" },
+  { value: "Africa/Johannesburg",   label: "Johannesburg (SAST)" },
+  { value: "Africa/Lagos",          label: "Lagos / Nairobi (WAT/EAT)" },
+  // ─ Middle East ─
+  { value: "Asia/Dubai",            label: "Dubai / Abu Dhabi (GST)" },
+  { value: "Asia/Riyadh",           label: "Riyadh / Kuwait (AST)" },
+  // ─ Asia ─
+  { value: "Asia/Kolkata",          label: "India (IST)" },
+  { value: "Asia/Dhaka",            label: "Dhaka (BST)" },
+  { value: "Asia/Bangkok",          label: "Bangkok / Jakarta (ICT)" },
+  { value: "Asia/Singapore",        label: "Singapore / Kuala Lumpur (SGT)" },
+  { value: "Asia/Shanghai",         label: "China / Hong Kong (CST)" },
+  { value: "Asia/Tokyo",            label: "Tokyo (JST)" },
+  { value: "Asia/Seoul",            label: "Seoul (KST)" },
+  // ─ Oceania ─
+  { value: "Australia/Sydney",      label: "Sydney / Melbourne (AEST)" },
+  { value: "Australia/Brisbane",    label: "Brisbane (no DST)" },
+  { value: "Australia/Adelaide",    label: "Adelaide (ACST)" },
+  { value: "Australia/Perth",       label: "Perth (AWST)" },
+  { value: "Pacific/Auckland",      label: "Auckland (NZST)" },
+  // ─ UTC ─
+  { value: "UTC",                   label: "UTC (Coordinated Universal Time)" },
+] as const;
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection } = useApp();
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
+  const [showTzPicker, setShowTzPicker] = useState(false);   // timezone sub-panel
+  const [tzSearch, setTzSearch] = useState("");              // search query in tz picker
+  const [userTimezone, setUserTimezone] = useState<string>(
+    Intl.DateTimeFormat().resolvedOptions().timeZone
+  );
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
@@ -153,6 +213,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       } catch {}
     }
   }, [activeUser.id, isRealSession]);
+
+  // ── Load + save timezone from/to server (real users only) ──────────────────────
+  useEffect(() => {
+    if (!isRealSession) return;
+    apiRequest("GET", `/api/users/${activeUser.id}`)
+      .then(r => r.json())
+      .then(u => { if (u?.timezone) setUserTimezone(u.timezone); })
+      .catch(() => {});
+  }, [activeUser.id, isRealSession]);
+
+  function saveTimezone(tz: string) {
+    setUserTimezone(tz);
+    setShowTzPicker(false);
+    setTzSearch("");
+    if (isRealSession) {
+      apiRequest("PATCH", `/api/users/${activeUser.id}`, { timezone: tz }).catch(() => {});
+    }
+  }
+
   const { t, lang, setLang } = useLang();
   const { toast } = useToast();
 
@@ -1071,8 +1150,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             {showPrefsMenu && (
               <>
-                <div className="fixed inset-0 z-40" onClick={() => setShowPrefsMenu(false)} />
-                <div className="absolute right-0 top-full mt-1.5 z-50 w-52 bg-popover border border-border rounded-xl shadow-xl py-2">
+                <div className="fixed inset-0 z-40" onClick={() => { setShowPrefsMenu(false); setShowTzPicker(false); setTzSearch(""); }} />
+                <div className={cn("absolute right-0 top-full mt-1.5 z-50 bg-popover border border-border rounded-xl shadow-xl py-2 transition-all", showTzPicker ? "w-72" : "w-52")}>
                   <p className="px-3 pb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preferences</p>
 
                   {/* Light / Dark */}
@@ -1094,6 +1173,74 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <span className="text-base leading-none">🌐</span>
                     <span>{lang === "en" ? "Español" : "English"}</span>
                   </button>
+
+                  {/* Time Zone */}
+                  <button
+                    onClick={() => setShowTzPicker(p => !p)}
+                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
+                    data-testid="tz-toggle"
+                  >
+                    <Globe size={15} />
+                    <span className="flex-1 text-left">Time Zone</span>
+                    <span className="text-xs text-muted-foreground mr-1">
+                      {(() => {
+                        const found = TIMEZONES.find(z => z.value === userTimezone);
+                        if (found) {
+                          // Extract short name from label (e.g. "Central Time (CT)" → "CT", or first word)
+                          const match = found.label.match(/\(([^)]+)\)/);
+                          return match ? match[1] : found.label.split(" ")[0];
+                        }
+                        // Fallback: last segment of IANA string
+                        return userTimezone.split("/").pop()?.replace("_", " ") ?? "";
+                      })()}
+                    </span>
+                    <ChevronRight size={13} className={cn("transition-transform", showTzPicker && "rotate-90")} />
+                  </button>
+
+                  {/* Timezone sub-panel */}
+                  {showTzPicker && (
+                    <div className="mx-2 mb-2 rounded-lg border border-border bg-background overflow-hidden">
+                      {/* Search */}
+                      <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
+                        <Search size={12} className="text-muted-foreground flex-shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Search timezones…"
+                          value={tzSearch}
+                          onChange={e => setTzSearch(e.target.value)}
+                          className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground min-w-0"
+                          autoFocus
+                          data-testid="tz-search"
+                        />
+                      </div>
+                      {/* Scrollable list */}
+                      <div className="max-h-48 overflow-y-auto">
+                        {TIMEZONES
+                          .filter(tz =>
+                            !tzSearch ||
+                            tz.label.toLowerCase().includes(tzSearch.toLowerCase()) ||
+                            tz.value.toLowerCase().includes(tzSearch.toLowerCase())
+                          )
+                          .map(tz => (
+                            <button
+                              key={tz.value}
+                              onClick={() => saveTimezone(tz.value)}
+                              className={cn(
+                                "w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors flex items-center gap-2",
+                                userTimezone === tz.value && "bg-accent font-medium"
+                              )}
+                              data-testid={`tz-option-${tz.value}`}
+                            >
+                              {userTimezone === tz.value && (
+                                <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
+                              )}
+                              <span className={userTimezone === tz.value ? "" : "ml-3.5"}>{tz.label}</span>
+                            </button>
+                          ))
+                        }
+                      </div>
+                    </div>
+                  )}
 
                   <div className="px-3 pt-2 pb-1">
                     <p className="text-xs text-muted-foreground mb-2">Accent color</p>
