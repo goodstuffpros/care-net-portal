@@ -54,13 +54,19 @@ function formatScheduledTimes(times: string | null): string {
   if (!times) return "";
   try {
     const arr: string[] = JSON.parse(times);
-    return arr.map(t => {
-      const [h, m] = t.split(":");
-      const d = new Date();
-      d.setHours(Number(h), Number(m));
-      return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    }).join(" · ");
-  } catch { return times; }
+    const formatted = arr
+      .map(t => {
+        // Only format valid HH:MM strings — skip anything that doesn't match
+        if (!/^\d{1,2}:\d{2}$/.test((t ?? "").trim())) return null;
+        const [h, m] = t.split(":");
+        const d = new Date();
+        d.setHours(Number(h), Number(m), 0, 0);
+        if (isNaN(d.getTime())) return null;
+        return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+      })
+      .filter(Boolean);
+    return formatted.join(" · ") || "";
+  } catch { return ""; }
 }
 
 function formatDate(iso: string | null): string {
@@ -498,17 +504,73 @@ function DrugSearchInput({
   );
 }
 
+// ─── Time-of-day presets ──────────────────────────────────────────────────────
+// Maps a friendly label to representative times stored in DB
+const TIME_SLOTS = [
+  { label: "Morning",   emoji: "🌅", times: ["08:00"] },
+  { label: "Afternoon", emoji: "☀️", times: ["13:00"] },
+  { label: "Evening",   emoji: "🌙", times: ["20:00"] },
+  { label: "Night",     emoji: "🌛", times: ["22:00"] },
+] as const;
+
+/** Given a scheduledTimes array, derive which TIME_SLOTS are selected */
+function timesToSlots(times: string[]): string[] {
+  const selected = new Set<string>();
+  times.forEach(t => {
+    const h = parseInt((t ?? "").split(":")[0], 10);
+    if (isNaN(h)) return;
+    if (h >= 5 && h < 12)  selected.add("Morning");
+    else if (h >= 12 && h < 17) selected.add("Afternoon");
+    else if (h >= 17 && h < 21) selected.add("Evening");
+    else selected.add("Night");
+  });
+  return [...selected];
+}
+
+/** Convert selected slot labels back to canonical times */
+function slotsToTimes(slots: string[]): string[] {
+  return slots.flatMap(s => TIME_SLOTS.find(ts => ts.label === s)?.times ?? []);
+}
+
 // ─── Add / Edit Medication Dialog ─────────────────────────────────────────────
 const EMPTY_MED_FORM = {
   name: "", genericName: "", form: "tablet", dosageAmount: "",
   dosageUnit: "mg", strength: "",
   scheduleType: "scheduled", frequency: "once_daily",
-  scheduledTimes: ["08:00"], frequencyNote: "",
+  selectedSlots: ["Morning"] as string[],  // replaces raw scheduledTimes
+  frequencyNote: "",
   prescribingPhysician: "", pharmacy: "", rxNumber: "",
   purpose: "", instructions: "", sideEffectsToWatch: "",
   startDate: new Date().toISOString().split("T")[0],
   notes: "", changeNote: "",
 };
+
+function buildFormFromExisting(existing: Medication) {
+  let existingTimes: string[] = ["08:00"];
+  try { existingTimes = JSON.parse(existing.scheduledTimes || "[]") || ["08:00"]; } catch {}
+  return {
+    ...EMPTY_MED_FORM,
+    name: existing.name,
+    genericName: existing.genericName || "",
+    form: existing.form,
+    dosageAmount: String(existing.dosageAmount),
+    dosageUnit: existing.dosageUnit,
+    strength: existing.strength || "",
+    scheduleType: existing.scheduleType,
+    frequency: existing.frequency || "once_daily",
+    selectedSlots: existing.scheduleType === "as_needed" ? ["Morning"] : (timesToSlots(existingTimes).length ? timesToSlots(existingTimes) : ["Morning"]),
+    frequencyNote: existing.frequencyNote || "",
+    prescribingPhysician: existing.prescribingPhysician || "",
+    pharmacy: existing.pharmacy || "",
+    rxNumber: existing.rxNumber || "",
+    purpose: existing.purpose || "",
+    instructions: existing.instructions || "",
+    sideEffectsToWatch: existing.sideEffectsToWatch || "",
+    startDate: existing.startDate || new Date().toISOString().split("T")[0],
+    notes: existing.notes || "",
+    changeNote: "",
+  };
+}
 
 function MedFormDialog({
   open, onClose, onSubmit, isPending, existing,
@@ -521,34 +583,31 @@ function MedFormDialog({
 }) {
   const isEdit = !!existing;
   const [form, setForm] = useState(() =>
-    existing ? {
-      ...EMPTY_MED_FORM,
-      name: existing.name,
-      genericName: existing.genericName || "",
-      form: existing.form,
-      dosageAmount: String(existing.dosageAmount),
-      dosageUnit: existing.dosageUnit,
-      strength: existing.strength || "",
-      scheduleType: existing.scheduleType,
-      frequency: existing.frequency || "once_daily",
-      scheduledTimes: existing.scheduledTimes ? JSON.parse(existing.scheduledTimes) : ["08:00"],
-      frequencyNote: existing.frequencyNote || "",
-      prescribingPhysician: existing.prescribingPhysician || "",
-      pharmacy: existing.pharmacy || "",
-      rxNumber: existing.rxNumber || "",
-      purpose: existing.purpose || "",
-      instructions: existing.instructions || "",
-      sideEffectsToWatch: existing.sideEffectsToWatch || "",
-      startDate: existing.startDate || new Date().toISOString().split("T")[0],
-      notes: existing.notes || "",
-      changeNote: "",
-    } : EMPTY_MED_FORM
+    existing ? buildFormFromExisting(existing) : { ...EMPTY_MED_FORM }
   );
+
+  // Reset form whenever the dialog opens or the target medication changes
+  useEffect(() => {
+    if (open) {
+      setForm(existing ? buildFormFromExisting(existing) : { ...EMPTY_MED_FORM });
+    }
+  }, [open, existing?.id]);
 
   const set = (k: string, v: any) => setForm(prev => ({ ...prev, [k]: v }));
   const isPRN = form.scheduleType === "as_needed";
 
+  const toggleSlot = (label: string) => {
+    setForm(prev => {
+      const slots = prev.selectedSlots.includes(label)
+        ? prev.selectedSlots.filter(s => s !== label)
+        : [...prev.selectedSlots, label];
+      // Always keep at least one slot selected
+      return { ...prev, selectedSlots: slots.length ? slots : [label] };
+    });
+  };
+
   const handleSubmit = () => {
+    const times = isPRN ? undefined : slotsToTimes(form.selectedSlots);
     onSubmit({
       name: form.name,
       genericName: form.genericName || undefined,
@@ -558,7 +617,7 @@ function MedFormDialog({
       strength: form.strength || undefined,
       scheduleType: form.scheduleType,
       frequency: isPRN ? undefined : form.frequency,
-      scheduledTimes: isPRN ? undefined : JSON.stringify(form.scheduledTimes),
+      scheduledTimes: times ? JSON.stringify(times) : undefined,
       frequencyNote: form.frequencyNote || undefined,
       prescribingPhysician: form.prescribingPhysician || undefined,
       pharmacy: form.pharmacy || undefined,
@@ -566,7 +625,7 @@ function MedFormDialog({
       purpose: form.purpose || undefined,
       instructions: form.instructions || undefined,
       sideEffectsToWatch: form.sideEffectsToWatch || undefined,
-      startDate: form.startDate,
+      startDate: form.startDate || new Date().toISOString().split("T")[0],
       notes: form.notes || undefined,
       changeNote: form.changeNote || undefined,
     });
@@ -670,11 +729,28 @@ function MedFormDialog({
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label className="text-xs">Time(s) <span className="text-muted-foreground">(24hr, comma-sep)</span></Label>
-                    <Input
-                      value={form.scheduledTimes.join(",")}
-                      onChange={e => set("scheduledTimes", e.target.value.split(",").map(s => s.trim()))}
-                      placeholder="08:00,20:00" className="h-8 text-sm" />
+                    <Label className="text-xs">Time of day <span className="text-muted-foreground">(select all that apply)</span></Label>
+                    <div className="flex gap-1.5 flex-wrap">
+                      {TIME_SLOTS.map(slot => {
+                        const selected = form.selectedSlots.includes(slot.label);
+                        return (
+                          <button
+                            key={slot.label}
+                            type="button"
+                            onClick={() => toggleSlot(slot.label)}
+                            className={cn(
+                              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg border text-xs font-medium transition-all",
+                              selected
+                                ? "border-primary bg-primary/10 text-primary"
+                                : "border-border text-muted-foreground hover:border-primary/50"
+                            )}
+                          >
+                            <span>{slot.emoji}</span>
+                            {slot.label}
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </>
               )}
