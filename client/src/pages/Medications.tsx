@@ -907,27 +907,35 @@ export default function MedicationsPage() {
   });
 
   const mcMedMutation = useMutation({
-    mutationFn: (overrides?: { name?: string; dosage?: string }) => apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
-      name: overrides?.name ?? mcMedForm.name,
-      dosage: overrides?.dosage ?? mcMedForm.dosage,
-      frequency: mcMedForm.frequency,
-      scheduleType: mcMedForm.scheduleType,
-      prescribingDoctor: mcMedForm.prescribingDoctor,
-      pharmacy: mcMedForm.pharmacy,
-      instructions: mcMedForm.instructions,
-      notes: mcMedForm.notes,
-      status: "active",
-      route: "oral",
-      addedByRole: "primary_family",
-      addedByUserId: activeUser.id,
-    }),
+    mutationFn: (overrides?: { name?: string; dosage?: string }) => {
+      const rawDosage = overrides?.dosage ?? mcMedForm.dosage;
+      // Parse numeric part from dosage string e.g. "25 mg" -> 25, "100mg" -> 100
+      const dosageNum = parseFloat(rawDosage.replace(/[^0-9.]/g, "")) || 0;
+      const dosageUnitMatch = rawDosage.match(/[a-zA-Z%]+/);
+      const dosageUnit = dosageUnitMatch ? dosageUnitMatch[0].toLowerCase() : "mg";
+      return apiRequest("POST", `/api/clients/${selectedClientId}/medications`, {
+        name: overrides?.name ?? mcMedForm.name,
+        dosageAmount: dosageNum,
+        dosageUnit,
+        frequency: mcMedForm.frequency || undefined,
+        frequencyNote: mcMedForm.frequency || undefined,
+        scheduleType: mcMedForm.scheduleType,
+        prescribingPhysician: mcMedForm.prescribingDoctor || undefined,
+        pharmacy: mcMedForm.pharmacy || undefined,
+        instructions: mcMedForm.instructions || undefined,
+        notes: mcMedForm.notes || undefined,
+        status: "active",
+        addedByRole: "primary_family",
+        addedByUserId: activeUser.id,
+      });
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "medications"] });
       setMcMedOpen(false);
       setMcMedForm({ name: "", dosage: "", frequency: "", scheduleType: "scheduled", prescribingDoctor: "", pharmacy: "", instructions: "", notes: "" });
       toast({ title: "Added to regimen", description: "Caregiver has been notified." });
     },
-    onError: () => toast({ title: "Please fill in medication name and dosage", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Could not save medication", description: err?.message || "Please check all fields and try again.", variant: "destructive" }),
   });
 
   const updateMutation = useMutation({
