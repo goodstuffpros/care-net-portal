@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Mail, Search, UserCheck, Send } from "lucide-react";
+import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Link2, Mail, Search, UserCheck, Send } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LessonLauncher } from "@/components/LessonLauncher";
