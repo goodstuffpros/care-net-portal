@@ -986,7 +986,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Top Bar */}
         <header className={cn(
-            "flex items-center gap-2 px-3 py-3 border-b backdrop-blur-sm flex-shrink-0 relative",
+            "flex items-center gap-1 px-2 py-2.5 border-b backdrop-blur-sm flex-shrink-0 relative",
             isFamilyPortal
               ? "bg-sidebar border-sidebar-border"
               : "bg-background/80 border-border"
@@ -1014,7 +1014,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               )}
             >
               <Shield size={11} className="flex-shrink-0" />
-              <span className="truncate max-w-[80px]">
+              <span className="truncate max-w-[60px]">
                 {isPreCare ? "Pre-Care" : ROLE_LABELS[activeUser.role]}
               </span>
             </button>
@@ -1041,21 +1041,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           <div className="flex-1 min-w-0" />
 
-          {/* Voice Controls — Hey CareNet compact icon + chevron — disabled during beta */}
+          {/* Voice Controls — Hey CareNet — disabled during beta, icon only on mobile */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (
             <div className="flex-shrink-0 flex items-center" title="Coming soon">
               <div className="relative flex items-center opacity-30 cursor-not-allowed">
-                {/* Megaphone icon — non-interactive during beta */}
                 <div
                   data-testid="hfm-toggle-button"
                   aria-label="Hey CareNet — coming soon"
-                  className="relative flex items-center justify-center w-8 h-8 rounded-l-full border bg-muted/60 text-muted-foreground border-border"
+                  className="relative flex items-center justify-center w-7 h-7 rounded-full border bg-muted/60 text-muted-foreground border-border"
                 >
-                  <Megaphone size={15} />
-                </div>
-                {/* Chevron — also disabled */}
-                <div className="flex items-center justify-center w-5 h-8 rounded-r-full border-l-0 border bg-muted/60 text-muted-foreground border-border">
-                  <ChevronDown size={10} />
+                  <Megaphone size={14} />
                 </div>
               </div>
             </div>
@@ -1065,7 +1060,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="relative flex-shrink-0">
             <button
               onClick={() => setShowPrefsMenu(p => !p)}
-              className={cn("p-2 rounded-lg transition-colors",
+              className={cn("p-1.5 rounded-lg transition-colors",
                 isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent" : "hover:bg-muted text-muted-foreground hover:text-foreground",
                 showPrefsMenu && "bg-muted"
               )}
@@ -1128,7 +1123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           {/* Notification Bell */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={cn("relative flex-shrink-0 p-2 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
+              <button className={cn("relative flex-shrink-0 p-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
                 <Bell size={18} />
                 {unreadCount > 0 && (
                   <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
