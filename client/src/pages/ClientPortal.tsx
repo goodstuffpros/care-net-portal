@@ -115,7 +115,7 @@ export default function ClientPortalPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
   });
 
-  const canEdit = activeUser.role === "caregiver" || activeUser.role === "primary_family";
+  const canEdit = activeUser.role === "primary_family";
 
   if (clientLoading) {
     return (
