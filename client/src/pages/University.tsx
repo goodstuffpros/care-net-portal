@@ -332,6 +332,9 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
 
       <div className="absolute inset-0 bg-gradient-to-b from-[hsl(175,55%,10%)] to-black pointer-events-none" />
 
+      {/* Top spacer — mirrors bottom button height so content is truly centered */}
+      <div className="relative flex-shrink-0" style={{ height: 'max(5rem, calc(env(safe-area-inset-bottom, 0px) + 5rem))' }} />
+
       {/* Center content — shrinks to fit, never overflows */}
       <div className="relative flex-1 flex flex-col items-center justify-center px-6 gap-5 min-h-0">
         {/* Logo mark — smaller on tight screens */}
