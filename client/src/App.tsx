@@ -38,6 +38,7 @@ import FamilyProfilePage from "@/pages/FamilyProfile";
 import CareScopePage from "@/pages/CareScope";
 import OnboardingFlow from "@/components/OnboardingFlow";
 import UpgradeTransition from "@/components/UpgradeTransition";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Auth pages (public — no AppLayout)
 import LoginPage from "@/pages/Login";
