@@ -84,8 +84,8 @@ export default function ApplyPage() {
     ? form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality
     : form.name.trim() && form.email.trim() && form.password.length >= 8 && form.role && form.currentlyInCare && form.intent.trim() && form.agreedToConfidentiality;
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!valid) return;
     setLoading(true);
     try {
@@ -218,7 +218,7 @@ export default function ApplyPage() {
 
         {/* Form card */}
         <div className="bg-card border border-border rounded-2xl p-8 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-6" data-testid="form-apply">
+          <form onSubmit={e => { e.preventDefault(); handleSubmit(); }} className="space-y-6" data-testid="form-apply">
 
             {/* Name */}
             <div className="space-y-1.5">
@@ -309,7 +309,7 @@ export default function ApplyPage() {
               </label>
             </div>
 
-            <Button type="submit" className="w-full" disabled={loading || !valid} data-testid="button-submit-apply">
+            <Button type="button" className="w-full" disabled={loading || !valid} onClick={() => handleSubmit()} data-testid="button-submit-apply">
               {loading
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</>
                 : isInvited

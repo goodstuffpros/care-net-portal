@@ -29,8 +29,8 @@ export default function LoginPage() {
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function handleSubmit(e?: React.FormEvent) {
+    e?.preventDefault();
     if (!email.trim() || !password) return;
     setLoading(true);
     try {
@@ -189,7 +189,8 @@ export default function LoginPage() {
             </div>
 
             <Button
-              type="submit"
+              type="button"
+              onClick={handleSubmit as any}
               className="w-full"
               disabled={loading || !email.trim() || !password}
               data-testid="button-submit-login"
