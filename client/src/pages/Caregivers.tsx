@@ -17,6 +17,7 @@ import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Link2, Mail
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LessonLauncher } from "@/components/LessonLauncher";
+import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Primary Caregiver",
@@ -45,6 +46,7 @@ export default function CaregiversPage() {
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [familyInviteOpen, setFamilyInviteOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
@@ -281,15 +283,22 @@ export default function CaregiversPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Invite button — family sees "Invite a Caregiver", CG sees dedicated MC invite button */}
+          {/* Invite buttons */}
           {isFamily ? (
-            <Button size="sm" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+            <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
               <Link2 size={15} /> Invite a Caregiver
             </Button>
           ) : (
-            <Button size="sm" className="gap-2 flex-1" onClick={handleOpenInvite} data-testid="invite-mc-btn">
-              <UserPlus size={15} /> Add Family Contact (MC)
-            </Button>
+            <>
+              <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-mc-btn">
+                <UserPlus size={15} /> Add Family Contact (MC)
+              </Button>
+              {activeUser.role === "primary_family" && (
+                <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
+                  <UserPlus size={15} /> Add Family Member
+                </Button>
+              )}
+            </>
           )}
           </div>
         )}
@@ -555,6 +564,9 @@ export default function CaregiversPage() {
           <li><strong className="text-foreground">Temporary Caregiver</strong> — Full access for a defined period. Used when the primary caregiver is on vacation or ill. Access expires automatically on the end date.</li>
         </ul>
       </div>
+
+      {/* Family Member invite sheet — MC only */}
+      <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
     </div>
   );
 }
