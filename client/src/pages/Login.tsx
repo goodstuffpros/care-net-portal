@@ -62,7 +62,11 @@ export default function LoginPage() {
       await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
       navigate("/");
     } catch (err: any) {
-      toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
+      const rawMsg: string = err.message || "";
+      const friendlyMsg = rawMsg.includes("Invalid email or password")
+        ? "Incorrect email or password. Try again or use Forgot password."
+        : rawMsg.replace(/^\d+: /, "").replace(/^\{.*\}$/, "Login failed — please try again.");
+      toast({ title: "Sign in failed", description: friendlyMsg, variant: "destructive" });
     } finally {
       setLoading(false);
     }
