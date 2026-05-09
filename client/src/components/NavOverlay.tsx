@@ -511,56 +511,72 @@ export default function NavOverlay({
             </div>
           </div>
           )}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left border border-border"
-                data-testid="nav-overlay-user-trigger"
-              >
-                <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
-                  {activeUser.avatarInitials}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
-                  <div className="text-[11px] text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
-                </div>
-                <ChevronDown size={14} className="text-muted-foreground shrink-0" />
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="start" side="top" className="w-56 mb-1">
-              {client1Users.length > 0 && (
-                <>
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Robert Johnson Portal</DropdownMenuLabel>
-                  {client1Users.map(user => (
-                    <DropdownMenuItem key={user.id} onClick={() => { setActiveUser(user); onClose(); }} className="cursor-pointer" data-testid={`nav-role-switch-${user.id}`}>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{user.name}</span>
-                        <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
-                      </div>
-                      {activeUser.id === user.id && <span className="ml-auto text-primary text-xs">●</span>}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-              {client2Users.length > 0 && (
-                <>
-                  <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Eleanor Williams Portal</DropdownMenuLabel>
-                  {client2Users.map(user => (
-                    <DropdownMenuItem key={user.id} onClick={() => { setActiveUser(user); onClose(); }} className="cursor-pointer" data-testid={`nav-role-switch-${user.id}`}>
-                      <div className="flex flex-col">
-                        <span className="font-medium text-sm">{user.name}</span>
-                        <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
-                      </div>
-                      {activeUser.id === user.id && <span className="ml-auto text-primary text-xs">●</span>}
-                    </DropdownMenuItem>
-                  ))}
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-            </DropdownMenuContent>
-          </DropdownMenu>
+          {isRealSession ? (
+            /* Real session: static non-clickable identity pill — no demo switcher */
+            <div
+              className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-muted/30"
+              data-testid="nav-overlay-user-pill"
+            >
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                {activeUser.avatarInitials}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
+                <div className="text-[11px] text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
+              </div>
+            </div>
+          ) : (
+            /* Demo session: full care-team switcher dropdown */
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl hover:bg-muted transition-colors text-left border border-border"
+                  data-testid="nav-overlay-user-trigger"
+                >
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary shrink-0">
+                    {activeUser.avatarInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
+                  </div>
+                  <ChevronDown size={14} className="text-muted-foreground shrink-0" />
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" side="top" className="w-56 mb-1">
+                {client1Users.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Robert Johnson Portal</DropdownMenuLabel>
+                    {client1Users.map(user => (
+                      <DropdownMenuItem key={user.id} onClick={() => { setActiveUser(user); onClose(); }} className="cursor-pointer" data-testid={`nav-role-switch-${user.id}`}>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
+                        </div>
+                        {activeUser.id === user.id && <span className="ml-auto text-primary text-xs">●</span>}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+                {client2Users.length > 0 && (
+                  <>
+                    <DropdownMenuLabel className="text-[11px] text-muted-foreground font-normal">Eleanor Williams Portal</DropdownMenuLabel>
+                    {client2Users.map(user => (
+                      <DropdownMenuItem key={user.id} onClick={() => { setActiveUser(user); onClose(); }} className="cursor-pointer" data-testid={`nav-role-switch-${user.id}`}>
+                        <div className="flex flex-col">
+                          <span className="font-medium text-sm">{user.name}</span>
+                          <span className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</span>
+                        </div>
+                        {activeUser.id === user.id && <span className="ml-auto text-primary text-xs">●</span>}
+                      </DropdownMenuItem>
+                    ))}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </>
