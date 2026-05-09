@@ -433,19 +433,24 @@ export default function Badges() {
   const [surveyOpen, setSurveyOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
 
-  // Primary caregiver is userId=1 for demo
-  const caregiverId = 1;
-  const caregiverName = "Becky M.";
+  const isPrimaryFC = activeUser.role === "primary_family";
+  const isCaregiver = ["caregiver", "temp_caregiver", "multi_caregiver"].includes(activeUser.role);
+  const isSecondaryFamily = activeUser.role === "secondary_family";
+
+  // For CG: use their own ID. For MC/family: use the connected caregiver (demo=1, real=look up)
+  const caregiverId = isCaregiver ? activeUser.id : 1;
+  const caregiverName = isCaregiver ? activeUser.name : "Your Caregiver";
 
   const { data: score, isLoading, refetch } = useQuery<BadgeScore>({
     queryKey: ["/api/badge", caregiverId, selectedClientId],
-    queryFn: () => apiRequest("GET", `/api/badge/${caregiverId}/client/${selectedClientId}`),
+    queryFn: () => apiRequest("GET", `/api/badge/${caregiverId}/client/${selectedClientId}`).then(r => r.json()),
+    enabled: !!caregiverId && !!selectedClientId,
   });
 
   const { data: surveyStatus } = useQuery<{ submitted: boolean }>({
     queryKey: ["/api/badge/survey/status", caregiverId, selectedClientId],
-    queryFn: () => apiRequest("GET", `/api/badge/survey/status/${caregiverId}/client/${selectedClientId}`),
-    enabled: activeUser.role === "primary_family",
+    queryFn: () => apiRequest("GET", `/api/badge/survey/status/${caregiverId}/client/${selectedClientId}`).then(r => r.json()),
+    enabled: activeUser.role === "primary_family" && !!caregiverId && !!selectedClientId,
   });
 
   const recomputeMutation = useMutation({
@@ -456,17 +461,14 @@ export default function Badges() {
     },
   });
 
-  const isPrimaryFC = activeUser.role === "primary_family";
-  const isCaregiver = ["caregiver", "temp_caregiver", "multi_caregiver"].includes(activeUser.role);
-  const isSecondaryFamily = activeUser.role === "secondary_family";
-
   // Scope data for Scope Badge display
   const { data: scope } = useQuery<{
     medications: boolean; vitals: boolean; appointments: boolean;
     activityLog: boolean; messaging: boolean;
   }>({
     queryKey: ["/api/scope", selectedClientId, caregiverId],
-    queryFn: () => apiRequest("GET", `/api/scope/${selectedClientId}/${caregiverId}`),
+    queryFn: () => apiRequest("GET", `/api/scope/${selectedClientId}/${caregiverId}`).then(r => r.json()),
+    enabled: !!caregiverId && !!selectedClientId,
   });
 
   const dimensions = score ? [
@@ -539,6 +541,21 @@ export default function Badges() {
         <div className="text-center space-y-2">
           <RefreshCw size={24} className="animate-spin text-primary mx-auto" />
           <p className="text-sm text-muted-foreground">Computing badge scores…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!score) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto">
+        <ModuleIntro moduleKey="badges" />
+        <div className="flex flex-col items-center justify-center h-64 text-center space-y-3">
+          <Award size={40} className="text-muted-foreground opacity-25" />
+          <p className="font-medium text-muted-foreground">No badge data yet</p>
+          <p className="text-sm text-muted-foreground/70 max-w-xs">
+            Badge scores are calculated from care activity. They'll appear here once your portal has some history.
+          </p>
         </div>
       </div>
     );
