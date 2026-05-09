@@ -1354,22 +1354,29 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Users
-  // GET /api/users — returns only users in the same care circle (same clientId).
-  // Demo mode (no auth cookie) returns all users so the switcher works.
-  app.get("/api/users", (req: AuthRequest, res) => {
+  // GET /api/users — scoped to the caller's care circle.
+  // Real sessions (valid cookie): returns only users sharing the same clientId, no demo users (id <= 5).
+  // Demo / unauthenticated (no cookie): returns all users so the demo switcher keeps working.
+  app.get("/api/users", async (req: AuthRequest, res) => {
     const allUsers = storage.getUsers();
-    const authUserId = (req as any).authUserId as number | undefined;
-    if (!authUserId) {
-      // Unauthenticated / demo — return all (demo switcher needs this)
-      return res.json(allUsers);
-    }
-    const me = allUsers.find(u => u.id === authUserId);
-    if (!me?.clientId) {
-      // Authenticated but no clientId yet (onboarding) — return just themselves
-      return res.json(allUsers.filter(u => u.id === authUserId));
-    }
-    // Return only users who share the same clientId (the real care circle)
-    return res.json(allUsers.filter(u => u.clientId === me.clientId));
+    try {
+      const token = getTokenFromRequest(req as any);
+      if (token) {
+        const payload = await verifyJWT(token);
+        if (payload) {
+          const account = db.select().from(authAccounts).where(eq(authAccounts.id, payload.authAccountId)).get();
+          if (account?.userId) {
+            const me = allUsers.find(u => u.id === account.userId);
+            if (me?.clientId) {
+              return res.json(allUsers.filter(u => u.clientId === me.clientId && u.id > 5));
+            } else if (me) {
+              return res.json([me]);
+            }
+          }
+        }
+      }
+    } catch (_) { /* ignore — fall through to demo */ }
+    return res.json(allUsers);
   });
   app.get("/api/users/:id", (req, res) => {
     const user = storage.getUserById(Number(req.params.id));
