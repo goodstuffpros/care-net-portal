@@ -1262,18 +1262,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <GraduationCap size={15} className="text-teal-600 dark:text-teal-400" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-teal-800 dark:text-teal-200 text-sm font-semibold leading-tight">You're in demo mode</p>
-                <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-0.5 leading-relaxed">
-                  Everything unlocks once a client portal is created. Explore freely — this is live demo data.
+                <p className="text-teal-800 dark:text-teal-200 text-sm font-semibold leading-tight">You're exploring in demo mode</p>
+                <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-1 leading-relaxed">
+                  This is sample data so you can try everything out. Your real portal activates the moment a family contact signs up and connects with you.
+                </p>
+                <p className="text-teal-700/80 dark:text-teal-400/80 text-xs mt-1 leading-relaxed font-medium">
+                  Ready to go live? Send your family contact the invite link below — it takes them straight to signup.
                 </p>
                 <button
                   onClick={handlePreConnInvite}
                   disabled={preConnInviteMutation.isPending}
-                  className="mt-2 flex items-center gap-1.5 text-xs font-medium text-teal-600 dark:text-teal-300 hover:text-teal-900 dark:hover:text-white transition-colors"
+                  className="mt-2.5 flex items-center gap-1.5 text-xs font-semibold text-white bg-teal-600 hover:bg-teal-700 px-3 py-1.5 rounded-full transition-colors"
                 >
                   {preConnCopied
-                    ? <><Check size={12} className="text-green-600 dark:text-green-400" /> Link copied — send it to your family contact</>  
-                    : <><Link2 size={12} /> {preConnInviteMutation.isPending ? "Generating link..." : "Copy invite link for family contact"}</>
+                    ? <><Check size={12} /> Invite link copied — send it now!</>  
+                    : <><Link2 size={12} /> {preConnInviteMutation.isPending ? "Generating link..." : "Copy family invite link"}</>
                   }
                 </button>
               </div>
