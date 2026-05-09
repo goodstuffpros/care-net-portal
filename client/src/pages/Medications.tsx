@@ -84,7 +84,7 @@ function formatLogTime(iso: string): string {
 
 // ─── Med Card ──────────────────────────────────────────────────────────────────
 function MedCard({
-  med, allMeds, canEdit, isFamilyPortal, onLogDose, onEdit, onDiscontinue,
+  med, allMeds, canEdit, isFamilyPortal, onLogDose, onEdit, onDiscontinue, logs,
 }: {
   med: Medication;
   allMeds: Medication[];
@@ -93,9 +93,16 @@ function MedCard({
   onLogDose: (med: Medication) => void;
   onEdit: (med: Medication) => void;
   onDiscontinue: (med: Medication) => void;
+  logs?: MedicationLog[];
 }) {
   const [expanded, setExpanded] = useState(false);
   const isPRN = med.scheduleType === "as_needed";
+
+  // Check if this med was given today (any log with wasGiven=true for today)
+  const today = new Date().toISOString().slice(0, 10);
+  const givenToday = (logs ?? []).some(
+    l => l.medicationId === med.id && l.wasGiven && l.loggedAt?.slice(0, 10) === today
+  );
 
   return (
     <Card className={cn("transition-all", isPRN && "border-dashed")}>
@@ -132,8 +139,22 @@ function MedCard({
           <div className="flex items-center gap-1 flex-shrink-0">
             {canEdit && (
               <>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onLogDose(med)} data-testid={`log-dose-${med.id}`} title="Log dose">
-                  <CheckCircle2 size={14} className="text-emerald-600" />
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={cn(
+                    "h-7 w-7 transition-colors",
+                    givenToday && "bg-teal-50 dark:bg-teal-950/30"
+                  )}
+                  onClick={() => onLogDose(med)}
+                  data-testid={`log-dose-${med.id}`}
+                  title={givenToday ? "Dose logged today — log again" : "Log dose"}
+                >
+                  {givenToday ? (
+                    <CheckCircle2 size={14} className="text-teal-600 fill-teal-600" />
+                  ) : (
+                    <CheckCircle2 size={14} className="text-muted-foreground/60" />
+                  )}
                 </Button>
                 <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => onEdit(med)} data-testid={`edit-med-${med.id}`} title="Edit">
                   <Pencil size={13} className="text-muted-foreground" />
@@ -1169,7 +1190,7 @@ export default function MedicationsPage() {
                   </div>
                   {morningMeds.map(m => (
                     <MedCard key={m.id} med={m} allMeds={allMeds} canEdit={canEdit} isFamilyPortal={isFamilyPortal}
-                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} />
+                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} logs={logs} />
                   ))}
                 </div>
               )}
@@ -1183,7 +1204,7 @@ export default function MedicationsPage() {
                   </div>
                   {afternoonMeds.map(m => (
                     <MedCard key={m.id} med={m} allMeds={allMeds} canEdit={canEdit} isFamilyPortal={isFamilyPortal}
-                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} />
+                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} logs={logs} />
                   ))}
                 </div>
               )}
@@ -1197,7 +1218,7 @@ export default function MedicationsPage() {
                   </div>
                   {eveningMeds.map(m => (
                     <MedCard key={m.id} med={m} allMeds={allMeds} canEdit={canEdit} isFamilyPortal={isFamilyPortal}
-                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} />
+                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} logs={logs} />
                   ))}
                 </div>
               )}
@@ -1209,7 +1230,7 @@ export default function MedicationsPage() {
                   </div>
                   {prnMeds.map(m => (
                     <MedCard key={m.id} med={m} allMeds={allMeds} canEdit={canEdit} isFamilyPortal={isFamilyPortal}
-                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} />
+                      onLogDose={setLogMed} onEdit={setEditMed} onDiscontinue={setDiscontinueMed} logs={logs} />
                   ))}
                 </div>
               )}
