@@ -43,20 +43,17 @@ export default function LoginPage() {
       const pendingInvite = sessionStorage.getItem("pending_invite_token");
       if (pendingInvite) {
         try {
-          // Accept the invite immediately while the session cookie is live
-          const acceptRes = await fetch("/api/invite/" + pendingInvite + "/accept", {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({}),
-          });
+          // Accept the invite using apiRequest so the __PORT_5000__ proxy is respected in production
+          const acceptRes = await apiRequest("POST", `/api/invite/${pendingInvite}/accept`, {});
           const acceptData = await acceptRes.json();
           sessionStorage.removeItem("pending_invite_token");
           if (acceptData.success) {
             toast({ title: "Connected!", description: "Your portals are now linked. Taking you in..." });
+          } else {
+            console.warn("[invite accept]", acceptData.message);
           }
-        } catch (_) {
-          // Accept failed silently — user can try from dashboard
+        } catch (err) {
+          console.error("[invite accept] failed:", err);
         }
       }
       // Hard reload so AppContext re-fetches auth state with updated clientId
