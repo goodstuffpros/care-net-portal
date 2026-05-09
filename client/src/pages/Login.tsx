@@ -39,17 +39,29 @@ export default function LoginPage() {
         }
         throw new Error(body.message || "Login failed");
       }
-      // Success — check for pending invite token first
+      // Success — check for pending invite token and accept it directly
       const pendingInvite = sessionStorage.getItem("pending_invite_token");
       if (pendingInvite) {
-        // Redirect to invite landing so it can auto-accept now that user is logged in
-        window.location.href = "/#/invite/" + pendingInvite;
-        window.location.reload();
-      } else {
-        // Normal login — hard reload so AppContext re-fetches auth state
-        window.location.hash = "/";
-        window.location.reload();
+        try {
+          // Accept the invite immediately while the session cookie is live
+          const acceptRes = await fetch("/api/invite/" + pendingInvite + "/accept", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({}),
+          });
+          const acceptData = await acceptRes.json();
+          sessionStorage.removeItem("pending_invite_token");
+          if (acceptData.success) {
+            toast({ title: "Connected!", description: "Your portals are now linked. Taking you in..." });
+          }
+        } catch (_) {
+          // Accept failed silently — user can try from dashboard
+        }
       }
+      // Hard reload so AppContext re-fetches auth state with updated clientId
+      window.location.hash = "/";
+      window.location.reload();
     } catch (err: any) {
       toast({ title: "Sign in failed", description: err.message, variant: "destructive" });
     } finally {
