@@ -379,10 +379,7 @@ function PreferencesSheet({
 }) {
   const { data: prefs } = useQuery<PatternPreference>({
     queryKey: ["/api/users", userId, "pattern-preferences"],
-    queryFn: async () => {
-      const r = await fetch(`/api/users/${userId}/pattern-preferences`);
-      return r.json();
-    },
+    queryFn: () => apiRequest("GET", `/api/users/${userId}/pattern-preferences`).then(r => r.json()),
   });
 
   const [local, setLocal] = useState<PatternPreference>({
@@ -498,10 +495,7 @@ export default function Patterns({ activeUser, selectedClientId, clientName }: P
 
   const { data: patterns = [], isLoading, refetch } = useQuery<HealthPattern[]>({
     queryKey: ["/api/clients", selectedClientId, "patterns"],
-    queryFn: async () => {
-      const r = await fetch(`/api/clients/${selectedClientId}/patterns`);
-      return r.json();
-    },
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/patterns`).then(r => r.json()),
     refetchInterval: 60000, // refresh every minute
   });
 
