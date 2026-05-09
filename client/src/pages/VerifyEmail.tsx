@@ -8,8 +8,16 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { queryClient } from "@/lib/queryClient";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { CheckCircle2, XCircle, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Detect in-app browsers (Messenger, Instagram, Facebook, etc.)
+function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|Instagram|MessengerForiOS|FB_IAB|FB4A|FBIOS|LinkedInApp|Twitter|Snapchat|TikTok|WebView/.test(ua)
+    || (/iPhone|iPod|iPad/.test(ua) && !/(Safari)/.test(ua) && /(AppleWebKit)/.test(ua));
+}
 
 type Stage = "verifying" | "success" | "error" | "expired";
 
@@ -18,6 +26,8 @@ interface Props { token?: string; }
 export default function VerifyEmailPage({ token }: Props) {
   const [, navigate] = useLocation();
   const [stage, setStage] = useState<Stage>("verifying");
+  const inAppBrowser = isInAppBrowser();
+  const currentUrl = typeof window !== "undefined" ? window.location.href : "";
   const [errorMsg, setErrorMsg] = useState("");
   const [userName, setUserName] = useState("");
   const [slowLoad, setSlowLoad] = useState(false);
@@ -56,6 +66,38 @@ export default function VerifyEmailPage({ token }: Props) {
         setErrorMsg("Something went wrong. Please try again.");
       });
   }, [token]);
+
+  // ── In-app browser intercept ─────────────────────────────────────────────
+  if (inAppBrowser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4">
+        <div className="max-w-xs w-full bg-white dark:bg-card rounded-2xl border border-border p-8 text-center shadow-sm">
+          <div className="w-14 h-14 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ExternalLink className="w-7 h-7 text-primary" />
+          </div>
+          <h2 className="text-lg font-semibold text-foreground mb-2">Open in your browser</h2>
+          <p className="text-muted-foreground text-sm mb-5 leading-relaxed">
+            Email verification links need to open in Safari or Chrome — not inside Messenger or another app.
+          </p>
+          <a
+            href={currentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full bg-primary text-primary-foreground font-medium py-2.5 px-4 rounded-xl text-sm transition-opacity hover:opacity-90 mb-3"
+          >
+            Open in Browser
+          </a>
+          <button
+            type="button"
+            onClick={() => navigator.clipboard?.writeText(currentUrl)}
+            className="text-xs text-primary underline underline-offset-2"
+          >
+            Copy link
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // ── Verifying ──────────────────────────────────────────────────────────────
   if (stage === "verifying") {

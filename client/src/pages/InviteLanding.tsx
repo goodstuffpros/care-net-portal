@@ -2,8 +2,16 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Heart, CheckCircle2, AlertCircle, Loader2, ArrowRight, Users } from "lucide-react";
+import { Heart, CheckCircle2, AlertCircle, Loader2, ArrowRight, Users, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
+
+// Detect in-app browsers (Messenger, Instagram, Facebook, etc.)
+function isInAppBrowser(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent || "";
+  return /FBAN|FBAV|Instagram|MessengerForiOS|FB_IAB|FB4A|FBIOS|LinkedInApp|Twitter|Snapchat|TikTok|WebView/.test(ua)
+    || (/iPhone|iPod|iPad/.test(ua) && !/(Safari)/.test(ua) && /(AppleWebKit)/.test(ua));
+}
 
 interface InviteContext {
   valid: boolean;
@@ -28,6 +36,10 @@ export default function InviteLanding({ token }: { token: string }) {
   const [checkingAuth, setCheckingAuth] = useState(true);
   // If we were redirected here after login, auto-attempt accept
   const justLoggedIn = sessionStorage.getItem("pending_invite_token") === token;
+
+  // Detect in-app browser on mount
+  const inAppBrowser = isInAppBrowser();
+  const currentUrl = typeof window !== "undefined" ? window.location.href : "";
 
   useEffect(() => {
     // Check auth + validate invite in parallel
@@ -101,6 +113,41 @@ export default function InviteLanding({ token }: { token: string }) {
     return { you: "contact", them: "user" };
   }
 
+  // In-app browser intercept — show immediately, before spinner, before any fetch
+  if (inAppBrowser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F7F6F2] p-6">
+        <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-[#D4D1CA] p-8 text-center">
+          <div className="w-14 h-14 bg-teal-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <ExternalLink className="w-7 h-7 text-[#01696F]" />
+          </div>
+          <h2 className="text-xl font-semibold text-[#28251D] mb-2">Open in your browser</h2>
+          <p className="text-[#7A7974] text-sm mb-5 leading-relaxed">
+            This invite link needs to open in Safari or Chrome — not inside Messenger.
+            Tap the button below or copy the link and paste it into your browser.
+          </p>
+          <a
+            href={currentUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="block w-full bg-[#01696F] hover:bg-[#0C4E54] text-white font-medium py-3 px-4 rounded-xl text-sm transition-colors mb-3"
+          >
+            Open in Browser
+          </a>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard?.writeText(currentUrl);
+            }}
+            className="text-xs text-[#01696F] underline underline-offset-2"
+          >
+            Copy link to paste in browser
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (loading || checkingAuth) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#F7F6F2]">
@@ -115,7 +162,10 @@ export default function InviteLanding({ token }: { token: string }) {
         <div className="max-w-md w-full bg-white rounded-2xl shadow-sm border border-[#D4D1CA] p-8 text-center">
           <AlertCircle className="w-12 h-12 text-rose-400 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-[#28251D] mb-2">Invite Unavailable</h2>
-          <p className="text-[#7A7974] mb-6">{error}</p>
+          <p className="text-[#7A7974] mb-4 text-sm">{error}</p>
+          <p className="text-[#7A7974] text-xs mb-6 leading-relaxed">
+            If someone sent you this link through Messenger or another app, try opening it directly in Safari or Chrome instead.
+          </p>
           <Button onClick={() => setLocation("/")} variant="outline">
             Go to Care Net Portal
           </Button>
