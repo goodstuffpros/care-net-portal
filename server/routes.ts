@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql } from "drizzle-orm";
 import path from "path";
@@ -1597,6 +1597,52 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.delete("/api/documents/:id", (req, res) => {
     storage.deleteDocument(Number(req.params.id));
     res.json({ success: true });
+  });
+  // Update CG access level for a document (MC only)
+  app.patch("/api/documents/:id/access", (req, res) => {
+    const { cgAccess } = req.body as { cgAccess: string };
+    if (!["none", "read", "full"].includes(cgAccess)) {
+      return res.status(400).json({ error: "Invalid cgAccess value" });
+    }
+    const updated = storage.updateDocumentAccess(Number(req.params.id), cgAccess);
+    if (!updated) return res.status(404).json({ error: "Document not found" });
+    res.json(updated);
+  });
+  // Log a CG access event and notify MC
+  app.post("/api/documents/:id/access-log", requireAuth, async (req: AuthRequest, res) => {
+    const docId = Number(req.params.id);
+    const userId = req.authUserId!;
+    const { action } = req.body as { action: string };
+    if (!["view", "download"].includes(action)) {
+      return res.status(400).json({ error: "Invalid action" });
+    }
+    const logEntry = storage.logDocumentAccess(docId, userId, action);
+    // Get doc title + find MC for notification
+    try {
+      const doc = db.select().from(documents).where(eq(documents.id, docId)).get();
+      const accessor = db.select().from(users).where(eq(users.id, userId)).get();
+      if (doc && accessor) {
+        // Find primary_family for this client
+        const mcUser = db.select().from(users).where(and(eq(users.clientId, doc.clientId), eq(users.role, "primary_family"))).get();
+        if (mcUser) {
+          const timeStr = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+          storage.createNotification({
+            userId: mcUser.id,
+            type: "document_access",
+            title: "Document Accessed",
+            body: `${accessor.name} ${action === "download" ? "downloaded" : "viewed"} "${doc.title}" at ${timeStr}`,
+            relatedId: docId,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+          });
+        }
+      }
+    } catch {}
+    res.json(logEntry);
+  });
+  // Get access log for a document (MC only)
+  app.get("/api/documents/:id/access-log", (req, res) => {
+    res.json(storage.getDocumentAccessLog(Number(req.params.id)));
   });
 
   // Outings

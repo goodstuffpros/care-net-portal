@@ -210,16 +210,29 @@ export const documents = sqliteTable("documents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   clientId: integer("client_id").notNull(),
   title: text("title").notNull(),
-  category: text("category").notNull(), // 'insurance' | 'legal' | 'medical' | 'financial' | 'other'
+  category: text("category").notNull(), // 'insurance' | 'legal' | 'medical' | 'financial' | 'personal' | 'other'
   description: text("description"),
   fileType: text("file_type").notNull().default("pdf"), // 'pdf' | 'image' | 'doc'
   uploadedByUserId: integer("uploaded_by_user_id").notNull(),
   uploadedAt: text("uploaded_at").notNull(),
   isConfidential: integer("is_confidential", { mode: "boolean" }).default(false),
+  cgAccess: text("cg_access").default("none"), // 'none' | 'read' | 'full'
 });
 export const insertDocumentSchema = createInsertSchema(documents).omit({ id: true });
 export type InsertDocument = z.infer<typeof insertDocumentSchema>;
 export type Document = typeof documents.$inferSelect;
+
+// Document Access Log — tracks when CG views/downloads a document
+export const documentAccessLog = sqliteTable("document_access_log", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  docId: integer("doc_id").notNull(),
+  userId: integer("user_id").notNull(),
+  action: text("action").notNull(), // 'view' | 'download'
+  accessedAt: text("accessed_at").notNull(),
+});
+export const insertDocumentAccessLogSchema = createInsertSchema(documentAccessLog).omit({ id: true });
+export type InsertDocumentAccessLog = z.infer<typeof insertDocumentAccessLogSchema>;
+export type DocumentAccessLog = typeof documentAccessLog.$inferSelect;
 
 // Caregiver Shifts — clock in/out
 export const shifts = sqliteTable("shifts", {

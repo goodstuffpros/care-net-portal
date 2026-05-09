@@ -35,6 +35,8 @@ import {
   type Medication, type InsertMedication,
   type MedicationHistory, type InsertMedicationHistory,
   type MedicationLog, type InsertMedicationLog,
+  documentAccessLog,
+  type DocumentAccessLog, type InsertDocumentAccessLog,
 } from "@shared/schema";
 
 import { db, sqlite } from "./db";
@@ -174,7 +176,15 @@ sqlite.exec(`
     file_type TEXT NOT NULL DEFAULT 'pdf',
     uploaded_by_user_id INTEGER NOT NULL,
     uploaded_at TEXT NOT NULL,
-    is_confidential INTEGER DEFAULT 0
+    is_confidential INTEGER DEFAULT 0,
+    cg_access TEXT DEFAULT 'none'
+  );
+  CREATE TABLE IF NOT EXISTS document_access_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    doc_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    action TEXT NOT NULL,
+    accessed_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS outings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -346,6 +356,8 @@ try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`)
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN nav_order TEXT DEFAULT '[]'`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN timezone TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"all":true}'`); } catch {}
+try { sqlite.exec(`ALTER TABLE documents ADD COLUMN cg_access TEXT DEFAULT 'none'`); } catch {}
+try { sqlite.exec(`CREATE TABLE IF NOT EXISTS document_access_log (id INTEGER PRIMARY KEY AUTOINCREMENT, doc_id INTEGER NOT NULL, user_id INTEGER NOT NULL, action TEXT NOT NULL, accessed_at TEXT NOT NULL)`); } catch {}
 
 // schedule_events — columns added after initial release
 try { sqlite.exec(`ALTER TABLE schedule_events ADD COLUMN alarm_enabled INTEGER DEFAULT 0`); } catch {}
@@ -731,6 +743,9 @@ export interface IStorage {
   getDocumentsByClient(clientId: number): Document[];
   createDocument(data: InsertDocument): Document;
   deleteDocument(id: number): void;
+  updateDocumentAccess(id: number, cgAccess: string): Document | undefined;
+  logDocumentAccess(docId: number, userId: number, action: string): DocumentAccessLog;
+  getDocumentAccessLog(docId: number): DocumentAccessLog[];
 
   // Outings
   getOutingsByClient(clientId: number): Outing[];
@@ -948,20 +963,23 @@ function seedIfEmpty() {
     },
   ]).run();
 
-  // Seed documents for client 1
+  // Seed documents for client 1 — all uploaded by MC (user 4 = Robert Johnson Jr.)
   db.insert(documents).values([
-    { clientId: 1, title: "Insurance Card — Medicare", category: "insurance", description: "Primary Medicare card, Part A & B", fileType: "pdf", uploadedByUserId: 1, uploadedAt: dateAt(10, -30), isConfidential: false },
-    { clientId: 1, title: "Advance Directive", category: "legal", description: "Healthcare proxy and end-of-life wishes", fileType: "pdf", uploadedByUserId: 1, uploadedAt: dateAt(10, -60), isConfidential: true },
-    { clientId: 1, title: "Power of Attorney", category: "legal", description: "Durable power of attorney — Robert Johnson Jr.", fileType: "doc", uploadedByUserId: 4, uploadedAt: dateAt(10, -45), isConfidential: true },
-    { clientId: 1, title: "Hospital Discharge Summary", category: "medical", description: "St. Mary's discharge summary from March 2026", fileType: "pdf", uploadedByUserId: 1, uploadedAt: dateAt(10, -20), isConfidential: false },
-    { clientId: 1, title: "Medicare Card (Supplemental)", category: "insurance", description: "Medigap supplement insurance card", fileType: "image", uploadedByUserId: 1, uploadedAt: dateAt(10, -15), isConfidential: false },
+    { clientId: 1, title: "Insurance Card — Medicare", category: "insurance", description: "Primary Medicare card, Part A & B", fileType: "pdf", uploadedByUserId: 4, uploadedAt: dateAt(10, -30), isConfidential: false, cgAccess: "none" },
+    { clientId: 1, title: "Advance Directive", category: "legal", description: "Healthcare proxy and end-of-life wishes", fileType: "pdf", uploadedByUserId: 4, uploadedAt: dateAt(10, -60), isConfidential: true, cgAccess: "none" },
+    { clientId: 1, title: "Power of Attorney", category: "legal", description: "Durable power of attorney — Robert Johnson Jr.", fileType: "doc", uploadedByUserId: 4, uploadedAt: dateAt(10, -45), isConfidential: true, cgAccess: "none" },
+    { clientId: 1, title: "Hospital Discharge Summary", category: "medical", description: "St. Mary's discharge summary from March 2026", fileType: "pdf", uploadedByUserId: 4, uploadedAt: dateAt(10, -20), isConfidential: false, cgAccess: "read" },
+    { clientId: 1, title: "Medicare Card (Supplemental)", category: "insurance", description: "Medigap supplement insurance card", fileType: "image", uploadedByUserId: 4, uploadedAt: dateAt(10, -15), isConfidential: false, cgAccess: "none" },
+    { clientId: 1, title: "Emergency Contact Card", category: "medical", description: "Emergency contacts and critical allergy information", fileType: "doc", uploadedByUserId: 4, uploadedAt: dateAt(10, -5), isConfidential: false, cgAccess: "read" },
+    { clientId: 1, title: "Social Security Card", category: "personal", description: "SSN documentation — handle with care", fileType: "image", uploadedByUserId: 4, uploadedAt: dateAt(10, -90), isConfidential: true, cgAccess: "none" },
+    { clientId: 1, title: "State ID", category: "personal", description: "Texas state photo ID, expires 2028", fileType: "image", uploadedByUserId: 4, uploadedAt: dateAt(10, -80), isConfidential: false, cgAccess: "read" },
   ]).run();
 
-  // Seed documents for client 2
+  // Seed documents for client 2 — all uploaded by MC (user 6 = primary_family for client 2)
   db.insert(documents).values([
-    { clientId: 2, title: "Insurance Card", category: "insurance", description: "Blue Cross Blue Shield card", fileType: "image", uploadedByUserId: 1, uploadedAt: dateAt(10, -25), isConfidential: false },
-    { clientId: 2, title: "DNR Order", category: "legal", description: "Do Not Resuscitate order on file", fileType: "pdf", uploadedByUserId: 6, uploadedAt: dateAt(10, -50), isConfidential: true },
-    { clientId: 2, title: "Speech Therapy Referral", category: "medical", description: "Referral letter from Dr. Patel for speech therapy", fileType: "pdf", uploadedByUserId: 1, uploadedAt: dateAt(10, -10), isConfidential: false },
+    { clientId: 2, title: "Insurance Card", category: "insurance", description: "Blue Cross Blue Shield card", fileType: "image", uploadedByUserId: 6, uploadedAt: dateAt(10, -25), isConfidential: false, cgAccess: "none" },
+    { clientId: 2, title: "DNR Order", category: "medical", description: "Do Not Resuscitate order on file — life-critical reference", fileType: "pdf", uploadedByUserId: 6, uploadedAt: dateAt(10, -50), isConfidential: true, cgAccess: "read" },
+    { clientId: 2, title: "Speech Therapy Referral", category: "medical", description: "Referral letter from Dr. Patel for speech therapy", fileType: "pdf", uploadedByUserId: 6, uploadedAt: dateAt(10, -10), isConfidential: false, cgAccess: "read" },
   ]).run();
 
   // Seed completed outings for client 1
@@ -1381,6 +1399,9 @@ export const storage: IStorage = {
   getDocumentsByClient: (clientId) => db.select().from(documents).where(eq(documents.clientId, clientId)).orderBy(desc(documents.uploadedAt)).all(),
   createDocument: (data) => db.insert(documents).values(data).returning().get(),
   deleteDocument: (id) => { db.delete(documents).where(eq(documents.id, id)).run(); },
+  updateDocumentAccess: (id, cgAccess) => db.update(documents).set({ cgAccess }).where(eq(documents.id, id)).returning().get(),
+  logDocumentAccess: (docId, userId, action) => db.insert(documentAccessLog).values({ docId, userId, action, accessedAt: new Date().toISOString() }).returning().get(),
+  getDocumentAccessLog: (docId) => db.select().from(documentAccessLog).where(eq(documentAccessLog.docId, docId)).orderBy(desc(documentAccessLog.accessedAt)).all(),
 
   // Outings
   getOutingsByClient: (clientId) => db.select().from(outings).where(eq(outings.clientId, clientId)).orderBy(desc(outings.startedAt)).all(),
