@@ -713,8 +713,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // POST /api/invite/direct-connect — MC finds existing CNP caregiver by email and sends them a connection request
   app.post("/api/invite/direct-connect", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const account = req.account!;
-      let userId = account.userId;
+      const userId = req.authUserId;
       if (!userId) return res.status(403).json({ message: "Profile not linked" });
       const senderUser = db.select().from(users).where(eq(users.id, userId)).get();
       if (!senderUser) return res.status(404).json({ message: "Sender not found" });
@@ -790,8 +789,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/invite/:token/accept", requireAuth, async (req: AuthRequest, res) => {
     try {
       const { token } = req.params;
-      const account = req.account!;
-      const acceptingUser = db.select().from(users).where(eq(users.id, account.userId!)).get();
+      const acceptingUser = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
       if (!acceptingUser) return res.status(404).json({ message: "User not found" });
 
       const invite = db.select().from(connectionInvites)
@@ -879,7 +877,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // GET /api/notifications/prefs — get current user's notification preferences
   app.get("/api/notifications/prefs", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const user = db.select().from(users).where(eq(users.id, req.account!.userId!)).get();
+      const user = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
       const prefs = user?.notificationPrefs
         ? JSON.parse(user.notificationPrefs as string)
         : { careLog: true, messages: true, schedule: true, vitals: false };
@@ -896,7 +894,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       if (!prefs || typeof prefs !== "object") return res.status(400).json({ message: "Invalid prefs" });
       db.update(users)
         .set({ notificationPrefs: JSON.stringify(prefs) })
-        .where(eq(users.id, req.account!.userId!))
+        .where(eq(users.id, req.authUserId!))
         .run();
       res.json({ success: true });
     } catch (err: any) {
@@ -2365,26 +2363,4 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true });
   });
 
-  // TEMP DEBUG — remove before launch
-  app.get("/api/debug/invite-state", (req, res) => {
-    const recentInvites = db.select().from(connectionInvites)
-      .orderBy(desc(connectionInvites.createdAt))
-      .limit(5).all();
-    const realUsers = db.select().from(users)
-      .where(sql`${users.id} >= 10`).all();
-    res.json({ recentInvites, realUsers });
-  });
-
-  // TEMP: manually wire Becky (11) to James Roberts (clientId 4) — remove after confirmed
-  app.post("/api/debug/connect-becky", (req, res) => {
-    // Give Becky clientId 4 (James Roberts / David's client)
-    db.update(users).set({ clientId: 4 }).where(eq(users.id, 11)).run();
-    // Mark the most recent invite as accepted
-    db.update(connectionInvites).set({
-      status: "accepted",
-      acceptedByUserId: 10,
-      acceptedAt: new Date().toISOString(),
-    }).where(eq(connectionInvites.id, 7)).run();
-    res.json({ success: true, message: "Becky linked to clientId 4" });
-  });
 }
