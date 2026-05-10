@@ -21,7 +21,6 @@ import { AlarmConfig } from "@/components/AlarmConfig";
 import { Switch } from "@/components/ui/switch";
 import type { Client } from "@shared/schema";
 import { cn } from "@/lib/utils";
-import ModuleIntro from "@/components/ModuleIntro";
 
 function formatDateTime(iso: string) {
   return new Date(iso).toLocaleString([], { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
@@ -421,7 +420,6 @@ export default function SchedulePage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="schedule-page">
-      <ModuleIntro moduleKey="schedule" />
       {/* Page Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">

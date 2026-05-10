@@ -10,7 +10,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
 import { X, Sun, Moon, ChevronDown, BookHeart } from "lucide-react";
-import ModuleIntro from "@/components/ModuleIntro";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/lib/useLang";

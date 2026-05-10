@@ -18,7 +18,6 @@ import {
   Info, CheckCircle2, AlertCircle, Settings, ChevronRight,
   Shield, RefreshCw, Flag, BellOff
 } from "lucide-react";
-import ModuleIntro from "@/components/ModuleIntro";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -461,7 +460,6 @@ export default function CareScope() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
-      <ModuleIntro moduleKey="care-scope" />
 
       {/* Header */}
       <div className="flex items-start justify-between">

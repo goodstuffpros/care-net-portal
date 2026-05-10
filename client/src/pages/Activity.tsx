@@ -19,7 +19,6 @@ import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils,
 import { speakBecky } from "@/lib/ttsUtils";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
-import ModuleIntro from "@/components/ModuleIntro";
 
 const CATEGORY_ICONS: Record<string, typeof ClipboardList> = {
   medication: Pill,
@@ -262,7 +261,6 @@ export default function ActivityPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
-      <ModuleIntro moduleKey="care-log" />
       {/* Page Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">

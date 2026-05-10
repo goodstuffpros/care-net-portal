@@ -14,7 +14,6 @@ import { Archive, Sparkles, Calendar, Clock, TrendingUp, Star, Stethoscope, User
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
 import { generateDoctorPDF } from "@/lib/generateDoctorPDF";
-import ModuleIntro from "@/components/ModuleIntro";
 
 const PERIOD_ICONS: Record<string, typeof Calendar> = {
   day: Clock, week: Calendar, month: TrendingUp, year: Star,
@@ -86,7 +85,6 @@ export default function ArchivePage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
-      <ModuleIntro moduleKey="archive" />
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">

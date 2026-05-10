@@ -25,7 +25,6 @@ import {
   Clock, Globe, Star, Info, UserPlus, ChevronDown
 } from "lucide-react";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
-import ModuleIntro from "@/components/ModuleIntro";
 import type { User as UserType } from "@shared/schema";
 
 // ── Timezone options ─────────────────────────────────────────────────────────
@@ -233,7 +232,6 @@ export default function FamilyProfile() {
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto space-y-6 pb-24">
-      <ModuleIntro moduleKey="family-profile" />
 
       {/* ── Header ── */}
       <div className="flex items-center gap-4">

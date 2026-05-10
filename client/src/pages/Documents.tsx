@@ -20,7 +20,6 @@ import {
   ChevronDown, ChevronUp, ClipboardList
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import ModuleIntro from "@/components/ModuleIntro";
 import { LessonLauncher } from "@/components/LessonLauncher";
 
 const CATEGORIES = ["All", "Medical", "Emergency", "Legal", "Insurance", "Personal", "Financial", "Other"] as const;
@@ -174,7 +173,6 @@ export default function DocumentsPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-5 w-full overflow-x-hidden" data-testid="documents-page">
-      <ModuleIntro moduleKey="documents" />
 
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">

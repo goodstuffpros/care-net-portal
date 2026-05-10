@@ -13,7 +13,6 @@ import {
   ChevronDown, ChevronUp, Sparkles, Gift, X, Check
 } from "lucide-react";
 import type { ThoughtEntry } from "@shared/schema";
-import ModuleIntro from "@/components/ModuleIntro";
 import { LessonLauncher } from "@/components/LessonLauncher";
 
 // ── Mood config ───────────────────────────────────────────────────────────────
@@ -570,7 +569,6 @@ export default function ThoughtsPage() {
   // ── CAREGIVER VIEW ────────────────────────────────────────────────────────
   return (
     <div className="px-4 md:px-8 py-8 max-w-3xl mx-auto">
-      <ModuleIntro moduleKey="thoughts" />
       {/* Page header */}
       <div className="mb-6">
         <div className="flex items-center gap-2.5 mb-1">

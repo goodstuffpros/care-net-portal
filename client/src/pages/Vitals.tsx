@@ -27,7 +27,6 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, ReferenceLine
 } from "recharts";
-import ModuleIntro from "@/components/ModuleIntro";
 
 // ─── Reference ranges ─────────────────────────────────────────────────────────
 function getBPStatus(sys: number, dia: number): "normal" | "elevated" | "high" | "critical" {
@@ -485,7 +484,6 @@ export default function VitalsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto space-y-6">
-      <ModuleIntro moduleKey="vitals" />
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
