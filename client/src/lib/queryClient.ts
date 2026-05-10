@@ -2,6 +2,10 @@ import { QueryClient, QueryFunction } from "@tanstack/react-query";
 
 export const API_BASE = "__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__";
 
+// Static assets (images, audio) must always come from Railway — never relative paths,
+// because the Perplexity preview is a static S3 host with no Express to serve them.
+export const STATIC_BASE = "https://care-net-portal-production.up.railway.app";
+
 async function throwIfResNotOk(res: Response) {
   if (!res.ok) {
     const text = (await res.text()) || res.statusText;
