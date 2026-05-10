@@ -338,8 +338,8 @@ export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: st
 
   return (
     <>
-      {/* Red "Page Tutorial" pill — centered above the page CTA */}
-      <div className={cn("flex items-center justify-center w-full", extraClass)}>
+      {/* Red "Page Tutorial" pill — centered above the page CTA, mb-2 gives uniform gap to CTA below */}
+      <div className={cn("flex items-center justify-center w-full mb-2", extraClass)}>
         <div className="flex items-center gap-0 rounded-full overflow-hidden shadow-sm">
           <button
             onClick={() => setOpen(true)}
