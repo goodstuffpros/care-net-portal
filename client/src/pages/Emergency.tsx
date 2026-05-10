@@ -62,7 +62,9 @@ export default function EmergencyPage() {
   });
   const client = clients.find(c => c.id === selectedClientId);
   const emergencyData = CLIENT_EMERGENCY_DATA[selectedClientId] || CLIENT_EMERGENCY_DATA[1];
-  const allergies: string[] = client?.allergies ? JSON.parse(client.allergies) : [];
+  const allergies: string[] = client?.allergies
+    ? JSON.parse(client.allergies).map((a: any) => typeof a === "string" ? a : a?.name ?? "")
+    : [];
   const isDnrWarning = emergencyData.dnrStatus.toLowerCase().includes("dnr on file") || emergencyData.dnrStatus.toLowerCase().includes("unknown");
 
   return (
