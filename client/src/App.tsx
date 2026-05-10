@@ -1,4 +1,5 @@
 import { Switch, Route, Router, useLocation } from "wouter";
+import { stopBecky } from "@/lib/ttsUtils";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, apiRequest } from "@/lib/queryClient";
@@ -369,7 +370,10 @@ export default function App() {
   );
 
   useEffect(() => {
-    const onHashChange = () => setHash(window.location.hash);
+    const onHashChange = () => {
+      setHash(window.location.hash);
+      stopBecky(); // stop any playing lesson audio whenever the route changes
+    };
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
