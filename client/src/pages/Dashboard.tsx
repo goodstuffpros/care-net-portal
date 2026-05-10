@@ -158,7 +158,7 @@ export default function DashboardPage() {
       )}
 
       {/* Stats Row — 4 across, compact portrait tiles */}
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-4 gap-1.5">
         {scheduleLoading ? (
           Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
         ) : (
