@@ -33,12 +33,13 @@ export interface NavItem {
 export const NAV_COLORS: Record<string, { color: string; bg: string }> = {};
 
 // Shared tile classes — same for every module
-const TILE_BG = "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-500";
-const TILE_BG_FC = "bg-white dark:bg-slate-700 border-rose-100 dark:border-slate-500";
-const TILE_ICON_COLOR = "text-teal-600 dark:text-teal-400";
+// Light: white + gray keyboard-key shadow | Dark: near-black + subtle light shadow
+const TILE_BG    = "bg-white dark:bg-zinc-900 border-slate-200 dark:border-zinc-700";
+const TILE_BG_FC = "bg-white dark:bg-zinc-900 border-rose-100  dark:border-zinc-700";
+const TILE_ICON_COLOR    = "text-teal-600 dark:text-teal-400";
 const TILE_ICON_COLOR_FC = "text-rose-500 dark:text-rose-400";
-const TILE_LABEL_COLOR = "text-slate-700 dark:text-slate-300";
-const TILE_LABEL_COLOR_FC = "text-slate-600 dark:text-rose-200/80";
+const TILE_LABEL_COLOR    = "text-teal-700 dark:text-teal-300";
+const TILE_LABEL_COLOR_FC = "text-rose-600 dark:text-rose-300";
 
 // ── Color swatches ────────────────────────────────────────────────────────────
 
@@ -378,20 +379,22 @@ export default function NavOverlay({
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
                   style={{
                     touchAction: isDraggingAny ? "none" : "pan-y",
-                    boxShadow: "0 3px 0 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)",
                   }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
+                    "flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
+                    // Light: white tile, gray keyboard-key drop-shadow
+                    // Dark: near-black tile, subtle light-gray keyboard-key drop-shadow
+                    "[box-shadow:0_4px_0_0_rgba(0,0,0,0.18),0_1px_4px_rgba(0,0,0,0.10)] dark:[box-shadow:0_4px_0_0_rgba(255,255,255,0.07),0_1px_4px_rgba(0,0,0,0.40)]",
                     isFC ? TILE_BG_FC : TILE_BG,
                     isDragging && "opacity-40 scale-95 ring-2 ring-primary/40",
                     isOver && "ring-2 ring-primary ring-offset-1 scale-[1.04]",
-                    !isDragging && !isOver && "active:scale-95 active:translate-y-[2px] hover:scale-[1.02]"
+                    !isDragging && !isOver && "active:scale-95 active:translate-y-[3px] [&:active]:[box-shadow:0_1px_0_0_rgba(0,0,0,0.18)] dark:[&:active]:[box-shadow:0_1px_0_0_rgba(255,255,255,0.07)] hover:scale-[1.02]"
                   )}
                 >
-                  <Icon size={18} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
+                  <Icon size={24} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
                   <span className={cn(
-                    "text-[10px] font-medium text-center leading-tight",
+                    "text-xs font-semibold text-center leading-tight",
                     isFC ? TILE_LABEL_COLOR_FC : TILE_LABEL_COLOR
                   )}>
                     {label}
