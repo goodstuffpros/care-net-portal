@@ -42,19 +42,6 @@ const TYPE_COLORS: Record<string, string> = {
   other: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 
-// Simulated "seen by" data for demo
-const SEEN_BY_DEMO: Record<number, string[]> = {
-  1: ["Robert Jr.", "Linda J."],
-  2: ["Robert Jr."],
-  3: [],
-  4: ["Linda J."],
-  5: ["Robert Jr.", "Linda J.", "Becky M."],
-};
-
-function getSeenBy(eventId: number, realSession: boolean): string[] {
-  if (realSession) return [];
-  return SEEN_BY_DEMO[eventId % 5 + 1] || [];
-}
 
 function groupByDay(events: ScheduleEvent[]) {
   const groups: Record<string, ScheduleEvent[]> = {};
@@ -297,7 +284,7 @@ export default function SchedulePage() {
     const Icon = TYPE_ICONS[event.type] || Calendar;
     const late = event.isCompleted && event.completedAt && isLateCompletion(event.scheduledAt, event.completedAt);
     const isExcused = excusedIds.has(event.id);
-    const seenBy = getSeenBy(event.id, isRealSession);
+    const seenBy: string[] = []; // future: pull from DB via read-receipts API
     return (
       <div key={event.id} className={cn("p-4 rounded-xl border bg-card transition-all", event.isCompleted && "opacity-70")} data-testid={`event-card-${event.id}`}>
         <div className="flex items-start gap-3">

@@ -83,18 +83,6 @@ export function isCaregiverRole(role: UserRole) {
   return role === "caregiver" || role === "temp_caregiver" || role === "multi_caregiver";
 }
 
-const DEMO_USERS: ActiveUser[] = [
-  // Client 1 — Robert Johnson (caregiver mode)
-  { id: 1, name: "Becky M.", role: "caregiver", avatarInitials: "BM", clientId: 1 },
-  { id: 2, name: "Marcus T.", role: "multi_caregiver", avatarInitials: "MT", clientId: 1 },
-  { id: 3, name: "Diana P.", role: "temp_caregiver", avatarInitials: "DP", clientId: 1, tempAccessEnd: new Date(Date.now() + 7*24*60*60*1000).toISOString().split('T')[0] },
-  { id: 4, name: "Robert Jr.", role: "primary_family", avatarInitials: "RJ", clientId: 1 },
-  { id: 5, name: "Linda J.", role: "secondary_family", avatarInitials: "LJ", clientId: 1 },
-  // Client 2 — Eleanor Williams (caregiver mode)
-  { id: 6, name: "Sarah W.", role: "primary_family", avatarInitials: "SW", clientId: 2 },
-  // Client 3 — Frank Garcia (pre-care mode)
-
-];
 
 export type ColorTheme = "teal" | "sand" | "navy" | "lavender";
 export type PortalMode = "dedicated" | "family";
@@ -102,7 +90,7 @@ export type PortalMode = "dedicated" | "family";
 interface AppContextType {
   activeUser: ActiveUser;
   setActiveUser: (user: ActiveUser) => void;
-  demoUsers: ActiveUser[];
+
   selectedClientId: number;
   setSelectedClientId: (id: number) => void;
   theme: "light" | "dark";
@@ -115,8 +103,8 @@ interface AppContextType {
   setPortalMode: (mode: PortalMode) => void;
   showUpgradeTransition: boolean;
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
-  isRealSession: boolean; // true when a real auth user is logged in (not demo)
-  isPreConnection: boolean; // true when real CG session but no clientId yet (exploring demo)
+  isRealSession: boolean; // always true — demo mode removed
+  isPreConnection: boolean; // true when real CG session but no clientId yet
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
 }
@@ -139,9 +127,6 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   // Pre-connection CGs (no clientId yet) fall through to the main app in demo mode.
   // A banner in AppLayout explains the situation and offers an invite shortcut.
 
-  // If a real auth user is in demo preview mode, suppress the OnboardingFlow overlay.
-  const isRealUserDemoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
-
   // Real MC who just completed setup — start in family portal mode
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
   const startPortalMode: PortalMode = isMCReal ? "family" : "dedicated";
@@ -150,7 +135,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const ADMIN_EMAILS = ["goodstuffpros@gmail.com", "becky@carenetportal.com"];
   const isAdminEmail = ADMIN_EMAILS.includes(realUser?.email ?? "");
 
-  // Build an ActiveUser from the real session if available, otherwise default to demo Becky
+  // Build an ActiveUser from the real session
   const buildRealActiveUser = (): ActiveUser | null => {
     if (!realUser?.id || !realUser?.name || !realUser?.role) return null;
     return {
@@ -162,9 +147,9 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
       isAdmin: isAdminEmail,
     };
   };
-  const initialActiveUser = buildRealActiveUser() ?? DEMO_USERS[0];
-  const isRealSession = !!buildRealActiveUser();
-  const isPreConnection = isRealSession && !realUser?.clientId;
+  const initialActiveUser = buildRealActiveUser() ?? { id: 0, name: "Guest", role: "caregiver" as UserRole, avatarInitials: "G", clientId: null };
+  const isRealSession = true; // demo mode removed
+  const isPreConnection = !realUser?.clientId;
 
   const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
   const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
@@ -191,11 +176,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
       setShowUpgradeTransition(true);
     }
     setPortalModeState(mode);
-    if (mode === "family" && isCaregiverRole(activeUser.role)) {
-      const familyUser = DEMO_USERS.find(u => u.role === "primary_family" && u.clientId === selectedClientId)
-        || DEMO_USERS.find(u => u.role === "primary_family");
-      if (familyUser) setActiveUser(familyUser);
-    }
+
   }
 
   function triggerUpgradeTransition() { setShowUpgradeTransition(false); }
@@ -234,7 +215,6 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   }, [activeUser.id, activeUser.role]);
 
   const showOnboarding =
-    !isRealUserDemoPreview &&
     isCaregiverRole(activeUser.role) &&
     !onboardingDismissed[activeUser.id] &&
     onboardingUserFetched[activeUser.id] === true &&
@@ -251,15 +231,15 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
     setUserOnboardingDone(prev => ({ ...prev, [activeUser.id]: true }));
   }
 
-  // Determine app mode based on selected client (in real app, fetched from DB)
-  const appMode = selectedClientId === 3 ? "precare" : "caregiver";
+  // App mode is always caregiver now that pre-care demo client is removed
+  const appMode: "caregiver" | "precare" = "caregiver";
 
   return (
     <QueryClientProvider client={queryClient}>
       <AppContext.Provider value={{
         activeUser,
         setActiveUser,
-        demoUsers: isRealSession ? [] : DEMO_USERS,
+
         selectedClientId,
         setSelectedClientId,
         theme,
@@ -306,7 +286,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
                 <PatternsPage
                   activeUser={activeUser}
                   selectedClientId={selectedClientId}
-                  clientName={selectedClientId === 1 ? "Robert Johnson" : selectedClientId === 2 ? "Eleanor Williams" : "the client"}
+                  clientName="the client"
                 />
               )} />
               <Route path="/becky-admin" component={BeckyAdminPage} />

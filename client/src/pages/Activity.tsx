@@ -38,18 +38,6 @@ const CATEGORY_COLORS: Record<string, string> = {
   general: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
 };
 
-// Simulated seen-by data for demo
-const SEEN_BY_DEMO: Record<number, string[]> = {
-  1: ["Robert Jr.", "Linda J."],
-  2: ["Robert Jr."],
-  3: [],
-  4: ["Linda J."],
-  5: ["Robert Jr.", "Linda J."],
-};
-function getSeenBy(logId: number, realSession: boolean): string[] {
-  if (realSession) return []; // real sessions: no fake seen-by data
-  return SEEN_BY_DEMO[logId % 5 + 1] || [];
-}
 
 function formatTime(iso: string) {
   const d = new Date(iso);
@@ -555,7 +543,7 @@ export default function ActivityPage() {
         <div className="space-y-2">
           {filtered.map(log => {
             const Icon = CATEGORY_ICONS[log.category] || ClipboardList;
-            const seenBy = getSeenBy(log.id, isRealSession);
+            const seenBy: string[] = []; // future: pull from DB via read-receipts API
             return (
               <div
                 key={log.id}

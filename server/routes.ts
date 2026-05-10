@@ -160,12 +160,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // GET /api/auth/me — returns current user if authenticated
   app.get("/api/auth/me", async (req: AuthRequest, res) => {
-    // Demo mode: return demo user
-    const demoUserId = req.headers["x-demo-user-id"];
-    if (process.env.DEMO_MODE === "true" && demoUserId) {
-      const u = db.select().from(users).where(eq(users.id, parseInt(demoUserId as string))).get();
-      if (u) return res.json({ id: u.id, name: u.name, role: u.role, email: u.email, isDemoMode: true });
-    }
     const token = getTokenFromRequest(req);
     if (!token) return res.status(401).json({ message: "Not authenticated" });
     const payload = await verifyJWT(token);
@@ -1354,9 +1348,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Users
-  // GET /api/users — scoped to the caller's care circle.
-  // Real sessions (valid cookie): returns only users sharing the same clientId, no demo users (id <= 5).
-  // Demo / unauthenticated (no cookie): returns all users so the demo switcher keeps working.
+  // GET /api/users — scoped to the caller's care circle (auth required)
   app.get("/api/users", async (req: AuthRequest, res) => {
     const allUsers = storage.getUsers();
     try {
@@ -1368,15 +1360,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           if (account?.userId) {
             const me = allUsers.find(u => u.id === account.userId);
             if (me?.clientId) {
-              return res.json(allUsers.filter(u => u.clientId === me.clientId && u.id > 5));
+              return res.json(allUsers.filter(u => u.clientId === me.clientId));
             } else if (me) {
               return res.json([me]);
             }
           }
         }
       }
-    } catch (_) { /* ignore — fall through to demo */ }
-    return res.json(allUsers);
+    } catch (_) { /* ignore */ }
+    return res.status(401).json({ message: "Not authenticated" });
   });
   app.get("/api/users/:id", (req, res) => {
     const user = storage.getUserById(Number(req.params.id));

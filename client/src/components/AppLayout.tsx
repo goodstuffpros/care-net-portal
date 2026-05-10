@@ -177,7 +177,7 @@ const TIMEZONES = [
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen } = useApp();
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
@@ -632,10 +632,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     return items;
   })();
 
-  // Group demo users for the switcher
-  const client1Users = demoUsers.filter(u => u.clientId === 1);
-  const client2Users = demoUsers.filter(u => u.clientId === 2);
-  const client3Users = demoUsers.filter(u => u.clientId === 3);
 
   const Sidebar = () => (
     <aside className={cn(
@@ -684,21 +680,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <div className="px-3 py-3 border-b border-sidebar-border">
           <div className="text-xs text-sidebar-foreground/40 uppercase tracking-wider mb-2 px-2">Active Client</div>
           <div className="flex flex-col gap-1">
-            {[
-              { id: 1, label: "Robert J.", mode: "caregiver" },
-              { id: 2, label: "Eleanor W.", mode: "caregiver" },
-              { id: 3, label: "Frank G.", mode: "precare", badge: "Pre-Care" },
-            ].filter(c => c.id !== 3).map(c => (
+            {/* Real client selector — populated from activeUser.clientId (single client per CG for now) */}
+            {activeUser.clientId ? (
               <button
-                key={c.id}
-                data-testid={`client-selector-${c.id}`}
-                onClick={() => setSelectedClientId(c.id)}
-                className={cn("flex items-center justify-between text-xs py-2 px-3 rounded-md transition-all", selectedClientId === c.id ? "bg-sidebar-primary/20 text-sidebar-primary border border-sidebar-primary/30" : "text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground")}
+                data-testid={`client-selector-${activeUser.clientId}`}
+                onClick={() => setSelectedClientId(activeUser.clientId!)}
+                className={cn("flex items-center justify-between text-xs py-2 px-3 rounded-md transition-all", "bg-sidebar-primary/20 text-sidebar-primary border border-sidebar-primary/30")}
               >
-                <span>{c.label}</span>
-                {c.badge && <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-teal-500/20 text-teal-400">{c.badge}</span>}
+                <span>My Client</span>
               </button>
-            ))}
+            ) : (
+              <div className="text-xs text-sidebar-foreground/40 px-2">No client connected</div>
+            )}
           </div>
         </div>
       )}
@@ -929,81 +922,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           </DropdownMenuTrigger>
           <DropdownMenuContent side="top" align="start" className="w-64 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
-            {!isRealSession && <><DropdownMenuLabel>Switch Role (Demo)</DropdownMenuLabel>
-            <DropdownMenuSeparator /></>}
-
-            {!isRealSession && (
-              <>
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 1 — Robert Johnson</DropdownMenuLabel>
-                  {client1Users.map(user => (
-                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">{user.name}</div>
-                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                      </div>
-                      {user.role === "temp_caregiver" && <span className="text-[10px] px-1.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 ml-1">Temp</span>}
-                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 2 — Eleanor Williams</DropdownMenuLabel>
-                  {client2Users.map(user => (
-                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">{user.name}</div>
-                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                      </div>
-                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-                <DropdownMenuGroup>
-                  <DropdownMenuLabel className="text-xs text-muted-foreground font-normal py-1">Client 3 — Frank Garcia (Pre-Care)</DropdownMenuLabel>
-                  {client3Users.map(user => (
-                    <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-${user.id}`}>
-                      <div className="w-6 h-6 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                      <div className="flex-1 min-w-0">
-                        <div className="font-medium text-sm">{user.name}</div>
-                        <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                      </div>
-                      <span className="text-[10px] px-1.5 rounded-full bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 ml-1">Pre-Care</span>
-                      {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuGroup>
-                <DropdownMenuSeparator />
-              </>
-            )}
-
-            {/* Real user info */}
-            {isRealSession && (
-              <>
-                <div className="px-2 py-2">
-                  <div className="text-xs text-muted-foreground">Signed in as</div>
-                  <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
-                  <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
-                </div>
-                <DropdownMenuSeparator />
-              </>
-            )}
-            <DropdownMenuSeparator className={isRealSession ? "hidden" : ""} />
+            {/* User info */}
+            <div className="px-2 py-2">
+              <div className="text-xs text-muted-foreground">Signed in as</div>
+              <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
+              <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
+            </div>
+            <DropdownMenuSeparator />
             {/* Profile page — role-aware */}
-            {isRealSession && (
-              <DropdownMenuItem
-                onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
-                className="cursor-pointer text-muted-foreground"
-                data-testid="nav-my-profile"
-              >
-                <User size={14} className="mr-2" />
-                My Profile
-              </DropdownMenuItem>
-            )}
+            <DropdownMenuItem
+              onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
+              className="cursor-pointer text-muted-foreground"
+              data-testid="nav-my-profile"
+            >
+              <User size={14} className="mr-2" />
+              My Profile
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")}
               className="cursor-pointer text-muted-foreground"
@@ -1012,32 +946,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Sparkles size={14} className="mr-2" />
               Pricing
             </DropdownMenuItem>
-            {!isRealSession && isCaregiverRole(activeUser.role) && (
-              <DropdownMenuItem
-                onClick={triggerOnboarding}
-                className="cursor-pointer text-muted-foreground"
-                data-testid="replay-onboarding"
-              >
-                <BookOpen size={14} className="mr-2" />
-                Replay Introduction
-              </DropdownMenuItem>
-            )}
-            {isRealSession && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => {
-                    fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                      .finally(() => { window.location.href = "/#/login"; });
-                  }}
-                  className="cursor-pointer text-red-500 dark:text-red-400"
-                  data-testid="sign-out-btn"
-                >
-                  <LogOut size={14} className="mr-2" />
-                  Sign out
-                </DropdownMenuItem>
-              </>
-            )}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => {
+                fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                  .finally(() => { window.location.href = "/#/login"; });
+              }}
+              className="cursor-pointer text-red-500 dark:text-red-400"
+              data-testid="sign-out-btn"
+            >
+              <LogOut size={14} className="mr-2" />
+              Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -1339,49 +1259,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
                 </div>
                 <DropdownMenuSeparator />
-                {!isRealSession && (
-                  <>
-                    <DropdownMenuLabel className="text-xs">Switch Role (Demo)</DropdownMenuLabel>
-                    {[...client1Users, ...client2Users].map(user => (
-                      <DropdownMenuItem key={user.id} onClick={() => setActiveUser(user)} className="cursor-pointer" data-testid={`role-switch-mobile-${user.id}`}>
-                        <div className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[10px] font-bold mr-2 flex-shrink-0">{user.avatarInitials}</div>
-                        <div className="flex-1 min-w-0">
-                          <div className="font-medium text-sm">{user.name}</div>
-                          <div className="text-xs text-muted-foreground">{ROLE_LABELS[user.role]}</div>
-                        </div>
-                        {activeUser.id === user.id && <span className="ml-1 text-primary text-xs">●</span>}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                  </>
-                )}
                 {/* Profile page — mobile, role-aware */}
-                {isRealSession && (
-                  <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
-                    <User size={14} className="mr-2" />
-                    My Profile
-                  </DropdownMenuItem>
-                )}
+                <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
+                  <User size={14} className="mr-2" />
+                  My Profile
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")} className="cursor-pointer text-muted-foreground" data-testid="nav-pricing-mobile">
                   <Sparkles size={14} className="mr-2" />
                   Pricing
                 </DropdownMenuItem>
-                {isRealSession && (
-                  <>
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem
-                      onClick={() => {
-                        fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                          .finally(() => { window.location.href = "/#/login"; });
-                      }}
-                      className="cursor-pointer text-red-500 dark:text-red-400"
-                      data-testid="sign-out-mobile"
-                    >
-                      <LogOut size={14} className="mr-2" />
-                      Sign out
-                    </DropdownMenuItem>
-                  </>
-                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => {
+                    fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                      .finally(() => { window.location.href = "/#/login"; });
+                  }}
+                  className="cursor-pointer text-red-500 dark:text-red-400"
+                  data-testid="sign-out-mobile"
+                >
+                  <LogOut size={14} className="mr-2" />
+                  Sign out
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
