@@ -315,7 +315,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
             {cgSent && <CheckCircle2 className="w-4 h-4 text-teal-600 ml-auto" />}
           </div>
           <p className="text-xs text-muted-foreground mb-3">
-            They'll get an email with a link to connect their portal to yours.
+            Optional. If you work with a professional caregiver, invite them here. They'll get an email to connect their portal to yours.
           </p>
           {cgSent ? (
             <div className="rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 px-4 py-2.5">

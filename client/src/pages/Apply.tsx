@@ -59,7 +59,7 @@ const SIGNUP_ROLES: {
     value: "family",
     label: "Main Contact",
     subtitle: "Family member — primary decision maker",
-    description: "I'm responsible for my loved one's care. I'll set up their profile, invite the caregiver, and keep the family informed.",
+    description: "I'm the primary person managing care for a loved one. I may be coordinating with a professional caregiver, or I may be handling everything myself — either way, this portal is built for me.",
     icon: <Heart className="w-6 h-6" />,
     color: "border-border bg-card hover:border-rose-400/50",
     checkedColor: "border-rose-500 bg-rose-50 dark:bg-rose-950/30 ring-1 ring-rose-500/30",
@@ -325,7 +325,7 @@ export default function ApplyPage() {
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
                 {isMC
-                  ? "You'll set up your loved one's profile right after this."
+                  ? "You'll set up your loved one's profile right after this. A professional caregiver is optional."
                   : "You'll connect with your client's family once they invite you."}
               </p>
             </>
