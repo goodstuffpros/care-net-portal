@@ -1327,6 +1327,48 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
+        {/* Quick-Nav Tab Strip */}
+        <nav className={cn(
+          "flex items-stretch flex-shrink-0 border-b",
+          isFamilyPortal
+            ? "bg-sidebar border-sidebar-border"
+            : "bg-background border-border"
+        )}>
+          {([
+            { label: "Dashboard", path: "/" },
+            { label: "Care Log",  path: "/activity" },
+            { label: "Schedule", path: "/schedule" },
+            { label: "Messages", path: "/messages" },
+          ] as const).map(({ label, path }) => {
+            const active = location === path || (path !== "/" && location.startsWith(path));
+            const accent = isFamilyPortal ? "rose" : "teal";
+            return (
+              <button
+                key={path}
+                onClick={() => navigate(path)}
+                className={cn(
+                  "flex-1 py-2 text-[11px] font-bold tracking-wide transition-colors relative",
+                  active
+                    ? accent === "rose"
+                      ? "text-rose-600 dark:text-rose-400"
+                      : "text-teal-600 dark:text-teal-400"
+                    : isFamilyPortal
+                      ? "text-sidebar-foreground/60 hover:text-sidebar-foreground"
+                      : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {label}
+                {active && (
+                  <span className={cn(
+                    "absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full",
+                    accent === "rose" ? "bg-rose-500" : "bg-teal-500"
+                  )} />
+                )}
+              </button>
+            );
+          })}
+        </nav>
+
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
           <DailyNudge />
