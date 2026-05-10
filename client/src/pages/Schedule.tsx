@@ -425,11 +425,11 @@ export default function SchedulePage() {
               <Plus size={16} /> {t("schedule.addEvent")}
             </Button>
           </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
+            <DialogContent className="sm:max-w-md max-h-[90dvh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle>Add Schedule Event</DialogTitle>
               </DialogHeader>
-              <div className="space-y-4 py-2">
+              <div className="space-y-4 py-2 overflow-y-auto flex-1 pr-1">
                 <div className="space-y-1.5">
                   <Label>{t("schedule.eventTitle")}</Label>
                   <Input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))} placeholder="e.g. Morning Medications" data-testid="event-title-input" />
@@ -588,18 +588,18 @@ export default function SchedulePage() {
                 <CalendarPlus size={16} /> Add Appointment
               </Button>
             </DialogTrigger>
-            <DialogContent className="sm:max-w-md">
-              <DialogHeader>
+            <DialogContent className="sm:max-w-md max-h-[90dvh] flex flex-col">
+              <DialogHeader className="flex-shrink-0">
                 <DialogTitle className="flex items-center gap-2">
                   <CalendarPlus size={18} className="text-blue-600" /> Add Appointment
                 </DialogTitle>
               </DialogHeader>
               {/* MC info banner */}
-              <div className="flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
+              <div className="flex-shrink-0 flex items-start gap-2 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 px-3 py-2.5 text-xs text-amber-800 dark:text-amber-300">
                 <span className="mt-0.5">⚠️</span>
                 <span>Your caregiver will receive an <strong>urgent alert</strong> as soon as this appointment is saved.</span>
               </div>
-              <div className="space-y-4 py-1">
+              <div className="space-y-4 py-1 overflow-y-auto flex-1 pr-1">
                 <div className="space-y-1.5">
                   <Label>Appointment Name <span className="text-red-500">*</span></Label>
                   <Input
