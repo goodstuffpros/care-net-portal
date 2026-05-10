@@ -6,7 +6,7 @@ import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDis
 import { db } from "./db";
 import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
-import { eq, and, lt, desc, sql } from "drizzle-orm";
+import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
 import fs from "fs";
 import {
@@ -2582,6 +2582,40 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
     rawDb.close();
     res.json({ success: true });
+  });
+
+  // ONE-SHOT: GET /api/admin/fix-bonnie-list — list CG users with no clientId
+  app.get("/api/admin/fix-bonnie-list", (_req, res) => {
+    try {
+      const orphanCGs = db.select().from(users)
+        .where(and(eq(users.role, "caregiver"), isNull(users.clientId)))
+        .all();
+      res.json(orphanCGs.map(u => ({ id: u.id, name: u.name, email: u.email, role: u.role, clientId: u.clientId })));
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // ONE-SHOT: POST /api/admin/fix-bonnie — flip a user from caregiver → primary_family
+  // Body: { email: string }
+  app.post("/api/admin/fix-bonnie", (req, res) => {
+    const { email } = req.body as { email: string };
+    if (!email) return res.status(400).json({ message: "email required" });
+    try {
+      const target = db.select().from(users).where(eq(users.email, email.toLowerCase().trim())).get();
+      if (!target) return res.status(404).json({ message: "User not found" });
+      if (target.role !== "caregiver") return res.status(400).json({ message: `User role is '${target.role}', expected 'caregiver'` });
+      // Fix users table
+      db.update(users).set({ role: "primary_family", clientId: null, mcSetupCompletedAt: null })
+        .where(eq(users.id, target.id)).run();
+      // Fix betaApplications table too
+      db.update(betaApplications).set({ role: "family" })
+        .where(eq(betaApplications.email, email.toLowerCase().trim())).run();
+      const updated = db.select().from(users).where(eq(users.id, target.id)).get();
+      res.json({ success: true, before: { role: target.role, clientId: target.clientId }, after: { role: updated?.role, clientId: updated?.clientId } });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
   });
 
 }
