@@ -353,6 +353,8 @@ try { sqlite.exec(`ALTER TABLE users ADD COLUMN onboarding_completed_at TEXT`); 
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_setup_completed_at TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN care_path_choice TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN seen_modules TEXT DEFAULT '[]'`); } catch {}
+// One-time HIW reset — clears seen_modules so all users see updated lessons fresh (2026-05-09)
+try { sqlite.exec(`UPDATE users SET seen_modules = '[]'`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN nav_order TEXT DEFAULT '[]'`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN timezone TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"all":true}'`); } catch {}
