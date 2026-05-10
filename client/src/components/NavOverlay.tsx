@@ -41,8 +41,8 @@ export interface NavItem {
 export const NAV_COLORS: Record<string, { color: string; bg: string }> = {};
 
 // Shared tile classes — same for every module
-const TILE_BG = "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50";
-const TILE_BG_FC = "bg-white dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/40";
+const TILE_BG = "bg-white dark:bg-slate-700 border-slate-200 dark:border-slate-500";
+const TILE_BG_FC = "bg-white dark:bg-slate-700 border-rose-100 dark:border-slate-500";
 const TILE_ICON_COLOR = "text-teal-600 dark:text-teal-400";
 const TILE_ICON_COLOR_FC = "text-rose-500 dark:text-rose-400";
 const TILE_LABEL_COLOR = "text-slate-700 dark:text-slate-300";
@@ -388,14 +388,17 @@ export default function NavOverlay({
                     if (!suppress) handleTileClick(item.path);
                   }}
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
-                  style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
+                  style={{
+                    touchAction: isDraggingAny ? "none" : "pan-y",
+                    boxShadow: "0 3px 0 0 rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.08)",
+                  }}
                   className={cn(
                     "flex flex-col items-center justify-center gap-1 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
                     isFC ? TILE_BG_FC : TILE_BG,
                     isDragging && "opacity-40 scale-95 ring-2 ring-primary/40",
                     isOver && "ring-2 ring-primary ring-offset-1 scale-[1.04]",
-                    !isDragging && !isOver && "active:scale-95 hover:shadow-sm hover:scale-[1.02]"
+                    !isDragging && !isOver && "active:scale-95 active:translate-y-[2px] hover:scale-[1.02]"
                   )}
                 >
                   <Icon size={18} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
