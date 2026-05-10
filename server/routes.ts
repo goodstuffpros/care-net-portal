@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql } from "drizzle-orm";
 import path from "path";
@@ -1156,6 +1156,68 @@ Please follow up with this user. The conversation above contains everything need
   });
 
   // ══════════════════════════════════════════════════════════════════════════
+  // ── ONE-SHOT: purge demo clients (1-3) + demo users (1-9) ──────────────────
+  app.post("/api/admin/purge-demo-data", (req, res) => {
+    try {
+      const demoClientIds = [1, 2, 3];
+      const demoUserIds = [1, 2, 3, 4, 5, 6, 7, 8, 9];
+      const results: Record<string, number> = {};
+
+      // Wipe all data associated with demo clients
+      for (const cid of demoClientIds) {
+        // Messages belong to threads; delete messages first, then threads
+        const threads = db.select().from(chatThreads).where(eq(chatThreads.clientId, cid)).all();
+        for (const t of threads) {
+          db.delete(messages).where(eq(messages.threadId, t.id)).run();
+        }
+        db.delete(chatThreads).where(eq(chatThreads.clientId, cid)).run();
+        db.delete(scheduleEvents).where(eq(scheduleEvents.clientId, cid)).run();
+        db.delete(activityLogs).where(eq(activityLogs.clientId, cid)).run();
+        db.delete(medicationLogs).where(eq(medicationLogs.clientId, cid)).run();
+        db.delete(medications).where(eq(medications.clientId, cid)).run();
+        db.delete(vitals).where(eq(vitals.clientId, cid)).run();
+        db.delete(mediaItems).where(eq(mediaItems.clientId, cid)).run();
+        db.delete(archiveSummaries).where(eq(archiveSummaries.clientId, cid)).run();
+        db.delete(miscNotes).where(eq(miscNotes.clientId, cid)).run();
+        db.delete(documents).where(eq(documents.clientId, cid)).run();
+        db.delete(outings).where(eq(outings.clientId, cid)).run();
+        db.delete(shifts).where(eq(shifts.clientId, cid)).run();
+        db.delete(careFlags).where(eq(careFlags.clientId, cid)).run();
+        db.delete(thoughtEntries).where(eq(thoughtEntries.clientId, cid)).run();
+      }
+      results.clientDataWiped = demoClientIds.length;
+
+      // Delete demo clients
+      for (const cid of demoClientIds) {
+        db.delete(clients).where(eq(clients.id, cid)).run();
+      }
+      results.clientsDeleted = demoClientIds.length;
+
+      // Delete demo users
+      let usersDeleted = 0;
+      for (const uid of demoUserIds) {
+        const u = db.select().from(users).where(eq(users.id, uid)).get();
+        if (u) { db.delete(users).where(eq(users.id, uid)).run(); usersDeleted++; }
+      }
+      results.usersDeleted = usersDeleted;
+
+      // Null out clientId for any real users still pointing at deleted demo clients
+      const realUsers = db.select().from(users).all().filter(u => u.id >= 10);
+      let unlinked = 0;
+      for (const u of realUsers) {
+        if (u.clientId && demoClientIds.includes(u.clientId)) {
+          db.update(users).set({ clientId: null, mcSetupCompletedAt: null }).where(eq(users.id, u.id)).run();
+          unlinked++;
+        }
+      }
+      results.realUsersUnlinked = unlinked;
+
+      res.json({ success: true, results });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
   // END AUTH ROUTES
   // ══════════════════════════════════════════════════════════════════════════
 

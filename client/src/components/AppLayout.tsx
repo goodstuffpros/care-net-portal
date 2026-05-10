@@ -292,7 +292,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [preConnBannerDismissed, setPreConnBannerDismissed] = useState(false);
   const [preConnInviteLink, setPreConnInviteLink] = useState("");
   const [preConnCopied, setPreConnCopied] = useState(false);
-  const showPreConnBanner = isPreConnection && !preConnBannerDismissed;
+  const showPreConnBanner = isPreConnection && !preConnBannerDismissed && isCaregiverRole(activeUser.role);
 
   const preConnInviteMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/invite/create", { inviteType: "caregiver_to_mc" }).then(r => r.json()),
