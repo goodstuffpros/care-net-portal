@@ -1113,7 +1113,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             {showPrefsMenu && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => { setShowPrefsMenu(false); setShowTzPicker(false); setTzSearch(""); }} />
-                <div className={cn("absolute right-0 top-full mt-1.5 z-50 bg-popover border border-border rounded-xl shadow-xl py-2 transition-all", showTzPicker ? "w-72" : "w-52")}>
+                <div className={cn("absolute right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl py-2 transition-all", showTzPicker ? "w-72" : "w-52")}>
                   <p className="px-3 pb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preferences</p>
 
                   {/* Light / Dark */}
