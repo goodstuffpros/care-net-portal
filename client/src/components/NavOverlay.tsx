@@ -37,32 +37,17 @@ export interface NavItem {
 }
 
 // ── Tile color palette ────────────────────────────────────────────────────────
+// Single calm tile style — white/off-white surface with teal icon accent.
+// Emergency overrides to red at render time (intentional standout).
+export const NAV_COLORS: Record<string, { color: string; bg: string }> = {};
 
-// Solid filled in light mode (white icon/label) · translucent tinted in dark mode
-export const NAV_COLORS: Record<string, { color: string; bg: string }> = {
-  "/":             { color: "text-white dark:text-teal-400",      bg: "bg-teal-600 dark:bg-teal-900/30 border-teal-700 dark:border-teal-700/40" },
-  "/activity":     { color: "text-white dark:text-amber-400",    bg: "bg-amber-600 dark:bg-amber-900/30 border-amber-700 dark:border-amber-700/40" },
-  "/schedule":     { color: "text-white dark:text-blue-400",     bg: "bg-blue-600 dark:bg-blue-900/30 border-blue-700 dark:border-blue-700/40" },
-  "/medications":  { color: "text-white dark:text-rose-400",     bg: "bg-rose-600 dark:bg-rose-900/30 border-rose-700 dark:border-rose-700/40" },
-  "/messages":     { color: "text-white dark:text-violet-400",   bg: "bg-violet-600 dark:bg-violet-900/30 border-violet-700 dark:border-violet-700/40" },
-  "/vitals":       { color: "text-white dark:text-red-400",      bg: "bg-red-600 dark:bg-red-900/30 border-red-700 dark:border-red-700/40" },
-  "/media":        { color: "text-white dark:text-pink-400",     bg: "bg-pink-600 dark:bg-pink-900/30 border-pink-700 dark:border-pink-700/40" },
-  "/archive":      { color: "text-white dark:text-slate-400",    bg: "bg-slate-500 dark:bg-slate-900/30 border-slate-600 dark:border-slate-700/40" },
-  "/notes":        { color: "text-white dark:text-yellow-400",   bg: "bg-yellow-500 dark:bg-yellow-900/30 border-yellow-600 dark:border-yellow-700/40" },
-  "/outings":      { color: "text-white dark:text-green-400",    bg: "bg-green-600 dark:bg-green-900/30 border-green-700 dark:border-green-700/40" },
-  "/badges":       { color: "text-white dark:text-orange-400",   bg: "bg-orange-500 dark:bg-orange-900/30 border-orange-600 dark:border-orange-700/40" },
-  "/thoughts":     { color: "text-white dark:text-fuchsia-400",  bg: "bg-fuchsia-600 dark:bg-fuchsia-900/30 border-fuchsia-700 dark:border-fuchsia-700/40" },
-  "/wellbeing":    { color: "text-white dark:text-rose-400",     bg: "bg-rose-600 dark:bg-rose-900/30 border-rose-700 dark:border-rose-700/40" },
-  "/trends":       { color: "text-white dark:text-cyan-400",     bg: "bg-cyan-600 dark:bg-cyan-900/30 border-cyan-700 dark:border-cyan-700/40" },
-  "/handoff":      { color: "text-white dark:text-indigo-400",   bg: "bg-indigo-600 dark:bg-indigo-900/30 border-indigo-700 dark:border-indigo-700/40" },
-  "/caregivers":   { color: "text-white dark:text-teal-400",     bg: "bg-teal-700 dark:bg-teal-900/30 border-teal-800 dark:border-teal-700/40" },
-  "/portal":       { color: "text-white dark:text-slate-400",    bg: "bg-slate-600 dark:bg-slate-900/30 border-slate-700 dark:border-slate-700/40" },
-  "/documents":    { color: "text-white dark:text-stone-400",    bg: "bg-stone-600 dark:bg-stone-900/30 border-stone-700 dark:border-stone-700/40" },
-  "/care-scope":   { color: "text-white dark:text-teal-400",     bg: "bg-teal-600 dark:bg-teal-900/30 border-teal-700 dark:border-teal-700/40" },
-  "/my-profile":   { color: "text-white dark:text-teal-400",     bg: "bg-teal-600 dark:bg-teal-900/30 border-teal-700 dark:border-teal-700/40" },
-  "/university":   { color: "text-white dark:text-violet-400",   bg: "bg-violet-600 dark:bg-violet-900/30 border-violet-700 dark:border-violet-700/40" },
-  "/emergency":    { color: "text-white dark:text-red-400",      bg: "bg-red-600 dark:bg-red-900/30 border-red-700 dark:border-red-700/40" },
-};
+// Shared tile classes — same for every module
+const TILE_BG = "bg-white dark:bg-slate-800/60 border-slate-200 dark:border-slate-700/50";
+const TILE_BG_FC = "bg-white dark:bg-rose-950/40 border-rose-100 dark:border-rose-900/40";
+const TILE_ICON_COLOR = "text-teal-600 dark:text-teal-400";
+const TILE_ICON_COLOR_FC = "text-rose-500 dark:text-rose-400";
+const TILE_LABEL_COLOR = "text-slate-700 dark:text-slate-300";
+const TILE_LABEL_COLOR_FC = "text-slate-600 dark:text-rose-200/80";
 
 // ── Color swatches ────────────────────────────────────────────────────────────
 
@@ -392,6 +377,7 @@ export default function NavOverlay({
               const label = t(item.labelKey);
               const isDragging = draggingIdx === idx;
               const isOver = overIdx === idx && draggingIdx !== idx;
+              const isFC = portalMode === "family";
 
               return (
                 <div
@@ -407,18 +393,16 @@ export default function NavOverlay({
                   className={cn(
                     "flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
-                    item.bg || "bg-muted border-border",
-                    isDragging && "opacity-40 scale-95 ring-2 ring-primary/50",
+                    isFC ? TILE_BG_FC : TILE_BG,
+                    isDragging && "opacity-40 scale-95 ring-2 ring-primary/40",
                     isOver && "ring-2 ring-primary ring-offset-1 scale-[1.04]",
-                    !isDragging && !isOver && "active:scale-95 hover:shadow-md hover:scale-[1.02]"
+                    !isDragging && !isOver && "active:scale-95 hover:shadow-sm hover:scale-[1.02]"
                   )}
                 >
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center bg-white/60 dark:bg-black/20">
-                    <Icon size={18} className={item.color || "text-foreground"} />
-                  </div>
+                  <Icon size={20} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
                   <span className={cn(
-                    "text-[10px] font-semibold text-center leading-tight",
-                    item.color || "text-foreground"
+                    "text-[10px] font-medium text-center leading-tight",
+                    isFC ? TILE_LABEL_COLOR_FC : TILE_LABEL_COLOR
                   )}>
                     {label}
                   </span>
