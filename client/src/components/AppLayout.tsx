@@ -177,7 +177,7 @@ const TIMEZONES = [
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection } = useApp();
+  const { activeUser, setActiveUser, demoUsers, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen } = useApp();
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
@@ -188,7 +188,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   );
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [navOverlayOpen, setNavOverlayOpen] = useState(false);
+  // navOverlayOpen lives in App context so ModuleIntro can suppress itself while nav is open
   const [navOrder, setNavOrder] = useState<string[] | null>(null);
 
   // ── Load saved nav order from DB (real users) or localStorage (demo) ────────

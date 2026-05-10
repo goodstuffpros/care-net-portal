@@ -179,7 +179,7 @@ interface ModuleIntroProps {
 }
 
 export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
-  const { activeUser, isRealSession, portalMode } = useApp();
+  const { activeUser, isRealSession, portalMode, navOverlayOpen } = useApp();
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
   const isFamilyPortal = portalMode === "family";
   const useFamily = isFamily || isFamilyPortal;
@@ -218,9 +218,11 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
     function checkAndShow(seenList: string[], storageKey?: string) {
       // Never re-show if user already dismissed it this mount
       if (hasDismissed.current) return;
+      // Never show while the nav overlay is open
+      if (navOverlayOpen) return;
       if (DEV_ALWAYS_SHOW || (!seenList.includes(moduleKey) && !seenList.includes(DEMO_KEY))) {
         const t = setTimeout(() => {
-          if (!hasDismissed.current) setVisible(true);
+          if (!hasDismissed.current && !navOverlayOpen) setVisible(true);
         }, 700);
         return () => clearTimeout(t);
       }
@@ -242,7 +244,7 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
         return checkAndShow([]);
       }
     }
-  }, [activeUser.id, moduleKey, isRealSession, userData]);
+  }, [activeUser.id, moduleKey, isRealSession, userData, navOverlayOpen]);
 
   // ── Subscribe to Becky state changes ────────────────────────────────────
   useEffect(() => {

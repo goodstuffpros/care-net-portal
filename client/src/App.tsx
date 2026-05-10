@@ -117,6 +117,8 @@ interface AppContextType {
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
   isRealSession: boolean; // true when a real auth user is logged in (not demo)
   isPreConnection: boolean; // true when real CG session but no clientId yet (exploring demo)
+  navOverlayOpen: boolean;
+  setNavOverlayOpen: (open: boolean) => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -172,6 +174,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const [colorTheme, setColorTheme] = useState<ColorTheme>("teal");
   const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
+  const [navOverlayOpen, setNavOverlayOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -271,6 +274,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         triggerUpgradeTransition,
         isRealSession,
         isPreConnection,
+        navOverlayOpen,
+        setNavOverlayOpen,
       }}>
         <LangProvider>
         <AlarmEngine />
