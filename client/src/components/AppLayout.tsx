@@ -1026,11 +1026,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* For Me — family/MC only, rose pill in top bar */}
+          {/* For Me — top bar pill for both FC (Need a Moment) and CG (Wellbeing) */}
           {isFamily && (
             <button
               onClick={() => setNeedAMomentOpen(true)}
               data-testid="for-me-btn"
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
+            >
+              <Heart size={11} className="fill-rose-400" />
+              <span>For Me</span>
+            </button>
+          )}
+          {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+            <button
+              onClick={() => openWellbeing("manual")}
+              data-testid="for-me-cg-btn"
               className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
             >
               <Heart size={11} className="fill-rose-400" />
@@ -1423,18 +1433,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Need a Moment — family roles only, controlled from top bar */}
       <NeedAMomentModal open={needAMomentOpen} onClose={() => setNeedAMomentOpen(false)} />
 
-      {/* Wellbeing — floating rose heart, CG only, stacked above App Help */}
-      {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
-        <button
-          type="button"
-          onClick={() => openWellbeing("manual")}
-          aria-label="Open Wellbeing check-in"
-          className="fixed bottom-[5.5rem] right-4 z-50 w-12 h-12 rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5 transition-all duration-200 bg-rose-600 hover:bg-rose-500 active:scale-95"
-        >
-          <Heart size={18} className="fill-white text-white" />
-          <span className="text-[9px] font-semibold text-white leading-none">For Me</span>
-        </button>
-      )}
+      {/* For Me (CG) moved to top bar — floating button removed */}
 
       {/* AI Help Desk — floating, always visible */}
       <HelpDesk hfmActive={hfmActive} />
