@@ -157,36 +157,30 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      {/* Stats Row — 4 across, compact portrait tiles */}
+      <div className="grid grid-cols-4 gap-2">
         {scheduleLoading ? (
-          Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)
+          Array(4).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
         ) : (
           <>
             {[
-              { href: "/schedule",  icon: CheckCircle2, iconBg: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-emerald-600 dark:text-emerald-400", value: completedToday,       label: t("dashboard.doneToday") },
-              { href: "/schedule",  icon: CalendarDays,  iconBg: "bg-amber-50 dark:bg-amber-950/30",   iconColor: "text-amber-600 dark:text-amber-400",   value: pendingToday,          label: t("dashboard.pendingToday") },
-              ...(!isFamilyPortal ? [{ href: "/portal",   icon: AlertTriangle, iconBg: "bg-red-50 dark:bg-red-950/30", iconColor: "text-red-600 dark:text-red-400", value: urgentItems.length, label: t("dashboard.urgentFlags") }] : [{ href: "/messages", icon: MessageSquare, iconBg: "bg-primary/10", iconColor: "text-primary", value: recentActivity.filter(l => l.isEmergency).length, label: "Messages" }]),
-              { href: "/activity",  icon: NotebookPen,   iconBg: "bg-primary/10",                     iconColor: "text-primary",                         value: activityLogs.length,   label: t("dashboard.logEntries") },
+              { href: "/schedule",  icon: CheckCircle2,  iconBg: "bg-emerald-50 dark:bg-emerald-950/30", iconColor: "text-emerald-600 dark:text-emerald-400", value: completedToday,                                          label: t("dashboard.doneToday") },
+              { href: "/schedule",  icon: CalendarDays,  iconBg: "bg-amber-50 dark:bg-amber-950/30",    iconColor: "text-amber-600 dark:text-amber-400",   value: pendingToday,                                            label: t("dashboard.pendingToday") },
+              ...(!isFamilyPortal ? [{ href: "/portal",  icon: AlertTriangle, iconBg: "bg-red-50 dark:bg-red-950/30",     iconColor: "text-red-600 dark:text-red-400",      value: urgentItems.length,                          label: t("dashboard.urgentFlags") }] : [{ href: "/messages", icon: MessageSquare, iconBg: "bg-primary/10", iconColor: "text-primary", value: recentActivity.filter(l => l.isEmergency).length, label: "Messages" }]),
+              { href: "/activity", icon: NotebookPen,   iconBg: "bg-primary/10",                       iconColor: "text-primary",                         value: activityLogs.length,                                     label: t("dashboard.logEntries") },
             ].map(({ href, icon: Icon, iconBg, iconColor, value, label }) => (
-              <Card
+              <button
                 key={label}
                 onClick={() => navigate(href)}
-                className="border-border bg-card cursor-pointer hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm transition-all group"
+                className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm transition-all group text-center"
                 data-testid={`stat-card-${href.replace("/", "")}`}
               >
-                <CardContent className="pt-5">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-9 h-9 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${iconBg}`}>
-                      <Icon size={18} className={iconColor} />
-                    </div>
-                    <div>
-                      <div className="text-2xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{value}</div>
-                      <div className="text-xs text-muted-foreground">{label}</div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${iconBg}`}>
+                  <Icon size={16} className={iconColor} />
+                </div>
+                <div className="text-xl font-bold leading-none" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{value}</div>
+                <div className="text-[10px] font-medium text-muted-foreground leading-tight">{label}</div>
+              </button>
             ))}
           </>
         )}
