@@ -1000,81 +1000,86 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="text-[9px] font-semibold uppercase tracking-wide leading-none">Menu</span>
           </button>
 
-          {/* Role/client pill — caregiver roles only (family has single relationship, no need) */}
-          {isCaregiverRole(activeUser.role) && (
-            <button
-              onClick={() => navigate("/my-profile")}
-              data-testid="role-pill-header"
-              className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all min-w-0 flex-shrink-0",
-                isPreCare
-                  ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
-                  : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
-              )}
-            >
-              <Shield size={11} className="flex-shrink-0" />
-              <span className="truncate max-w-[60px]">
-                {isPreCare ? "Pre-Care" : ROLE_LABELS[activeUser.role]}
-              </span>
-            </button>
-          )}
+          {/* Left pill group — flex-1 so it absorbs space without pushing right icons off screen */}
+          <div className="flex-1 min-w-0 flex items-center gap-1 overflow-hidden">
 
-          {/* Temp caregiver expiry badge */}
-          {activeUser.role === "temp_caregiver" && activeUser.tempAccessEnd && (
-            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900 flex-shrink-0">
-              <span>Temp until {new Date(activeUser.tempAccessEnd).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
-            </div>
-          )}
-
-          {/* For Me — top bar pill for both FC (Need a Moment) and CG (Wellbeing) */}
-          {isFamily && (
-            <button
-              onClick={() => setNeedAMomentOpen(true)}
-              data-testid="for-me-btn"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
-            >
-              <Heart size={11} className="fill-rose-400" />
-              <span>For Me</span>
-            </button>
-          )}
-          {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
-            <button
-              onClick={() => openWellbeing("manual")}
-              data-testid="for-me-cg-btn"
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 hover:border-rose-500/40 text-rose-400 hover:text-rose-300 flex-shrink-0"
-            >
-              <Heart size={11} className="fill-rose-400" />
-              <span>For Me</span>
-            </button>
-          )}
-
-          {/* Clock In / Out — CG top bar pill */}
-          {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
-            activeShift ? (
+            {/* Role/client pill — caregiver roles only */}
+            {isCaregiverRole(activeUser.role) && (
               <button
-                data-testid="topbar-clock-out-btn"
-                onClick={() => clockOutMutation.mutate(activeShift.id)}
-                disabled={clockOutMutation.isPending}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-400/40 text-red-400 hover:text-red-300 flex-shrink-0"
+                onClick={() => navigate("/my-profile")}
+                data-testid="role-pill-header"
+                className={cn(
+                  "flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all min-w-0 flex-shrink-0",
+                  isPreCare
+                    ? "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border border-teal-200 dark:border-teal-800"
+                    : "bg-muted text-muted-foreground border border-border hover:bg-muted/80"
+                )}
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
-                <LogOut size={11} />
-                <span>{clockOutMutation.isPending ? "Clocking out..." : formatElapsed(shiftElapsed)}</span>
+                <Shield size={10} className="flex-shrink-0" />
+                <span className="truncate max-w-[52px]">
+                  {isPreCare ? "Pre-Care" : ROLE_LABELS[activeUser.role]}
+                </span>
               </button>
-            ) : (
-              <button
-                data-testid="topbar-clock-in-btn"
-                onClick={() => clockInMutation.mutate()}
-                disabled={clockInMutation.isPending}
-                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 hover:border-emerald-400/40 text-emerald-500 hover:text-emerald-400 flex-shrink-0"
-              >
-                <LogIn size={11} />
-                <span>{clockInMutation.isPending ? "Clocking in..." : "Clock In"}</span>
-              </button>
-            )
-          )}
+            )}
 
-          <div className="flex-1 min-w-0" />
+            {/* Temp caregiver expiry badge */}
+            {activeUser.role === "temp_caregiver" && activeUser.tempAccessEnd && (
+              <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 text-xs border border-amber-200 dark:border-amber-900 flex-shrink-0">
+                <span className="truncate max-w-[70px]">Temp {new Date(activeUser.tempAccessEnd).toLocaleDateString([], { month: "short", day: "numeric" })}</span>
+              </div>
+            )}
+
+            {/* For Me — FC (Need a Moment) */}
+            {isFamily && (
+              <button
+                onClick={() => setNeedAMomentOpen(true)}
+                data-testid="for-me-btn"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 text-rose-400 hover:text-rose-300 flex-shrink-0"
+              >
+                <Heart size={10} className="fill-rose-400" />
+                <span>For Me</span>
+              </button>
+            )}
+
+            {/* For Me — CG (Wellbeing) */}
+            {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+              <button
+                onClick={() => openWellbeing("manual")}
+                data-testid="for-me-cg-btn"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 text-rose-400 hover:text-rose-300 flex-shrink-0"
+              >
+                <Heart size={10} className="fill-rose-400" />
+                <span>For Me</span>
+              </button>
+            )}
+
+            {/* Clock In / Out — CG top bar pill */}
+            {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+              activeShift ? (
+                <button
+                  data-testid="topbar-clock-out-btn"
+                  onClick={() => clockOutMutation.mutate(activeShift.id)}
+                  disabled={clockOutMutation.isPending}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 text-red-400 hover:text-red-300 flex-shrink-0"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
+                  <LogOut size={10} />
+                  <span>{clockOutMutation.isPending ? "Out..." : formatElapsed(shiftElapsed)}</span>
+                </button>
+              ) : (
+                <button
+                  data-testid="topbar-clock-in-btn"
+                  onClick={() => clockInMutation.mutate()}
+                  disabled={clockInMutation.isPending}
+                  className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+                >
+                  <LogIn size={10} />
+                  <span>{clockInMutation.isPending ? "In..." : "Clock In"}</span>
+                </button>
+              )
+            )}
+
+          </div> {/* end left pill group */}
 
           {/* Voice Controls — Hey CareNet — disabled during beta, icon only on mobile */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (

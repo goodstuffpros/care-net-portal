@@ -6,7 +6,7 @@ import { useApp } from "@/App";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Heart, Flame, Star, TrendingUp, Calendar, MessageCircleHeart } from "lucide-react";
+import { Heart, Flame, Star, TrendingUp, Calendar, MessageCircleHeart, Shield } from "lucide-react";
 import { WellbeingModal } from "@/components/WellbeingModal";
 
 const MOOD_EMOJI: Record<string, string> = {
@@ -32,9 +32,9 @@ const THEME_LABEL: Record<string, string> = {
 
 const BADGE_INFO: Record<string, { icon: string; label: string; desc: string }> = {
   first_checkin: { icon: "💬", label: "First Check-In", desc: "You reached out for the first time." },
-  week_streak: { icon: "🔥", label: "7-Day Streak", desc: "7 consecutive days of checking in." },
-  month_streak: { icon: "⭐", label: "30-Day Streak", desc: "A full month of showing up for yourself." },
-  ten_checkins: { icon: "💛", label: "10 Check-Ins", desc: "You've checked in 10 times. That matters." },
+  week_streak:   { icon: "🔥", label: "7-Day Streak",   desc: "7 consecutive days of checking in." },
+  month_streak:  { icon: "⭐", label: "30-Day Streak",  desc: "A full month of showing up for yourself." },
+  ten_checkins:  { icon: "💛", label: "10 Check-Ins",   desc: "You've checked in 10 times. That matters." },
 };
 
 function formatDate(iso: string) {
@@ -69,34 +69,56 @@ export default function WellbeingPage() {
     );
   }
 
-  // Mood trend — count of each rating over recent check-ins
   const ratedCheckIns = history.filter((c: any) => c.moodRating !== null);
   const avgMood = ratedCheckIns.length
     ? (ratedCheckIns.reduce((s: number, c: any) => s + c.moodRating, 0) / ratedCheckIns.length).toFixed(1)
     : null;
 
   return (
-    <div className="p-4 space-y-4 max-w-xl mx-auto pb-8">
+    <div className="p-4 space-y-5 max-w-xl mx-auto pb-10">
 
-      {/* Header */}
-      <div className="flex items-center justify-between pt-1">
-        <div>
-          <h1 className="text-lg font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            Your Wellbeing
-          </h1>
-          <p className="text-xs text-muted-foreground mt-0.5">A private space — just for you.</p>
-<LessonLauncher pageKey="wellbeing" />
+      {/* ── Page Header ─────────────────────────────────────── */}
+      <div className="pb-3 border-b border-border space-y-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center flex-shrink-0">
+            <Heart size={20} className="text-rose-600 dark:text-rose-400 fill-rose-600 dark:fill-rose-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+              Your Wellbeing
+            </h1>
+            <p className="text-xs text-muted-foreground truncate">A private space — just for you.</p>
+          </div>
         </div>
+
+        {/* Description */}
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          Caregiving is one of the hardest jobs there is. This is a space to check in on
+          yourself — to share how you are feeling and get a real response. Everything here
+          is completely private. No one else ever sees it.
+        </p>
+
+        {/* Privacy badge */}
+        <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
+          <Shield size={12} className="flex-shrink-0" />
+          <span>Never shared with clients, families, or employers.</span>
+        </div>
+
+        {/* Page Tutorial pill */}
+        <LessonLauncher pageKey="wellbeing" />
+
+        {/* Primary CTA */}
         <button
           onClick={() => setModalOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-2 rounded-full bg-rose-600 hover:bg-rose-500 text-white text-xs font-medium transition-colors"
+          className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl bg-rose-600 hover:bg-rose-500 text-white font-semibold text-sm transition-colors shadow-sm"
+          data-testid="need-a-friend-btn"
         >
-          <Heart size={12} className="fill-white" />
-          Need a friend
+          <Heart size={15} className="fill-white" />
+          Need a Friend
         </button>
       </div>
 
-      {/* Streak card */}
+      {/* ── Streak card ─────────────────────────────────────── */}
       <Card className="border-border bg-gradient-to-br from-rose-950/30 to-background">
         <CardContent className="pt-4 pb-4">
           <div className="flex items-center justify-between">
@@ -121,7 +143,7 @@ export default function WellbeingPage() {
         </CardContent>
       </Card>
 
-      {/* Mood trend */}
+      {/* ── Mood trend ──────────────────────────────────────── */}
       {avgMood && (
         <Card className="border-border">
           <CardContent className="pt-4 pb-4">
@@ -134,7 +156,6 @@ export default function WellbeingPage() {
                 <div className="text-xs text-muted-foreground">Based on {ratedCheckIns.length} rated check-ins</div>
               </div>
             </div>
-            {/* Mood bar */}
             <div className="mt-3 h-2 rounded-full bg-muted overflow-hidden">
               <div
                 className="h-full rounded-full bg-gradient-to-r from-rose-500 to-amber-400 transition-all"
@@ -145,7 +166,7 @@ export default function WellbeingPage() {
         </Card>
       )}
 
-      {/* Earned badges */}
+      {/* ── Earned milestones ───────────────────────────────── */}
       {earnedBadges.length > 0 && (
         <Card className="border-border">
           <CardHeader className="pb-2 pt-4">
@@ -173,7 +194,7 @@ export default function WellbeingPage() {
         </Card>
       )}
 
-      {/* Check-in history */}
+      {/* ── Check-in history ────────────────────────────────── */}
       <Card className="border-border">
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-sm flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
@@ -184,10 +205,12 @@ export default function WellbeingPage() {
           {historyLoading ? (
             Array(3).fill(0).map((_, i) => <Skeleton key={i} className="h-20 rounded-xl" />)
           ) : history.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground text-sm space-y-2">
-              <Heart size={32} className="mx-auto opacity-20" />
-              <p>No check-ins yet.</p>
-              <p className="text-xs">Tap "Need a friend" anytime you need a moment.</p>
+            <div className="text-center py-10 text-muted-foreground text-sm space-y-3">
+              <Heart size={36} className="mx-auto opacity-15" />
+              <div className="space-y-1">
+                <p className="font-medium text-foreground/60">No check-ins yet.</p>
+                <p className="text-xs">Tap "Need a Friend" above whenever you need a moment.</p>
+              </div>
             </div>
           ) : (
             history.map((c: any) => (
@@ -224,11 +247,6 @@ export default function WellbeingPage() {
           )}
         </CardContent>
       </Card>
-
-      {/* Disclaimer */}
-      <p className="text-center text-xs text-muted-foreground/50 pb-2 leading-relaxed px-4">
-        This space is completely private. Your check-ins are never shared with clients, families, or employers.
-      </p>
 
       <WellbeingModal open={modalOpen} onClose={() => setModalOpen(false)} />
     </div>
