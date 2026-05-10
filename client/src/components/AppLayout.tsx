@@ -341,8 +341,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const showProactiveNudge = !!(nudgeData?.shouldNudge && !proactiveNudgeDismissed && !wellbeingOpen && isCaregiverRole(activeUser.role) && portalMode !== "family");
 
   function openWellbeing(type: typeof wellbeingTriggerType = "manual") {
-    setWellbeingTriggerType(type);
-    setWellbeingOpen(true);
+    // COMING SOON — navigate to the coming soon page instead of opening the modal
+    navigate("/wellbeing");
   }
 
   // ── Voice state ──────────────────────────────────────────────────────────────
@@ -1029,24 +1029,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               </div>
             )}
 
-            {/* For Me — FC (Need a Moment) */}
+            {/* For Me — FC (Need a Moment) — COMING SOON: dimmed, non-interactive */}
             {isFamily && (
-              <button
-                onClick={() => setNeedAMomentOpen(true)}
+              <div
                 data-testid="for-me-btn"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 text-rose-400 hover:text-rose-300 flex-shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium bg-rose-600/10 border border-rose-600/25 text-rose-400 opacity-40 cursor-default select-none flex-shrink-0"
+                title="Coming soon"
               >
                 <Heart size={10} className="fill-rose-400" />
                 <span>For Me</span>
-              </button>
+              </div>
             )}
 
-            {/* For Me — CG (Wellbeing) */}
+            {/* For Me — CG (Wellbeing) — COMING SOON: dimmed, navigates to coming soon page */}
             {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
               <button
-                onClick={() => openWellbeing("manual")}
+                onClick={() => navigate("/wellbeing")}
                 data-testid="for-me-cg-btn"
-                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 hover:bg-rose-600/20 border border-rose-600/25 text-rose-400 hover:text-rose-300 flex-shrink-0"
+                className="flex items-center gap-1 px-2 py-1.5 rounded-full text-xs font-medium transition-all bg-rose-600/10 border border-rose-600/25 text-rose-400 opacity-40 hover:opacity-60 flex-shrink-0"
+                title="Coming soon"
               >
                 <Heart size={10} className="fill-rose-400" />
                 <span>For Me</span>
