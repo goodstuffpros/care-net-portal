@@ -186,8 +186,8 @@ export default function DocumentsPage() {
             </h1>
             <p className="text-xs text-muted-foreground">Documents · Records · Insurance</p>
           </div>
-          <LessonLauncher pageKey="documents" />
         </div>
+        <LessonLauncher pageKey="documents" />
 
         {/* MC Legal Disclaimer */}
         {isMC && (

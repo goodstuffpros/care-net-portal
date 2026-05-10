@@ -205,9 +205,10 @@ export default function CaregiversPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("caregivers.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Primary · Relief · Temp</p>
           </div>
-          <LessonLauncher pageKey="caregivers" />
         </div>
         {(canManage || isFamily) && (
+          <>
+          <LessonLauncher pageKey="caregivers" />
           <div className="flex gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             {!isFamily && (
@@ -309,6 +310,7 @@ export default function CaregiversPage() {
             </>
           )}
           </div>
+          </>
         )}
       </div>
 

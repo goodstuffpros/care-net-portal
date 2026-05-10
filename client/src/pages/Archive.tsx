@@ -94,8 +94,8 @@ export default function ArchivePage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("archive.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{t("archive.subtitle")}</p>
           </div>
-          <LessonLauncher pageKey="archive" />
         </div>
+        <LessonLauncher pageKey="archive" />
         <Select onValueChange={(period) => { setGenerating(true); generateMutation.mutate(period); }}>
           <SelectTrigger className="w-full gap-2 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90 border-primary" data-testid="generate-summary-trigger">
             <Sparkles size={14} />

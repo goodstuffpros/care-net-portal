@@ -477,7 +477,7 @@ export default function CareScope() {
                 : "Your current care scope and flag settings"
               }
             </p>
-            <div className="mt-2"><LessonLauncher pageKey="carescope" /></div>
+<LessonLauncher pageKey="carescope" />
           </div>
         </div>
 

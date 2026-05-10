@@ -280,9 +280,10 @@ export default function Notes() {
             <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("notes.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Observations · Equipment · Safety</p>
           </div>
-          <LessonLauncher pageKey="notes" />
         </div>
         {canEdit && (
+          <>
+          <LessonLauncher pageKey="notes" />
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-note-button">
@@ -340,6 +341,7 @@ export default function Notes() {
               </div>
             </DialogContent>
           </Dialog>
+          </>
         )}
       </div>
 

@@ -1144,13 +1144,15 @@ export default function MedicationsPage() {
               {activeMeds.length} active · {prnMeds.length} PRN · {archivedMeds.length} archived
             </p>
           </div>
-          <LessonLauncher pageKey="medications" />
         </div>
         {(isCaregiverRole(activeUser.role) || isMC) && (
+          <>
+          <LessonLauncher pageKey="medications" />
           <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
             <Plus size={14} />
             {isMC ? "Add to Regimen" : "Add Medication"}
           </Button>
+          </>
         )}
       </div>
 

@@ -494,13 +494,15 @@ export default function VitalsPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Vitals &amp; Bodily Functions</h1>
             <p className="text-xs text-muted-foreground truncate">Health monitoring · Trend tracking</p>
           </div>
-          <LessonLauncher pageKey="vitals" />
         </div>
         {canEdit && (
+          <>
+          <LessonLauncher pageKey="vitals" />
           <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="vitals-add-btn">
             <Plus size={14} />
             Log Vitals
           </Button>
+          </>
         )}
       </div>
 

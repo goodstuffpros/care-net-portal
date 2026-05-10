@@ -259,8 +259,8 @@ export default function ActivityPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("activity.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{t("activity.subtitle")}</p>
           </div>
-          <LessonLauncher pageKey="activity" />
         </div>
+        <LessonLauncher pageKey="activity" />
         {/* MC Log Entry Button */}
         {isFamilyPrimary && (
           <Dialog open={mcLogOpen} onOpenChange={setMcLogOpen}>

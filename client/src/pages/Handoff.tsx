@@ -69,8 +69,8 @@ export default function HandoffPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("handoff.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{client?.name} · {today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</p>
           </div>
-          <LessonLauncher pageKey="handoff" />
         </div>
+        <LessonLauncher pageKey="handoff" />
         <Button
           size="sm"
           onClick={() => setGenerated(true)}

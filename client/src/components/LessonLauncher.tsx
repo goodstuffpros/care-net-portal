@@ -13,7 +13,7 @@
 
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
-import { GraduationCap, Play, CheckCircle2, Pause, Square, Volume2, ChevronRight, Award } from "lucide-react";
+import { GraduationCap, Play, CheckCircle2, Pause, Square, Volume2, ChevronRight, Award, X } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient, API_BASE, STATIC_BASE } from "@/lib/queryClient";
 import { useApp } from "@/App";
@@ -264,14 +264,41 @@ function InlineLessonViewer({
   );
 }
 
+// ── Dismiss helpers (localStorage) ──────────────────────────────────────────
+function dismissedKey(pageKey: string, userId: number) {
+  return `pt_dismissed_${userId}_${pageKey}`;
+}
+function firstSeenKey(pageKey: string, userId: number) {
+  return `pt_first_seen_${userId}_${pageKey}`;
+}
+const FOURTEEN_DAYS_MS = 14 * 24 * 60 * 60 * 1000;
+
 // ── Public component ───────────────────────────────────────────────────────────
 export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: string; className?: string }) {
   const { activeUser } = useApp();
   const [open, setOpen] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
   const mapping = PAGE_MAP[pageKey];
+
+  // Record first-seen timestamp on mount
+  useEffect(() => {
+    if (!activeUser?.id || !mapping) return;
+    const fsk = firstSeenKey(pageKey, activeUser.id);
+    if (!localStorage.getItem(fsk)) {
+      localStorage.setItem(fsk, Date.now().toString());
+    }
+    // Re-check visibility in case of 14-day expiry
+    const dk = dismissedKey(pageKey, activeUser.id);
+    if (localStorage.getItem(dk)) { setVisible(false); return; }
+    const firstSeen = parseInt(localStorage.getItem(fsk) ?? "0", 10);
+    if (firstSeen && Date.now() - firstSeen > FOURTEEN_DAYS_MS) {
+      setVisible(false);
+    }
+  }, [pageKey, activeUser?.id]);
+
   if (!mapping) return null;
 
   // Family uses their specific lesson if one exists, otherwise falls back to CG lesson
@@ -301,28 +328,38 @@ export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: st
 
   const completed = (progressData?.completed ?? []).some((r: any) => r.lessonId === lessonId);
 
-  // HIW pill — violet/purple complements teal without competing with teal CTAs
-  const trackColor = "bg-violet-600";
-  const trackBorder = "border-violet-500/30";
+  function handleDismiss(e: React.MouseEvent) {
+    e.stopPropagation();
+    localStorage.setItem(dismissedKey(pageKey, activeUser.id), "1");
+    setVisible(false);
+  }
+
+  if (!visible) return null;
 
   return (
     <>
-      {/* Violet pill — smaller/thinner than before, still distinct from teal CTA */}
-      <button
-        onClick={() => setOpen(true)}
-        className={cn(
-          "flex items-center justify-center gap-1.5 px-2.5 py-1 rounded-full border text-xs font-medium transition-all hover:opacity-90 flex-shrink-0",
-          trackColor, trackBorder, "text-white",
-          extraClass
-        )}
-        title="How this works"
-      >
-        {completed
-          ? <CheckCircle2 size={12} />
-          : <GraduationCap size={12} />}
-        How this works
-        {!completed && <Play size={10} className="opacity-70" />}
-      </button>
+      {/* Red "Page Tutorial" pill — centered above the page CTA */}
+      <div className={cn("flex items-center justify-center w-full", extraClass)}>
+        <div className="flex items-center gap-0 rounded-full overflow-hidden shadow-sm">
+          <button
+            onClick={() => setOpen(true)}
+            className="flex items-center gap-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-semibold px-3 py-1.5 transition-colors"
+          >
+            <GraduationCap size={13} />
+            Page Tutorial
+            {completed
+              ? <CheckCircle2 size={11} className="opacity-80" />
+              : <Play size={10} className="opacity-80" />}
+          </button>
+          <button
+            onClick={handleDismiss}
+            className="flex items-center justify-center bg-red-700 hover:bg-red-800 text-white/80 hover:text-white px-2 py-1.5 transition-colors"
+            title="Remove tutorial button"
+          >
+            <X size={12} />
+          </button>
+        </div>
+      </div>
 
       {open && (
         <InlineLessonViewer

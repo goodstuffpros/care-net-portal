@@ -210,8 +210,8 @@ export default function OutingsPage() {
           <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("outings.title")}</h1>
           <p className="text-xs text-muted-foreground truncate">Outings · Location · Family updates</p>
         </div>
-        <LessonLauncher pageKey="outings" />
       </div>
+      <LessonLauncher pageKey="outings" />
 
       {/* Family push notification panel */}
       {!isCaregiver && (

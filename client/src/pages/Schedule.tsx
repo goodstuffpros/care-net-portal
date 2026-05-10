@@ -417,8 +417,8 @@ export default function SchedulePage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("schedule.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{t("schedule.subtitle")}</p>
           </div>
-          <LessonLauncher pageKey="schedule" />
         </div>
+        <LessonLauncher pageKey="schedule" />
         {canEdit && (<Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-event-btn">

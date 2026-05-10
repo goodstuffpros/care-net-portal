@@ -85,7 +85,7 @@ export default function WellbeingPage() {
             Your Wellbeing
           </h1>
           <p className="text-xs text-muted-foreground mt-0.5">A private space — just for you.</p>
-          <div className="mt-2"><LessonLauncher pageKey="wellbeing" /></div>
+<LessonLauncher pageKey="wellbeing" />
         </div>
         <button
           onClick={() => setModalOpen(true)}

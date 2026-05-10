@@ -162,8 +162,8 @@ export default function ClientPortalPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("portal.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Profile · Family access · Contacts</p>
           </div>
-          <LessonLauncher pageKey="client-portal" />
         </div>
+        <LessonLauncher pageKey="client-portal" />
       </div>
 
       {/* Client Info Card */}

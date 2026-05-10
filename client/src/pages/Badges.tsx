@@ -574,7 +574,6 @@ export default function Badges() {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <LessonLauncher pageKey="badges" />
         {isPrimaryFC && (
           <button
             onClick={() => recomputeMutation.mutate()}

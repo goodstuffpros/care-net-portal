@@ -319,8 +319,8 @@ export default function MediaPage() {
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("media.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Photos · Videos · Voice</p>
           </div>
-          <LessonLauncher pageKey="media" />
         </div>
+        <LessonLauncher pageKey="media" />
         <Dialog open={addOpen} onOpenChange={open => {
           setAddOpen(open);
           if (!open) setForm({ type: "photo", url: "", caption: "", voiceNoteText: "", priority: "green" });
