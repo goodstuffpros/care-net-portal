@@ -175,9 +175,7 @@ export default function DashboardPage() {
                 className="flex flex-col items-center justify-center gap-1.5 py-3 px-1 rounded-xl border border-border bg-card hover:bg-muted/50 hover:border-primary/30 hover:shadow-sm transition-all group text-center"
                 data-testid={`stat-card-${href.replace("/", "")}`}
               >
-                <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${iconBg}`}>
-                  <Icon size={16} className={iconColor} />
-                </div>
+                <Icon size={16} className={iconColor} />
                 <div className="text-xl font-bold leading-none" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{value}</div>
                 <div className="text-[10px] font-medium text-muted-foreground leading-tight">{label}</div>
               </button>
