@@ -17,12 +17,7 @@ import { MessageSquare, Plus, Send, Mic, MicOff, Lock, Users, ChevronRight, Chec
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
 
-const DEMO_USERS: Record<number, { name: string; initials: string; role: string }> = {
-  1: { name: "Becky M.", initials: "BM", role: "caregiver" },
-  2: { name: "Robert Jr.", initials: "RJ", role: "primary_family" },
-  3: { name: "Linda J.", initials: "LJ", role: "secondary_family" },
-  4: { name: "Sarah W.", initials: "SW", role: "primary_family" },
-};
+// No hardcoded demo users — sender info resolved from live portalUsers API
 
 function formatMsgTime(iso: string) {
   const d = new Date(iso);
@@ -300,7 +295,7 @@ export default function MessagesPage() {
               <div className="font-semibold text-sm">{activeThread?.name}</div>
               {activeThread && (
                 <div className="text-xs text-muted-foreground">
-                  {JSON.parse(activeThread.members || "[]").map((id: number) => DEMO_USERS[id]?.name).filter(Boolean).join(", ")}
+                  {JSON.parse(activeThread.members || "[]").map((id: number) => ALL_PORTAL_USERS.find(u => u.id === id)?.name).filter(Boolean).join(", ")}
                 </div>
               )}
             </div>
@@ -309,7 +304,7 @@ export default function MessagesPage() {
               onClick={() => {
                 if (!messages.length) return;
                 const text = messages.map(m => {
-                  const sender = DEMO_USERS[m.senderId]?.name || "Someone";
+                  const sender = ALL_PORTAL_USERS.find(u => u.id === m.senderId)?.name || "Someone";
                   return `${sender} said: ${m.content}`;
                 }).join(". ");
                 speakBecky(text);
@@ -443,7 +438,7 @@ export default function MessagesPage() {
                   </div>
                 );
               }
-              const sender = DEMO_USERS[msg.senderId];
+              const sender = ALL_PORTAL_USERS.find(u => u.id === msg.senderId);
               const isMe = msg.senderId === activeUser.id;
               return (
                 <div key={msg.id} className={cn("flex gap-2.5 max-w-[80%]", isMe ? "ml-auto flex-row-reverse" : "")} data-testid={`message-${msg.id}`}>

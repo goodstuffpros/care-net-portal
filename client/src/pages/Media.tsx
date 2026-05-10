@@ -17,12 +17,7 @@ import { Image, Video, Plus, Mic, MicOff, Trash2, Camera, Film, Circle, Square, 
 import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 
-const DEMO_USERS: Record<number, string> = {
-  1: "Becky M.",
-  2: "Robert Jr.",
-  3: "Linda J.",
-  4: "Sarah W.",
-};
+// Uploader names resolved from live portalUsers API — no hardcoded names
 
 const VIDEO_LIMIT = 15; // seconds
 const AUDIO_LIMIT = 120; // seconds
@@ -261,6 +256,13 @@ export default function MediaPage() {
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/media`).then(r => r.json()),
   });
 
+  const { data: portalUsers = [] } = useQuery<{ id: number; name: string }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+  const getUserName = (userId: number) => portalUsers.find(u => u.id === userId)?.name || "Care Team";
+
   const addMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/clients/${selectedClientId}/media`, {
       ...form,
@@ -490,7 +492,7 @@ export default function MediaPage() {
                 )}
                 <div className="flex items-center justify-between mt-2 gap-2">
                   <div className="min-w-0">
-                    <span className="text-xs text-muted-foreground block truncate">{DEMO_USERS[item.uploadedByUserId] || "Unknown"}</span>
+                    <span className="text-xs text-muted-foreground block truncate">{getUserName(item.uploadedByUserId)}</span>
                     <span className="text-xs text-muted-foreground">{formatDate(item.uploadedAt)}</span>
                   </div>
                   {/* Download button */}

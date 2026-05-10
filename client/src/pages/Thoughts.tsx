@@ -391,7 +391,7 @@ function UnlockDialog({
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function ThoughtsPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, isRealSession } = useApp();
   const { toast } = useToast();
 
   const isCaregiver = isCaregiverRole(activeUser.role);
@@ -401,6 +401,11 @@ export default function ThoughtsPage() {
   const { data: entries = [], isLoading } = useQuery<ThoughtEntry[]>({
     queryKey: ["/api/clients", selectedClientId, "thoughts"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/thoughts`).then(r => r.json()),
+  });
+
+  const { data: portalUsers = [] } = useQuery<{ id: number; name: string; avatarInitials: string; role: string }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
   });
 
   const { data: unlockStatus } = useQuery<{ isUnlocked: boolean; unlockedAt: string | null; unlockNote: string | null }>({
@@ -499,12 +504,22 @@ export default function ThoughtsPage() {
     updateMutation.mutate({ id: editingEntry.id, data: buildPayload(form) });
   }
 
-  // Find caregiver name from userId (approximation from demo data)
+  // Find caregiver name from userId — uses live portalUsers from API
   function getCaregiverName(userId: number): string {
-    const names: Record<number, string> = {
-      1: "Becky M.", 2: "Marcus T.", 3: "Diana P.",
-    };
-    return names[userId] ?? "Caregiver";
+    if (userId === activeUser.id) {
+      // Current user — use their own name
+      const firstName = activeUser.name?.split(" ")[0] || "Caregiver";
+      const lastInitial = activeUser.name?.split(" ")[1]?.[0];
+      return lastInitial ? `${firstName} ${lastInitial}.` : firstName;
+    }
+    const match = portalUsers.find(u => u.id === userId);
+    if (match) {
+      const parts = match.name.split(" ");
+      const firstName = parts[0];
+      const lastInitial = parts[1]?.[0];
+      return lastInitial ? `${firstName} ${lastInitial}.` : firstName;
+    }
+    return "Caregiver";
   }
 
   // ── Render ────────────────────────────────────────────────────────────────

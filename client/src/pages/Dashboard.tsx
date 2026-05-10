@@ -55,7 +55,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -94,7 +94,8 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
   const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family";
   const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
-  const earnedBadgeIds = USER_BADGES[activeUser.id] || [];
+  // Guard: hardcoded USER_BADGES are demo-only. Real users start with no earned badges.
+  const earnedBadgeIds = isRealSession ? [] : (USER_BADGES[activeUser.id] || []);
   const earnedBadges = ALL_BADGES.filter(b => earnedBadgeIds.includes(b.id));
   const inProgressBadges = ALL_BADGES.filter(b => !earnedBadgeIds.includes(b.id));
 

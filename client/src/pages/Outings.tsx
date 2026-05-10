@@ -115,6 +115,15 @@ export default function OutingsPage() {
     refetchInterval: 15000,
   });
 
+  const { data: portalUsers = [] } = useQuery<{ id: number; name: string; role: string }[]>({
+    queryKey: ["/api/clients", selectedClientId, "family"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/family`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+  const familyUserIds = portalUsers
+    .filter(u => u.role === "primary_family" || u.role === "secondary_family")
+    .map(u => u.id);
+
   const { data: activeOuting } = useQuery<Outing | null>({
     queryKey: ["/api/clients", selectedClientId, "outings", "active"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/outings/active`).then(r => r.json()),
@@ -139,8 +148,7 @@ export default function OutingsPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "outings"] });
       toast({ title: "Outing started!", description: `${TYPE_LABELS[outingType]} started. Family has been notified.` });
       // Notify family members
-      const familyUsers = [4, 5]; // Robert Jr. and Linda for client 1
-      for (const userId of familyUsers) {
+      for (const userId of familyUserIds) {
         await apiRequest("POST", "/api/notifications", {
           userId,
           clientId: selectedClientId,
@@ -174,8 +182,7 @@ export default function OutingsPage() {
         : 0;
       toast({ title: "Outing ended", description: `${client?.name || "Client"} returned safely.` });
       // Notify family
-      const familyUsers = [4, 5];
-      for (const userId of familyUsers) {
+      for (const userId of familyUserIds) {
         await apiRequest("POST", "/api/notifications", {
           userId,
           clientId: selectedClientId,
