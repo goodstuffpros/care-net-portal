@@ -64,7 +64,7 @@ const LESSONS: Record<ModuleKey, ModuleLesson> = {
   },
   "family-profile": {
     title: "Your Profile",
-    image: `${STATIC_BASE}/university/new_fc_family_profile.jpg`,
+    image: `${STATIC_BASE}/university/new_cg_client_profile.jpg`,
     narration: "This is where you manage your own information in the app. Your name, phone number, and relationship to the person in care are all here. In Notification Preferences, you can choose which types of updates you want to be alerted about — turn categories on or off based on what's most useful to you. Under Care Circle, you can invite other family members so they have their own access. Account Settings lets you adjust your language and time zone. It's a quick setup and worth spending a few minutes on.",
     familyNarration: "This is where you manage your own information in the app. Your name, phone number, and relationship to the person in care are all here. In Notification Preferences, you can choose which types of updates you want to be alerted about — turn categories on or off based on what's most useful to you. Under Care Circle, you can invite other family members so they have their own access. Account Settings lets you adjust your language and time zone. It's a quick setup and worth spending a few minutes on.",
   },
@@ -210,7 +210,7 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   // ── Should we show? ──────────────────────────────────────────────────────
   // DEV MODE: always show on every visit so the team can review all intros.
   // Flipped to false for beta — real users only see each intro once.
-  const DEV_ALWAYS_SHOW = false;
+  const DEV_ALWAYS_SHOW = true; // review mode — flip false before launch
 
   useEffect(() => {
     const DEMO_KEY = `cnp_seen_module_${activeUser.id}_${moduleKey}`;
