@@ -369,7 +369,7 @@ export default function NavOverlay({
         <div className="flex-1 p-2">
           {/* 4 columns always — compact tiles for all screen sizes */}
           <div
-            className="grid grid-cols-4 gap-1.5"
+            className="grid grid-cols-4 gap-1"
             style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
           >
             {regularItems.map((item, idx) => {
@@ -391,7 +391,7 @@ export default function NavOverlay({
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
                   style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
                   className={cn(
-                    "flex flex-col items-center justify-center gap-1.5 p-2 rounded-xl border cursor-pointer select-none",
+                    "flex flex-col items-center justify-center gap-1 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
                     isFC ? TILE_BG_FC : TILE_BG,
                     isDragging && "opacity-40 scale-95 ring-2 ring-primary/40",
@@ -399,7 +399,7 @@ export default function NavOverlay({
                     !isDragging && !isOver && "active:scale-95 hover:shadow-sm hover:scale-[1.02]"
                   )}
                 >
-                  <Icon size={20} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
+                  <Icon size={18} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
                   <span className={cn(
                     "text-[10px] font-medium text-center leading-tight",
                     isFC ? TILE_LABEL_COLOR_FC : TILE_LABEL_COLOR
