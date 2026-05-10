@@ -1048,6 +1048,32 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
           )}
 
+          {/* Clock In / Out — CG top bar pill */}
+          {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+            activeShift ? (
+              <button
+                data-testid="topbar-clock-out-btn"
+                onClick={() => clockOutMutation.mutate(activeShift.id)}
+                disabled={clockOutMutation.isPending}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-red-500/10 hover:bg-red-500/20 border border-red-500/25 hover:border-red-400/40 text-red-400 hover:text-red-300 flex-shrink-0"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-red-400 animate-pulse flex-shrink-0" />
+                <LogOut size={11} />
+                <span>{clockOutMutation.isPending ? "Clocking out..." : formatElapsed(shiftElapsed)}</span>
+              </button>
+            ) : (
+              <button
+                data-testid="topbar-clock-in-btn"
+                onClick={() => clockInMutation.mutate()}
+                disabled={clockInMutation.isPending}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full text-xs font-medium transition-all bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/25 hover:border-emerald-400/40 text-emerald-500 hover:text-emerald-400 flex-shrink-0"
+              >
+                <LogIn size={11} />
+                <span>{clockInMutation.isPending ? "Clocking in..." : "Clock In"}</span>
+              </button>
+            )
+          )}
+
           <div className="flex-1 min-w-0" />
 
           {/* Voice Controls — Hey CareNet — disabled during beta, icon only on mobile */}
