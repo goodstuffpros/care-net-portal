@@ -171,17 +171,11 @@ function PatternCard({
       {/* Header row */}
       <div className="p-4">
         <div className="flex items-start gap-3">
-          <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5",
-            pattern.severity === "severe" ? "bg-red-100 dark:bg-red-950/50" :
-            pattern.severity === "moderate" ? "bg-amber-100 dark:bg-amber-950/50" :
-            "bg-slate-100 dark:bg-slate-800"
-          )}>
-            <Icon size={18} className={
+          <Icon size={18} className={
               pattern.severity === "severe" ? "text-red-600 dark:text-red-400" :
               pattern.severity === "moderate" ? "text-amber-600 dark:text-amber-400" :
               "text-slate-500"
             } />
-          </div>
 
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2 flex-wrap">

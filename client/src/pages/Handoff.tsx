@@ -62,9 +62,7 @@ export default function HandoffPage() {
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="handoff-page">
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-indigo-100 dark:bg-indigo-950/40 flex items-center justify-center flex-shrink-0">
-            <ClipboardSignature size={20} className="text-indigo-600 dark:text-indigo-400" />
-          </div>
+          <ClipboardSignature size={20} className="text-indigo-600 dark:text-indigo-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("handoff.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{client?.name} · {today.toLocaleDateString([], { weekday: "long", month: "short", day: "numeric" })}</p>

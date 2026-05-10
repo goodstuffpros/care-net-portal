@@ -103,9 +103,7 @@ export default function DashboardPage() {
     <div className="p-4 max-w-6xl mx-auto space-y-6 w-full overflow-x-hidden">
       {/* Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center flex-shrink-0">
-          <LayoutDashboard size={20} className="text-primary" />
-        </div>
+        <LayoutDashboard size={20} className="text-primary" />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
             {new Date().getHours() < 12 ? t("dashboard.greeting.morning", { name: activeUser.name.split(" ")[0] }) : new Date().getHours() < 17 ? t("dashboard.greeting.afternoon", { name: activeUser.name.split(" ")[0] }) : t("dashboard.greeting.evening", { name: activeUser.name.split(" ")[0] })}

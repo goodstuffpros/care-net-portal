@@ -1135,9 +1135,7 @@ export default function MedicationsPage() {
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-950/40 flex items-center justify-center flex-shrink-0">
-            <Pill size={20} className="text-violet-600 dark:text-violet-400" />
-          </div>
+          <Pill size={20} className="text-violet-600 dark:text-violet-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Medications</h1>
             <p className="text-xs text-muted-foreground mt-0.5">

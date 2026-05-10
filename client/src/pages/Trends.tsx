@@ -88,9 +88,7 @@ export default function TrendsPage() {
     <div className="p-4 max-w-5xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="trends-page">
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-950/40 flex items-center justify-center flex-shrink-0">
-            <TrendingUp size={20} className="text-emerald-600 dark:text-emerald-400" />
-          </div>
+          <TrendingUp size={20} className="text-emerald-600 dark:text-emerald-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("trends.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Medications · Mood · Tasks</p>

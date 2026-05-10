@@ -410,9 +410,7 @@ export default function SchedulePage() {
       {/* Page Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-blue-100 dark:bg-blue-950/40 flex items-center justify-center flex-shrink-0">
-            <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
-          </div>
+          <Calendar size={20} className="text-blue-600 dark:text-blue-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("schedule.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{t("schedule.subtitle")}</p>

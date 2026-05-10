@@ -312,9 +312,7 @@ export default function MediaPage() {
       {/* Page Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-950/40 flex items-center justify-center flex-shrink-0">
-            <Image size={20} className="text-rose-600 dark:text-rose-400" />
-          </div>
+          <Image size={20} className="text-rose-600 dark:text-rose-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("media.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Photos · Videos · Voice</p>

@@ -487,9 +487,7 @@ export default function VitalsPage() {
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
-            <Activity size={20} className="text-red-600 dark:text-red-400" />
-          </div>
+          <Activity size={20} className="text-red-600 dark:text-red-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Vitals &amp; Bodily Functions</h1>
             <p className="text-xs text-muted-foreground truncate">Health monitoring · Trend tracking</p>

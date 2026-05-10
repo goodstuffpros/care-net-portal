@@ -203,9 +203,7 @@ export default function OutingsPage() {
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden" data-testid="outings-page">
       <div className="flex items-center gap-3 pb-2 border-b border-border">
-        <div className="w-10 h-10 rounded-xl bg-teal-100 dark:bg-teal-950/40 flex items-center justify-center flex-shrink-0">
-          <MapPin size={20} className="text-teal-600 dark:text-teal-400" />
-        </div>
+        <MapPin size={20} className="text-teal-600 dark:text-teal-400" />
         <div className="flex-1 min-w-0">
           <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("outings.title")}</h1>
           <p className="text-xs text-muted-foreground truncate">Outings · Location · Family updates</p>

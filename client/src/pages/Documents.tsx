@@ -177,9 +177,7 @@ export default function DocumentsPage() {
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center flex-shrink-0">
-            <FolderOpen size={20} className="text-slate-600 dark:text-slate-400" />
-          </div>
+          <FolderOpen size={20} className="text-slate-600 dark:text-slate-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
               {t("documents.title")}
@@ -340,9 +338,7 @@ export default function DocumentsPage() {
               >
                 {/* Doc header */}
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-muted flex items-center justify-center flex-shrink-0">
-                    <FileTypeIcon type={doc.fileType} />
-                  </div>
+                  <FileTypeIcon type={doc.fileType} />
                   <div className="flex-1 min-w-0">
                     <div className="font-medium text-sm truncate">{doc.title}</div>
                     <div className="flex items-center gap-1.5 flex-wrap mt-1">

@@ -464,9 +464,7 @@ export default function CareScope() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-            <Settings size={20} className="text-primary" />
-          </div>
+          <Settings size={20} className="text-primary" />
           <div className="flex-1">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
               Care Scope

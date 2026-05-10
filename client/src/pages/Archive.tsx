@@ -87,9 +87,7 @@ export default function ArchivePage() {
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-amber-100 dark:bg-amber-950/40 flex items-center justify-center flex-shrink-0">
-            <Archive size={20} className="text-amber-600 dark:text-amber-400" />
-          </div>
+          <Archive size={20} className="text-amber-600 dark:text-amber-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("archive.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">{t("archive.subtitle")}</p>

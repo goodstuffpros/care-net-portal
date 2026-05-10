@@ -565,9 +565,7 @@ export default function Badges() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-rose-100 dark:bg-rose-900/30 flex items-center justify-center">
-            <Award size={20} className="text-rose-500" />
-          </div>
+          <Award size={20} className="text-rose-500" />
           <div>
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Care Badge</h1>
             <p className="text-xs text-muted-foreground">Private care quality record · 30-day rolling window</p>

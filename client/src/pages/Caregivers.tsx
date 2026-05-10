@@ -198,9 +198,7 @@ export default function CaregiversPage() {
     <div className="p-4 max-w-3xl mx-auto space-y-6 w-full overflow-x-hidden">
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-purple-100 dark:bg-purple-950/40 flex items-center justify-center flex-shrink-0">
-            <Users size={20} className="text-purple-600 dark:text-purple-400" />
-          </div>
+          <Users size={20} className="text-purple-600 dark:text-purple-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("caregivers.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Primary · Relief · Temp</p>

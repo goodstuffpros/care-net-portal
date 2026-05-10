@@ -273,9 +273,7 @@ export default function Notes() {
       {/* Header */}
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-yellow-100 dark:bg-yellow-950/40 flex items-center justify-center flex-shrink-0">
-            <StickyNote size={20} className="text-yellow-600 dark:text-yellow-400" />
-          </div>
+          <StickyNote size={20} className="text-yellow-600 dark:text-yellow-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold text-foreground" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("notes.title")}</h1>
             <p className="text-xs text-muted-foreground truncate">Observations · Equipment · Safety</p>
