@@ -503,7 +503,8 @@ function RealAuthGate() {
   }
 
   // MC user who hasn't completed the setup wizard yet
-  const isMCRole = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
+  // secondary_family arrives via invite (already connected) — they skip MC setup
+  const isMCRole = realUser?.role === "primary_family";
   if (realUser && onboardingDone && isMCRole && !realUser.mcSetupCompletedAt) {
     return (
       <QueryClientProvider client={queryClient}>

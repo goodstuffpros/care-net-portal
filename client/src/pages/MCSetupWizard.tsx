@@ -1,19 +1,21 @@
 /**
- * MCSetupWizard — shown to MC/family users after onboarding wizard.
- * Builds their care circle before they enter the portal.
+ * MCSetupWizard — shown to MC/family users after personal onboarding.
+ * New flow (per David's redesign, May 2026):
  *
- * Steps:
- *   1. welcome     — warm intro, sets expectations ("3 minutes")
- *   2. loved-one   — name, relationship, optional DOB + condition
- *   3. care-path   — "I have a caregiver" | "I'm managing care myself"
- *   4. family      — optional: invite secondary family members
- *   5. done        — celebration, enter portal
+ *   1. client-profile  — Create your loved one's profile (REQUIRED, no skip)
+ *   2. personal-profile — Your own info (name, phone) — already set in onboarding,
+ *                         but shows a confirmation / light review
+ *   3. care-team       — Invite caregiver (email) + option to invite family
+ *   4. done            — Celebration, encouragement to explore
+ *
+ * The MC cannot leave this wizard until client-profile is complete.
+ * Care-team invites are email-only (no copy-link per platform rules).
  */
 
 import { useState } from "react";
 import {
   Heart, ChevronRight, ChevronLeft, User, Calendar, Stethoscope,
-  Users, UserPlus, Check, Copy, Briefcase, Home, Sparkles, ArrowRight
+  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,32 +30,30 @@ interface MCSetupProps {
   onComplete: () => void;
 }
 
-type Step = "welcome" | "loved-one" | "care-path" | "family" | "done";
-type CarePath = "has_caregiver" | "self_managing" | null;
+type Step = "client-profile" | "care-team" | "done";
 
 const RELATIONSHIPS = [
   "Parent", "Spouse / Partner", "Sibling", "Grandparent",
   "Child", "Relative", "Friend", "Other"
 ];
 
-const STEP_ORDER: Step[] = ["welcome", "loved-one", "care-path", "family", "done"];
-
-function ProgressDots({ current }: { current: Step }) {
-  const steps: Step[] = ["loved-one", "care-path", "family"];
+// Progress: client-profile(1), care-team(2)
+function ProgressBar({ step }: { step: Step }) {
+  const steps: Step[] = ["client-profile", "care-team"];
+  const current = steps.indexOf(step);
+  if (current < 0) return null;
   return (
     <div className="flex items-center gap-1.5 justify-center mb-8">
-      {steps.map((s) => {
-        const idx = STEP_ORDER.indexOf(s);
-        const curIdx = STEP_ORDER.indexOf(current);
-        const done = curIdx > idx;
-        const active = current === s;
+      {steps.map((s, i) => {
+        const done = current > i;
+        const active = current === i;
         return (
           <div
             key={s}
             className={cn(
               "rounded-full transition-all duration-300",
-              active ? "w-5 h-2 bg-primary" :
-              done   ? "w-2 h-2 bg-primary/50" :
+              active ? "w-5 h-2 bg-rose-500" :
+              done   ? "w-2 h-2 bg-rose-300" :
                        "w-2 h-2 bg-muted"
             )}
           />
@@ -63,51 +63,49 @@ function ProgressDots({ current }: { current: Step }) {
   );
 }
 
+// Shared layout
+function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+      <div className="flex items-center gap-2 px-6 py-4 border-b border-border">
+        <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
+        <span className="font-semibold text-foreground text-sm">Care Net Portal</span>
+        <span className="ml-auto text-xs text-muted-foreground">Setting up your care circle</span>
+      </div>
+      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
+        <div className="w-full max-w-md">
+          {children}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps) {
   const { toast } = useToast();
-  const firstName = name.split(" ")[0];
+  const firstName = name.split(" ")[0] || "there";
 
-  const [step, setStep] = useState<Step>("welcome");
+  const [step, setStep] = useState<Step>("client-profile");
   const [saving, setSaving] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [clientCreated, setClientCreated] = useState(false);
 
-  // Loved one fields
+  // Client profile fields
   const [clientName, setClientName] = useState("");
   const [relationship, setRelationship] = useState("");
   const [clientDob, setClientDob] = useState("");
   const [clientCondition, setClientCondition] = useState("");
 
-  // Care path
-  const [carePath, setCarePath] = useState<CarePath>(null);
+  // Care team invite state
+  const [cgEmail, setCgEmail] = useState("");
+  const [cgSending, setCgSending] = useState(false);
+  const [cgSent, setCgSent] = useState(false);
+  const [familyEmails, setFamilyEmails] = useState<string[]>([""]);
+  const [familySending, setFamilySending] = useState(false);
+  const [familySentCount, setFamilySentCount] = useState(0);
 
-  // Invite link — generated via real API
-  const [inviteLink, setInviteLink] = useState("");
-  const [inviteLoading, setInviteLoading] = useState(false);
-
-  async function generateInviteLink(type: "mc_to_caregiver" | "mc_to_family") {
-    if (inviteLoading) return;
-    setInviteLoading(true);
-    try {
-      const r = await apiRequest("POST", "/api/invite/create", { inviteType: type });
-      const data = await r.json();
-      if (data.inviteUrl) setInviteLink(data.inviteUrl);
-    } catch {
-      toast({ title: "Could not generate link", description: "Please try again.", variant: "destructive" });
-    } finally {
-      setInviteLoading(false);
-    }
-  }
-
-  function copyInvite() {
-    if (!inviteLink) return;
-    navigator.clipboard.writeText(inviteLink).then(() => {
-      setCopied(true);
-      toast({ title: "Link copied", description: "Send it to your caregiver to connect your portals." });
-      setTimeout(() => setCopied(false), 3000);
-    });
-  }
-
-  async function handleFinish() {
+  // ── Step 1: Create client profile ─────────────────────────────────────────
+  async function handleCreateClient() {
+    if (!clientName.trim()) return;
     setSaving(true);
     try {
       await apiRequest("POST", "/api/mc/setup", {
@@ -115,9 +113,10 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
         clientDob: clientDob || null,
         clientCondition: clientCondition.trim() || null,
         clientRelationship: relationship || null,
-        carePathChoice: carePath || "self_managing",
+        carePathChoice: "has_caregiver",
       });
-      setStep("done");
+      setClientCreated(true);
+      setStep("care-team");
     } catch (e: any) {
       toast({ title: "Something went wrong", description: e.message, variant: "destructive" });
     } finally {
@@ -125,67 +124,101 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
     }
   }
 
+  // ── Care team: send CG invite ──────────────────────────────────────────────
+  async function sendCGInvite() {
+    if (!cgEmail.trim()) return;
+    setCgSending(true);
+    try {
+      await apiRequest("POST", "/api/invite/create", {
+        inviteType: "mc_to_caregiver",
+        invitedEmail: cgEmail.trim(),
+      });
+      setCgSent(true);
+      toast({ title: "Invite sent", description: `An invitation was sent to ${cgEmail.trim()}.` });
+    } catch (e: any) {
+      toast({ title: "Could not send invite", description: e.message, variant: "destructive" });
+    } finally {
+      setCgSending(false);
+    }
+  }
+
+  // ── Care team: send family invites ─────────────────────────────────────────
+  async function sendFamilyInvites() {
+    const validEmails = familyEmails.filter(e => e.trim());
+    if (!validEmails.length) return;
+    setFamilySending(true);
+    let sent = 0;
+    for (const fe of validEmails) {
+      try {
+        await apiRequest("POST", "/api/invite/create", {
+          inviteType: "mc_to_family",
+          invitedEmail: fe.trim(),
+        });
+        sent++;
+      } catch {
+        // silently skip individual failures
+      }
+    }
+    setFamilySentCount(sent);
+    setFamilySending(false);
+    if (sent > 0) toast({ title: `${sent} invite${sent > 1 ? "s" : ""} sent`, description: "Family members will receive an email invitation." });
+  }
+
+  function addFamilyEmail() {
+    setFamilyEmails(prev => [...prev, ""]);
+  }
+
+  function updateFamilyEmail(i: number, val: string) {
+    setFamilyEmails(prev => prev.map((e, idx) => idx === i ? val : e));
+  }
+
+  function removeFamilyEmail(i: number) {
+    setFamilyEmails(prev => prev.filter((_, idx) => idx !== i));
+  }
+
   function enterPortal() {
-    // Full reload — RealAuthGate re-checks session, now has clientId set
     window.location.href = "/";
   }
 
-  // ── Step: Welcome ────────────────────────────────────────────────────────
-  if (step === "welcome") {
+  // ════════════════════════════════════════════════════════════════════════════
+  // Step 1: Client Profile
+  // ════════════════════════════════════════════════════════════════════════════
+  if (step === "client-profile") {
     return (
       <Layout>
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5">
-            <Heart className="w-7 h-7 text-rose-500 fill-rose-500/20" />
-          </div>
-          <h1 className="text-xl font-bold text-foreground mb-2">
-            Welcome, {firstName}.
-          </h1>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
-            Let's set up your care circle. We'll ask you a few things about your loved one and how you'd like to use the portal.
-          </p>
-          <p className="text-xs text-muted-foreground/60 mt-2">About 3 minutes</p>
-        </div>
+        <ProgressBar step="client-profile" />
 
-        <div className="space-y-2.5 mb-8 text-sm">
-          {[
-            { icon: <User className="w-4 h-4" />, text: "Tell us about your loved one" },
-            { icon: <Briefcase className="w-4 h-4" />, text: "Choose how you'll manage care" },
-            { icon: <Users className="w-4 h-4" />, text: "Option to invite family members" },
-          ].map(({ icon, text }) => (
-            <div key={text} className="flex items-center gap-3 px-4 py-2.5 rounded-lg bg-muted/40">
-              <span className="text-muted-foreground">{icon}</span>
-              <span className="text-foreground/80">{text}</span>
-            </div>
-          ))}
-        </div>
-
-        <Button onClick={() => setStep("loved-one")} className="w-full gap-2">
-          Get started <ArrowRight className="w-4 h-4" />
-        </Button>
-      </Layout>
-    );
-  }
-
-  // ── Step: Loved One ──────────────────────────────────────────────────────
-  if (step === "loved-one") {
-    return (
-      <Layout>
-        <ProgressDots current="loved-one" />
+        {/* Header */}
         <div className="mb-6">
-          <h2 className="text-lg font-bold text-foreground mb-1">Tell us about your loved one</h2>
-          <p className="text-sm text-muted-foreground">This is who the portal is built around.</p>
+          <div className="flex items-center gap-3 mb-3">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+              <User className="w-5 h-5 text-rose-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">First — tell us about your loved one</h2>
+              <p className="text-xs text-muted-foreground">The portal is built around them.</p>
+            </div>
+          </div>
+          <div className="rounded-lg border border-rose-200 dark:border-rose-900 bg-rose-50 dark:bg-rose-950/20 px-4 py-2.5">
+            <p className="text-xs text-rose-700 dark:text-rose-400 font-medium">
+              This step is required before you can explore the portal.
+            </p>
+          </div>
         </div>
 
+        {/* Fields */}
         <div className="space-y-4 mb-8">
           <div className="space-y-1.5">
-            <Label htmlFor="client-name">Their name <span className="text-rose-400">*</span></Label>
+            <Label htmlFor="client-name">
+              Their full name <span className="text-rose-500">*</span>
+            </Label>
             <Input
               id="client-name"
               placeholder="Full name"
               value={clientName}
               onChange={e => setClientName(e.target.value)}
               autoFocus
+              data-testid="input-client-name"
             />
           </div>
 
@@ -195,12 +228,13 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
               {RELATIONSHIPS.map(r => (
                 <button
                   key={r}
+                  type="button"
                   onClick={() => setRelationship(r)}
                   className={cn(
                     "px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
                     relationship === r
-                      ? "bg-primary text-primary-foreground border-primary"
-                      : "bg-background text-foreground/70 border-border hover:border-primary/40"
+                      ? "bg-rose-500 text-white border-rose-500"
+                      : "bg-background text-foreground/70 border-border hover:border-rose-300"
                   )}
                 >
                   {r}
@@ -236,204 +270,197 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           </div>
         </div>
 
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setStep("welcome")} className="gap-1.5">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Button>
-          <Button
-            onClick={() => setStep("care-path")}
-            disabled={!clientName.trim()}
-            className="flex-1 gap-2"
-          >
-            Continue <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-
-  // ── Step: Care Path ──────────────────────────────────────────────────────
-  if (step === "care-path") {
-    return (
-      <Layout>
-        <ProgressDots current="care-path" />
-        <div className="mb-6">
-          <h2 className="text-lg font-bold text-foreground mb-1">How are you managing care?</h2>
-          <p className="text-sm text-muted-foreground">
-            This helps us set up {clientName}'s portal the right way.
-          </p>
-        </div>
-
-        <div className="space-y-3 mb-8">
-          <button
-            onClick={() => setCarePath("has_caregiver")}
-            className={cn(
-              "w-full text-left p-4 rounded-xl border transition-all",
-              carePath === "has_caregiver"
-                ? "border-primary bg-primary/8 ring-1 ring-primary/30"
-                : "border-border bg-card hover:border-primary/30"
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                carePath === "has_caregiver" ? "bg-primary" : "bg-muted"
-              )}>
-                <Briefcase className={cn("w-4 h-4", carePath === "has_caregiver" ? "text-primary-foreground" : "text-muted-foreground")} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">I have a professional caregiver</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  You'll invite them to connect their portal with yours. They manage care, you stay informed.
-                </p>
-              </div>
-              {carePath === "has_caregiver" && (
-                <Check className="w-4 h-4 text-primary ml-auto flex-shrink-0 mt-1" />
-              )}
-            </div>
-          </button>
-
-          <button
-            onClick={() => setCarePath("self_managing")}
-            className={cn(
-              "w-full text-left p-4 rounded-xl border transition-all",
-              carePath === "self_managing"
-                ? "border-primary bg-primary/8 ring-1 ring-primary/30"
-                : "border-border bg-card hover:border-primary/30"
-            )}
-          >
-            <div className="flex items-start gap-3">
-              <div className={cn(
-                "w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                carePath === "self_managing" ? "bg-primary" : "bg-muted"
-              )}>
-                <Home className={cn("w-4 h-4", carePath === "self_managing" ? "text-primary-foreground" : "text-muted-foreground")} />
-              </div>
-              <div>
-                <p className="text-sm font-semibold text-foreground">I'm managing care myself</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Family members provide care. You can still invite family to stay in the loop, and connect a caregiver later if needed.
-                </p>
-              </div>
-              {carePath === "self_managing" && (
-                <Check className="w-4 h-4 text-primary ml-auto flex-shrink-0 mt-1" />
-              )}
-            </div>
-          </button>
-        </div>
-
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setStep("loved-one")} className="gap-1.5">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Button>
-          <Button
-            onClick={() => setStep("family")}
-            disabled={!carePath}
-            className="flex-1 gap-2"
-          >
-            Continue <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
-      </Layout>
-    );
-  }
-
-  // ── Step: Family ─────────────────────────────────────────────────────────
-  if (step === "family") {
-    const inviteType = carePath === "has_caregiver" ? "mc_to_caregiver" : "mc_to_family";
-    return (
-      <Layout>
-        <ProgressDots current="family" />
-        <div className="mb-6">
-          <h2 className="text-lg font-bold text-foreground mb-1">
-            {carePath === "has_caregiver" ? "Invite your caregiver" : "Invite family members"}
-          </h2>
-          <p className="text-sm text-muted-foreground">
-            {carePath === "has_caregiver"
-              ? "Share this link with your caregiver. When they accept, your portals connect automatically."
-              : "Want to keep other family members in the loop? Share this link with them."}
-          </p>
-        </div>
-
-        <div className="p-4 rounded-xl border border-border bg-card mb-4">
-          <p className="text-xs text-muted-foreground mb-2 font-medium uppercase tracking-wide">Your invite link</p>
-          {inviteLink ? (
-            <>
-              <p className="text-xs text-foreground/70 break-all font-mono bg-muted rounded-md px-3 py-2 mb-3 select-all">
-                {inviteLink}
-              </p>
-              <Button onClick={copyInvite} variant="outline" size="sm" className="w-full gap-2">
-                {copied ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
-                {copied ? "Copied!" : "Copy invite link"}
-              </Button>
-            </>
+        <Button
+          onClick={handleCreateClient}
+          disabled={!clientName.trim() || saving}
+          className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
+          data-testid="btn-create-client"
+        >
+          {saving ? (
+            <><Loader2 className="w-4 h-4 animate-spin" />Creating profile…</>
           ) : (
-            <Button
-              onClick={() => generateInviteLink(inviteType)}
-              disabled={inviteLoading}
-              variant="outline"
-              size="sm"
-              className="w-full gap-2"
-            >
-              {inviteLoading ? <span className="animate-spin">⟳</span> : <Copy className="w-3.5 h-3.5" />}
-              {inviteLoading ? "Generating link..." : "Generate invite link"}
-            </Button>
+            <>Continue <ChevronRight className="w-4 h-4" /></>
+          )}
+        </Button>
+      </Layout>
+    );
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Step 2: Care Team — invite CG + family
+  // ════════════════════════════════════════════════════════════════════════════
+  if (step === "care-team") {
+    const allFamilyValid = familyEmails.filter(e => e.trim()).length > 0;
+    return (
+      <Layout>
+        <ProgressBar step="care-team" />
+
+        <div className="mb-6">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="w-10 h-10 rounded-xl bg-rose-500/10 flex items-center justify-center">
+              <Users className="w-5 h-5 text-rose-500" />
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-foreground">Build your care team</h2>
+              <p className="text-xs text-muted-foreground">Invite your caregiver and family members.</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Caregiver invite */}
+        <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+          <div className="flex items-center gap-2 mb-3">
+            <Briefcase className="w-4 h-4 text-teal-600" />
+            <p className="text-sm font-semibold text-foreground">Invite your caregiver</p>
+            {cgSent && <CheckCircle2 className="w-4 h-4 text-teal-600 ml-auto" />}
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            They'll get an email with a link to connect their portal to yours.
+          </p>
+          {cgSent ? (
+            <div className="rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 px-4 py-2.5">
+              <p className="text-xs text-teal-700 dark:text-teal-400 font-medium flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5" />
+                Invite sent to {cgEmail}
+              </p>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Input
+                type="email"
+                placeholder="caregiver@example.com"
+                value={cgEmail}
+                onChange={e => setCgEmail(e.target.value)}
+                className="flex-1"
+                data-testid="input-cg-email"
+              />
+              <Button
+                onClick={sendCGInvite}
+                disabled={!cgEmail.trim() || cgSending}
+                className="bg-teal-600 hover:bg-teal-700 text-white flex-shrink-0"
+                data-testid="btn-send-cg-invite"
+              >
+                {cgSending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+              </Button>
+            </div>
           )}
         </div>
 
-        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/40 mb-8">
-          <Sparkles className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
-          <p className="text-xs text-muted-foreground">
-            You can also invite people from inside the portal at any time. This step is optional.
+        {/* Family member invites */}
+        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+          <div className="flex items-center gap-2 mb-3">
+            <Users className="w-4 h-4 text-rose-500" />
+            <p className="text-sm font-semibold text-foreground">Invite family members</p>
+            {familySentCount > 0 && <CheckCircle2 className="w-4 h-4 text-rose-500 ml-auto" />}
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">
+            Secondary family members can view care logs, schedules, and messages — keeping everyone in the loop.
           </p>
+
+          {familySentCount > 0 ? (
+            <div className="rounded-lg bg-rose-50 dark:bg-rose-950/20 border border-rose-200 dark:border-rose-900 px-4 py-2.5">
+              <p className="text-xs text-rose-700 dark:text-rose-400 font-medium flex items-center gap-2">
+                <Mail className="w-3.5 h-3.5" />
+                {familySentCount} invite{familySentCount > 1 ? "s" : ""} sent
+              </p>
+            </div>
+          ) : (
+            <>
+              <div className="space-y-2 mb-3">
+                {familyEmails.map((fe, i) => (
+                  <div key={i} className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="family@example.com"
+                      value={fe}
+                      onChange={e => updateFamilyEmail(i, e.target.value)}
+                      className="flex-1"
+                      data-testid={`input-family-email-${i}`}
+                    />
+                    {familyEmails.length > 1 && (
+                      <button
+                        type="button"
+                        onClick={() => removeFamilyEmail(i)}
+                        className="text-muted-foreground hover:text-destructive transition-colors p-2"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={addFamilyEmail}
+                  className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                >
+                  <UserPlus className="w-3.5 h-3.5" /> Add another
+                </button>
+                <Button
+                  onClick={sendFamilyInvites}
+                  disabled={!allFamilyValid || familySending}
+                  variant="outline"
+                  size="sm"
+                  className="ml-auto"
+                  data-testid="btn-send-family-invites"
+                >
+                  {familySending ? <><Loader2 className="w-3.5 h-3.5 animate-spin mr-1" />Sending…</> : "Send invites"}
+                </Button>
+              </div>
+            </>
+          )}
         </div>
 
-        <div className="flex gap-3">
-          <Button variant="outline" onClick={() => setStep("care-path")} className="gap-1.5">
-            <ChevronLeft className="w-4 h-4" /> Back
-          </Button>
-          <Button
-            onClick={handleFinish}
-            disabled={saving}
-            className="flex-1 gap-2"
-          >
-            {saving ? "Setting up…" : "Enter my portal"}
-            {!saving && <ChevronRight className="w-4 h-4" />}
-          </Button>
-        </div>
+        {/* Actions */}
+        <Button
+          onClick={() => setStep("done")}
+          className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
+          data-testid="btn-care-team-next"
+        >
+          {cgSent || familySentCount > 0 ? "Enter my portal" : "Skip for now — I'll do this later"}
+          <ChevronRight className="w-4 h-4" />
+        </Button>
+
+        {(cgSent || familySentCount > 0) && (
+          <p className="text-xs text-center text-muted-foreground mt-3">
+            You can invite more people from the Care Team page at any time.
+          </p>
+        )}
       </Layout>
     );
   }
 
-  // ── Step: Done ───────────────────────────────────────────────────────────
+  // ════════════════════════════════════════════════════════════════════════════
+  // Step 3: Done
+  // ════════════════════════════════════════════════════════════════════════════
   if (step === "done") {
     return (
       <Layout>
         <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-green-500/10 border border-green-500/20 flex items-center justify-center mx-auto mb-5">
-            <Check className="w-8 h-8 text-green-500" />
+          <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5">
+            <CheckCircle2 className="w-8 h-8 text-rose-500" />
           </div>
           <h2 className="text-xl font-bold text-foreground mb-2">
             {clientName}'s portal is ready.
           </h2>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-2">
+            {cgSent
+              ? `Your caregiver will receive an email invitation. Once they accept, your portals will connect automatically.`
+              : `You can invite your caregiver and family members at any time from the Care Team page.`}
+          </p>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-8">
-            {carePath === "has_caregiver"
-              ? "Once your caregiver accepts your invite, both portals will connect and you'll each see each other's updates in real time."
-              : "Your family portal is set up. You can invite family members or a caregiver at any time from inside the portal."}
+            Start exploring — your dashboard, care log, and schedule are ready for you.
           </p>
 
-          {carePath === "has_caregiver" && !copied && (
-            <div className="mb-6">
-              <Button onClick={copyInvite} variant="outline" size="sm" className="gap-2 mx-auto">
-                <Copy className="w-3.5 h-3.5" />
-                Copy caregiver invite link
-              </Button>
-            </div>
-          )}
-
-          <Button onClick={enterPortal} className="w-full gap-2 bg-rose-600 hover:bg-rose-700 text-white">
+          <Button
+            onClick={enterPortal}
+            className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
+            data-testid="btn-enter-portal"
+          >
             <Heart className="w-4 h-4 fill-white/30" />
             Enter Care Net Portal
+            <ArrowRight className="w-4 h-4" />
           </Button>
         </div>
       </Layout>
@@ -441,21 +468,4 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   }
 
   return null;
-}
-
-// ── Shared layout wrapper ────────────────────────────────────────────────────
-function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="min-h-screen bg-background flex flex-col">
-      <div className="flex items-center gap-2 px-6 py-4 border-b border-border">
-        <Heart className="w-5 h-5 fill-rose-500 text-rose-500" />
-        <span className="font-semibold text-foreground text-sm">Care Net Portal</span>
-      </div>
-      <div className="flex-1 flex flex-col items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md">
-          {children}
-        </div>
-      </div>
-    </div>
-  );
 }
