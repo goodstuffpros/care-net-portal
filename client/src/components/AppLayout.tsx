@@ -1371,14 +1371,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-16">
-          <DailyNudge />
+          {/* BETA: prompt banners suspended — restore post-beta, redesign thinner + less frequent */}
+          {/* <DailyNudge /> */}
           {/* Proactive wellbeing nudge banner */}
-          {showProactiveNudge && (
+          {/* {showProactiveNudge && (
             <ProactiveNudgeBanner
               onOpen={() => { setProactiveNudgeDismissed(true); openWellbeing("proactive_shift_end"); }}
               onDismiss={() => setProactiveNudgeDismissed(true)}
             />
-          )}
+          )} */}
           {/* Pre-connection demo mode banner */}
           {showPreConnBanner && (
             <div className="mx-4 mt-4 rounded-xl border border-teal-400/40 bg-teal-50 dark:bg-teal-950/40 px-4 py-3 flex items-start gap-3">
