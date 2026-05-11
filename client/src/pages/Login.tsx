@@ -19,7 +19,7 @@ interface LoginPageProps {
 
 export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
   const [, navigate] = useLocation();
-  const { toast } = useToast();
+  const { toast, dismiss } = useToast();
 
   // Read invite token + verified flag from URL hash query string: /#/login?invite=TOKEN&verified=1
   const hashQuery = window.location.hash.split("?")[1] || "";
@@ -76,8 +76,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
         setAuthToken(body.token);
         try { sessionStorage.setItem("cn_auth_token", body.token); } catch {}
       }
+      // Dismiss any lingering error toasts (e.g. from a failed attempt just before this one)
+      dismiss();
       // Trigger RealAuthGate via callback — no window.location navigation needed.
-      // This works in all environments including Perplexity iframe.
       if (onLoginSuccess) {
         onLoginSuccess();
       } else {
