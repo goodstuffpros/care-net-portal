@@ -6,7 +6,7 @@
 
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, setAuthToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,10 +67,10 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Cache the user email so RealAuthGate can retry /api/auth/me if the
-      // cookie hasn't propagated yet on first load (Android Chrome timing issue).
+      // Store token in localStorage — sent as Authorization: Bearer on all subsequent requests.
+      // This bypasses Android Chrome cookie propagation issues entirely.
+      if (body.token) setAuthToken(body.token);
       sessionStorage.setItem("cnp_just_logged_in", "1");
-      // Full reload — ensures RealAuthGate re-runs /api/auth/me with the new cookie.
       window.location.href = "/";
     } catch (err: any) {
       const rawMsg: string = err.message || "";

@@ -11,7 +11,7 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, clearAuthToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Eye, LogOut, RefreshCw, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -68,6 +68,7 @@ export default function DemoBanner({ userEmail, onLogout }: DemoBannerProps) {
   }, []);
 
   async function handleAutoLogout() {
+    clearAuthToken();
     try {
       await apiRequest("POST", "/api/auth/logout", {});
     } catch {}
@@ -79,6 +80,7 @@ export default function DemoBanner({ userEmail, onLogout }: DemoBannerProps) {
   }
 
   async function handleManualLogout() {
+    clearAuthToken();
     try {
       await apiRequest("POST", "/api/auth/logout", {});
     } catch {}
@@ -100,6 +102,7 @@ export default function DemoBanner({ userEmail, onLogout }: DemoBannerProps) {
       if (!res.ok) throw new Error(data.message);
       toast({ title: "Demo reset", description: "Donnie Demo's portal has been restored to its original state." });
       // Log out and back to login so admin can re-enter with fresh data
+      clearAuthToken();
       try { await apiRequest("POST", "/api/auth/logout", {}); } catch {}
       onLogout();
     } catch (e: any) {

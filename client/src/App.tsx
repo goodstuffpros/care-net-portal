@@ -2,7 +2,7 @@ import { Switch, Route, Router, useLocation } from "wouter";
 import { stopBecky } from "@/lib/ttsUtils";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient, apiRequest } from "@/lib/queryClient";
+import { queryClient, apiRequest, clearAuthToken, getAuthToken } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AlarmEngine } from "@/components/AlarmEngine";
 import { createContext, useContext, useState, useEffect } from "react";
@@ -260,6 +260,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",
         onLogout: () => {
+          clearAuthToken();
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
             .finally(() => { window.location.href = "/"; });
         },
@@ -472,7 +473,10 @@ function RealAuthGate() {
 
     async function checkMe(retrying = false) {
       try {
-        const res = await fetch("/api/auth/me", { credentials: "include" });
+        const token = getAuthToken();
+        const headers: Record<string, string> = {};
+        if (token) headers["Authorization"] = `Bearer ${token}`;
+        const res = await fetch("/api/auth/me", { credentials: "include", headers });
         const data = await res.json();
         if (data?.email && !data?.isDemoMode) {
           sessionStorage.removeItem("cnp_just_logged_in");

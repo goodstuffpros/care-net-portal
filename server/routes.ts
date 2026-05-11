@@ -121,10 +121,12 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!valid) return res.status(401).json({ message: "Invalid email or password" });
 
     const token = await createSession(account.id, req);
-    setSessionCookie(res, token);
+    setSessionCookie(res, token); // keep cookie for server-side fallback
 
     const user = db.select().from(users).where(eq(users.id, account.userId)).get();
-    res.json({ success: true, user: { id: user!.id, name: user!.name, role: user!.role, email: account.email } });
+    // Also return the token in the body so clients can store it in localStorage
+    // and send it as Authorization: Bearer — bypasses cookie propagation issues on Android
+    res.json({ success: true, token, user: { id: user!.id, name: user!.name, role: user!.role, email: account.email } });
   });
 
   // TEMP DEBUG — remove after diagnosing login loop

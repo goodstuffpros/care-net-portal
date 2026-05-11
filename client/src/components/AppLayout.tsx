@@ -4,7 +4,7 @@ import { useLang } from "@/lib/useLang";
 import { Link, useLocation } from "wouter";
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { apiRequest, queryClient } from "@/lib/queryClient";
+import { apiRequest, queryClient, clearAuthToken } from "@/lib/queryClient";
 import type { Shift } from "@shared/schema";
 import type { Notification } from "@shared/schema";
 import {
@@ -951,6 +951,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {
+                clearAuthToken();
                 fetch("/api/auth/logout", { method: "POST", credentials: "include" })
                   .finally(() => { window.location.href = "/#/login"; });
               }}
@@ -1318,6 +1319,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
+                    clearAuthToken();
                     fetch("/api/auth/logout", { method: "POST", credentials: "include" })
                       .finally(() => { window.location.href = "/#/login"; });
                   }}
