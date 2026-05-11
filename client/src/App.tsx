@@ -440,7 +440,13 @@ export default function App() {
 
   // Successful login sets this flag — go straight to RealAuthGate without
   // any window.location navigation (navigation breaks inside Perplexity iframe).
-  if (loggedIn) return <RealAuthGate />;
+  // Also clear the hash so wouter lands on '/' (Dashboard) not '/login'.
+  if (loggedIn) {
+    if (typeof window !== "undefined" && window.location.hash !== "#/" && window.location.hash !== "") {
+      window.location.hash = "/";
+    }
+    return <RealAuthGate />;
+  }
 
   // Auth page check — hash path OR ?page= query param
   const AuthPage = AUTH_ROUTES[effectivePath];
