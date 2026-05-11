@@ -19,10 +19,13 @@ export function setAuthToken(token: string) {
   try { localStorage.setItem(TOKEN_KEY, token); } catch {}
 }
 export function getAuthToken(): string | null {
-  try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
+  try {
+    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
+  } catch { return null; }
 }
 export function clearAuthToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
+  try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {

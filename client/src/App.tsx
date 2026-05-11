@@ -473,10 +473,9 @@ function RealAuthGate() {
 
     async function checkMe(retrying = false) {
       try {
-        const token = getAuthToken();
-        const headers: Record<string, string> = {};
-        if (token) headers["Authorization"] = `Bearer ${token}`;
-        const res = await fetch("/api/auth/me", { credentials: "include", headers });
+        // Use apiRequest so the URL goes through API_BASE (Railway proxy on Perplexity preview)
+        // and the Bearer token header is added automatically via authHeaders().
+        const res = await apiRequest("GET", "/api/auth/me");
         const data = await res.json();
         if (data?.email && !data?.isDemoMode) {
           sessionStorage.removeItem("cnp_just_logged_in");
@@ -493,12 +492,17 @@ function RealAuthGate() {
           if (data.onboardingCompletedAt) setOnboardingDone(true);
           if (data.clientId) sessionStorage.removeItem("cnp_demo_preview");
         } else if (justLoggedIn && !retrying) {
-          // Cookie may not have propagated yet on Android — retry once after 500ms
           setTimeout(() => checkMe(true), 500);
-          return; // don't call setChecking yet — retry will handle it
+          return;
         }
-      } catch {}
-      setChecking(false); // called after first attempt (no retry) or after retry
+      } catch {
+        // 401 or network error — retry once if we just logged in
+        if (justLoggedIn && !retrying) {
+          setTimeout(() => checkMe(true), 500);
+          return;
+        }
+      }
+      setChecking(false);
     }
 
     checkMe();

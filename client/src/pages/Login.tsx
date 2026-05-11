@@ -67,11 +67,13 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Store token in localStorage — sent as Authorization: Bearer on all subsequent requests.
-      // This bypasses Android Chrome cookie propagation issues entirely.
-      if (body.token) setAuthToken(body.token);
-      sessionStorage.setItem("cnp_just_logged_in", "1");
-      window.location.href = "/";
+      // Store token in both localStorage and sessionStorage — belt and suspenders for Android Chrome.
+      // RealAuthGate checks localStorage via getAuthToken(), but sessionStorage as fallback.
+      if (body.token) {
+        setAuthToken(body.token);
+        try { sessionStorage.setItem("cn_auth_token", body.token); } catch {}
+      }
+      window.location.href = "/#/";
     } catch (err: any) {
       const rawMsg: string = err.message || "";
       const friendlyMsg = rawMsg.includes("Invalid email or password")
