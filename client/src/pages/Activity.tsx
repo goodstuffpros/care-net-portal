@@ -14,8 +14,8 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useState, useEffect } from "react";
-import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2 } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2, Search, X } from "lucide-react";
 import { speakBecky } from "@/lib/ttsUtils";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -63,6 +63,19 @@ export default function ActivityPage() {
   }, []);
   const [filterPriority, setFilterPriority] = useState("all");
   const [filterCategory, setFilterCategory] = useState("all");
+  const [searchInput, setSearchInput] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  function handleSearchChange(val: string) {
+    setSearchInput(val);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => setSearchQuery(val.trim()), 350);
+  }
+  function clearSearch() {
+    setSearchInput("");
+    setSearchQuery("");
+  }
   const [discussingId, setDiscussingId] = useState<number | null>(null);
   const [excuseDialogId, setExcuseDialogId] = useState<number | null>(null);
   const [excuseNote, setExcuseNote] = useState("");
@@ -135,6 +148,14 @@ export default function ActivityPage() {
   const { data: logs = [], isLoading } = useQuery<ActivityLog[]>({
     queryKey: ["/api/clients", selectedClientId, "activity"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/activity`).then(r => r.json()),
+  });
+
+  // Search query — fires when searchQuery has 2+ chars
+  const isSearching = searchQuery.length >= 2;
+  const { data: searchResults = [], isFetching: searchFetching } = useQuery<(ActivityLog & { loggedByName: string })[]>({
+    queryKey: ["/api/clients", selectedClientId, "activity", "search", searchQuery],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/activity/search?q=${encodeURIComponent(searchQuery)}`).then(r => r.json()),
+    enabled: isSearching && !!selectedClientId,
   });
 
   const { data: clients = [] } = useQuery<Client[]>({
@@ -482,7 +503,83 @@ export default function ActivityPage() {
         )}
       </div>
 
-      {/* Priority filter pills — counts embedded, replaces stat cards */}
+      {/* Search bar */}
+      <div className="relative">
+        <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+        <Input
+          value={searchInput}
+          onChange={e => handleSearchChange(e.target.value)}
+          placeholder="Search care log entries..."
+          className="pl-8 pr-8 h-9 text-sm"
+          data-testid="carelog-search-input"
+        />
+        {searchInput && (
+          <button
+            onClick={clearSearch}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+            aria-label="Clear search"
+          >
+            <X size={14} />
+          </button>
+        )}
+      </div>
+
+      {/* Search results */}
+      {isSearching && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">
+            {searchFetching
+              ? "Searching..."
+              : `${searchResults.length} result${searchResults.length !== 1 ? "s" : ""} for "${searchQuery}"`
+            }
+          </p>
+          {!searchFetching && searchResults.length === 0 && (
+            <div className="text-center py-10 text-muted-foreground text-sm">
+              No entries found matching "{searchQuery}"
+            </div>
+          )}
+          {searchResults.map(log => {
+            const Icon = CATEGORY_ICONS[log.category] || ClipboardList;
+            return (
+              <Card key={log.id} className="border border-border">
+                <CardContent className="p-3 space-y-1.5">
+                  <div className="flex items-start gap-2">
+                    <Icon size={14} className="mt-0.5 flex-shrink-0 text-muted-foreground" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium leading-snug">
+                        <Highlight text={log.title} query={searchQuery} />
+                      </p>
+                      {log.description && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          <Highlight text={log.description} query={searchQuery} />
+                        </p>
+                      )}
+                      {log.notes && (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          <Highlight text={log.notes} query={searchQuery} />
+                        </p>
+                      )}
+                    </div>
+                    <PriorityBadge priority={log.priority} />
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{formatTime(log.loggedAt)}</span>
+                    <span>·</span>
+                    <span>{(log as any).loggedByName ?? "Unknown"}</span>
+                    <span className={cn("ml-auto px-1.5 py-0.5 rounded text-xs capitalize", CATEGORY_COLORS[log.category])}>
+                      {log.category}
+                    </span>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Priority filter pills — counts embedded, replaces stat cards — hidden while searching */}
+      {!isSearching && (
+      <div className="__search_filter_wrapper">
       <div className="space-y-2">
         <div className="overflow-x-auto pb-1 -mx-1 px-1">
           <div className="flex gap-2 min-w-max">
@@ -750,6 +847,24 @@ export default function ActivityPage() {
           </div>
         </DialogContent>
       </Dialog>
+      </div>
+      )}
     </div>
+  );
+}
+
+// Highlights matching text within a string
+function Highlight({ text, query }: { text: string; query: string }) {
+  if (!query || !text) return <>{text}</>;
+  const idx = text.toLowerCase().indexOf(query.toLowerCase());
+  if (idx === -1) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-yellow-200 dark:bg-yellow-700/50 text-inherit rounded-sm px-0.5">
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
   );
 }

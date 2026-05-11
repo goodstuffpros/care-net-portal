@@ -1432,6 +1432,35 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.get("/api/clients/:clientId/activity", (req, res) => {
     res.json(storage.getActivityLogsByClient(Number(req.params.clientId)));
   });
+
+  // GET /api/clients/:clientId/activity/search?q=fall
+  // Full-text search across title, description, notes, category, emergencyType
+  app.get("/api/clients/:clientId/activity/search", (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    const q = ((req.query.q as string) || "").trim().toLowerCase();
+    if (!q || q.length < 2) return res.json([]);
+
+    const all = storage.getActivityLogsByClient(clientId);
+    const results = all.filter(log => {
+      const haystack = [
+        log.title,
+        log.description,
+        log.notes,
+        log.category,
+        log.emergencyType,
+      ].filter(Boolean).join(" ").toLowerCase();
+      return haystack.includes(q);
+    });
+
+    // Enrich with logger name
+    const enriched = results.map(log => {
+      const logger = db.select({ name: users.name, role: users.role })
+        .from(users).where(eq(users.id, log.loggedByUserId)).get();
+      return { ...log, loggedByName: logger?.name ?? "Unknown", loggedByRole: log.loggedByRole ?? logger?.role };
+    });
+
+    res.json(enriched);
+  });
   app.post("/api/clients/:clientId/activity", async (req, res) => {
     const clientId = Number(req.params.clientId);
     const data = { ...req.body, clientId };
