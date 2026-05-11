@@ -2589,10 +2589,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── DEMO ACCOUNT ──────────────────────────────────────────────────────────
   // POST /api/admin/demo/seed — creates or resets the demo account
   // Admin-only: gated by adminKey header
-  // Demo credentials: cnpdemo@carenetportal.com / DemoPassword1!
+  // Demo credentials: cnpdemo@carenetportal.com / DemoPassword2026
+  // No special characters — prevents Android autofill from dropping the last character.
 
   const DEMO_EMAIL = "cnpdemo@carenetportal.com";
-  const DEMO_PASSWORD = "DemoPassword1!";
+  const DEMO_PASSWORD = "DemoPassword2026";
   const DEMO_ADMIN_KEY = "cnp-demo-reset-2026";
 
   app.post("/api/admin/demo/seed", async (req, res) => {
