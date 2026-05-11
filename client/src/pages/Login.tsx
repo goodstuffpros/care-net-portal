@@ -31,6 +31,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [loginError, setLoginError] = useState<string | null>(null);
   const [needsVerification, setNeedsVerification] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
@@ -38,6 +39,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
     if (!email.trim() || !password) return;
+    setLoginError(null);
     setLoading(true);
     try {
       const res = await apiRequest("POST", "/api/auth/login", { email: email.trim(), password });
@@ -89,7 +91,7 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
       const friendlyMsg = rawMsg.includes("Invalid email or password")
         ? "Incorrect email or password. Try again or use Forgot password."
         : rawMsg.replace(/^\d+: /, "").replace(/^\{.*\}$/, "Login failed — please try again.");
-      toast({ title: "Sign in failed", description: friendlyMsg, variant: "destructive" });
+      setLoginError(friendlyMsg);
     } finally {
       setLoading(false);
     }
@@ -183,8 +185,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
                 autoComplete="email"
                 placeholder="you@example.com"
                 value={email}
-                onChange={e => setEmail(e.target.value)}
+                onChange={e => { setEmail(e.target.value); setLoginError(null); }}
                 disabled={loading}
+                className={loginError ? "border-red-500 focus-visible:ring-red-500" : ""}
                 data-testid="input-email"
               />
             </div>
@@ -208,9 +211,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
                   autoComplete="current-password"
                   placeholder="••••••••"
                   value={password}
-                  onChange={e => setPassword(e.target.value)}
+                  onChange={e => { setPassword(e.target.value); setLoginError(null); }}
                   disabled={loading}
-                  className="pr-10"
+                  className={`pr-10 ${loginError ? "border-red-500 focus-visible:ring-red-500" : ""}`}
                   data-testid="input-password"
                 />
                 <button
@@ -222,6 +225,12 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
                   {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                 </button>
               </div>
+              {/* Inline error message */}
+              {loginError && (
+                <p className="text-xs text-red-500 mt-1" data-testid="text-login-error">
+                  {loginError}
+                </p>
+              )}
             </div>
 
             <Button
