@@ -41,6 +41,7 @@ import type { TranslationKey } from "@/lib/i18n";
 import NavOverlay, { NAV_COLORS } from "@/components/NavOverlay";
 import { WellbeingModal, ProactiveNudgeBanner } from "@/components/WellbeingModal";
 import { NeedAMomentModal } from "@/components/NeedAMomentModal";
+import DemoBanner from "@/components/DemoBanner";
 
 const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; emergency?: boolean }[] = [
   { path: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -177,7 +178,8 @@ const TIMEZONES = [
 ] as const;
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
@@ -983,6 +985,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+        {/* Demo Banner — only visible when logged in as demo account */}
+        {isDemo && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
+
         {/* Top Bar */}
         <header className={cn(
             "flex items-center gap-1 px-2 py-2.5 border-b backdrop-blur-sm flex-shrink-0 relative",

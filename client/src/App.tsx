@@ -107,6 +107,8 @@ interface AppContextType {
   isPreConnection: boolean; // true when real CG session but no clientId yet
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
+  realUserEmail: string; // email of the logged-in real user (used for demo detection)
+  onLogout: () => void;  // call to log out + reset to login screen
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -256,6 +258,11 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         isPreConnection,
         navOverlayOpen,
         setNavOverlayOpen,
+        realUserEmail: realUser?.email ?? "",
+        onLogout: () => {
+          fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+            .finally(() => { window.location.href = "/"; });
+        },
       }}>
         <LangProvider>
         <AlarmEngine />

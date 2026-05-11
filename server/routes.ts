@@ -2584,6 +2584,212 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true });
   });
 
+  // ── DEMO ACCOUNT ──────────────────────────────────────────────────────────
+  // POST /api/admin/demo/seed — creates or resets the demo account
+  // Admin-only: gated by adminKey header
+  // Demo credentials: cnpdemo@carenetportal.com / DemoPassword1!
+
+  const DEMO_EMAIL = "cnpdemo@carenetportal.com";
+  const DEMO_PASSWORD = "DemoPassword1!";
+  const DEMO_ADMIN_KEY = "cnp-demo-reset-2026";
+
+  app.post("/api/admin/demo/seed", async (req, res) => {
+    const key = req.headers["x-demo-key"];
+    if (key !== DEMO_ADMIN_KEY) return res.status(403).json({ message: "Unauthorized" });
+
+    try {
+      const now = new Date();
+      const today = now.toISOString().split("T")[0];
+      const fmt = (offsetDays: number, hour = 9, min = 0) => {
+        const d = new Date(now);
+        d.setDate(d.getDate() + offsetDays);
+        d.setHours(hour, min, 0, 0);
+        return d.toISOString();
+      };
+
+      // ── Wipe existing demo data ──────────────────────────────────────────
+      const existingAccount = db.select().from(authAccounts).where(eq(authAccounts.email, DEMO_EMAIL)).get();
+      if (existingAccount?.userId) {
+        const demoUser = db.select().from(users).where(eq(users.id, existingAccount.userId)).get();
+        if (demoUser?.clientId) {
+          const cid = demoUser.clientId;
+          // Delete in dependency order
+          const threads = db.select().from(chatThreads).where(eq(chatThreads.clientId, cid)).all();
+          for (const t of threads) {
+            db.delete(messages).where(eq(messages.threadId, t.id)).run();
+          }
+          db.delete(chatThreads).where(eq(chatThreads.clientId, cid)).run();
+          db.delete(activityLogs).where(eq(activityLogs.clientId, cid)).run();
+          db.delete(scheduleEvents).where(eq(scheduleEvents.clientId, cid)).run();
+          db.delete(vitals).where(eq(vitals.clientId, cid)).run();
+          db.delete(medications).where(eq(medications.clientId, cid)).run();
+          db.delete(clients).where(eq(clients.id, cid)).run();
+        }
+        db.delete(users).where(eq(users.id, existingAccount.userId)).run();
+      }
+      if (existingAccount) {
+        db.delete(authSessions).where(eq(authSessions.authAccountId, existingAccount.id)).run();
+        db.delete(authAccounts).where(eq(authAccounts.id, existingAccount.id)).run();
+      }
+
+      // ── Create demo MC user ──────────────────────────────────────────────
+      const demoUser = db.insert(users).values({
+        name: "Demo User",
+        role: "primary_family",
+        email: DEMO_EMAIL,
+        onboardingCompletedAt: now.toISOString(),
+        mcSetupCompletedAt: now.toISOString(),
+        avatarInitials: "DU",
+      }).returning().get();
+
+      // ── Create demo client ───────────────────────────────────────────────
+      const demoClient = db.insert(clients).values({
+        name: "Donnie Demo",
+        dateOfBirth: "1942-03-15",
+        primaryCondition: "Early-stage Alzheimer's disease",
+        caregiverId: demoUser.id,
+        primaryContactId: demoUser.id,
+        diagnoses: JSON.stringify([
+          { name: "Alzheimer's disease", severity: "serious", dateNoted: "2024-01-10" },
+          { name: "Type 2 Diabetes", severity: "managed", dateNoted: "2019-06-22" },
+          { name: "Hypertension", severity: "managed", dateNoted: "2018-03-05" },
+        ]),
+        allergies: JSON.stringify([
+          { name: "Penicillin", severity: "serious" },
+          { name: "Sulfa drugs", severity: "mild" },
+        ]),
+        assistiveDevices: JSON.stringify([
+          { device: "Walker", notes: "Standard 4-wheel walker, used for all ambulation" },
+          { device: "Hearing aid", notes: "Right ear only" },
+        ]),
+        notes: "Donnie does best with consistent routines. Morning is his best time — schedule important conversations before noon. He enjoys classic country music and old westerns.",
+        isActive: true,
+        appMode: "caregiver",
+      }).returning().get();
+
+      // Link user to client
+      db.update(users).set({ clientId: demoClient.id }).where(eq(users.id, demoUser.id)).run();
+
+      // ── Create demo caregiver user (for realistic messages) ──────────────
+      const demoCG = db.insert(users).values({
+        name: "Sarah (Demo CG)",
+        role: "caregiver",
+        email: "demoCG@carenetportal.com",
+        clientId: demoClient.id,
+        onboardingCompletedAt: now.toISOString(),
+        avatarInitials: "SC",
+      }).returning().get();
+
+      // ── Auth account ─────────────────────────────────────────────────────
+      const passwordHash = await hashPassword(DEMO_PASSWORD);
+      db.insert(authAccounts).values({
+        email: DEMO_EMAIL,
+        passwordHash,
+        userId: demoUser.id,
+        emailVerified: true,
+        createdAt: now.toISOString(),
+        lastLoginAt: now.toISOString(),
+      }).run();
+
+      const cid = demoClient.id;
+
+      // ── Care Log entries ─────────────────────────────────────────────────
+      const careLogEntries = [
+        { title: "Morning medications administered", description: "Donnie took all morning medications without resistance. Good mood, ate a full breakfast beforehand.", category: "medication", priority: "green", loggedAt: fmt(-1, 8, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Assisted with morning hygiene", description: "Showered, shaved, and dressed independently with minimal prompting. Chose his own clothes — a good sign.", category: "hygiene", priority: "green", loggedAt: fmt(-1, 9, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Breakfast — good appetite", description: "Scrambled eggs, toast, and orange juice. Ate everything. Asked for seconds on the eggs.", category: "meal", priority: "green", loggedAt: fmt(-1, 9, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Confusion episode — mid-morning", description: "Around 10:30am Donnie became briefly confused about the day and asked about going to work. Redirected with photos and calm conversation. Resolved in about 10 minutes. No distress.", category: "mood", priority: "yellow", loggedAt: fmt(-1, 10, 45), isChecked: false, loggedByRole: "caregiver" },
+        { title: "Lunch administered and tolerated well", description: "Chicken soup and crackers. Good fluid intake today — approximately 32 oz.", category: "meal", priority: "green", loggedAt: fmt(-1, 12, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Afternoon walk — 20 minutes", description: "Walked the block twice with the walker. Slow but steady. Good weather helped his mood.", category: "general", priority: "green", loggedAt: fmt(-1, 14, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Evening medications administered", description: "All evening medications taken. Donnie was tired and ready for bed by 8pm.", category: "medication", priority: "green", loggedAt: fmt(-1, 20, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Morning medications", description: "Donnie took all medications with breakfast. Cheerful this morning — recognized a song on the radio.", category: "medication", priority: "green", loggedAt: fmt(0, 8, 10), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Refused shower", description: "Donnie was resistant to showering this morning. Did not push it — will try again this afternoon. Washed hands and face instead.", category: "hygiene", priority: "yellow", loggedAt: fmt(0, 9, 20), isChecked: false, loggedByRole: "caregiver" },
+      ];
+      for (const e of careLogEntries) {
+        db.insert(activityLogs).values({ clientId: cid, loggedByUserId: demoCG.id, ...e, isEmergency: false, isLateEntry: false, isOffShiftEntry: false, isExcused: false }).run();
+      }
+
+      // ── Schedule events ──────────────────────────────────────────────────
+      const scheduleItems = [
+        { title: "Morning medications", type: "medication", scheduledAt: fmt(1, 8, 0), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Metformin, Lisinopril, Donepezil" },
+        { title: "Dr. Martinez — Neurology follow-up", type: "appointment", scheduledAt: fmt(3, 10, 30), recurrence: "none", priority: "green", location: "Vanderbilt Neurology Clinic", caregiverResponsible: false, notes: "Family will transport. Bring medication list and the last 30 days of care logs.", responsibilityNote: "Family handling transport and appointment" },
+        { title: "Evening medications", type: "medication", scheduledAt: fmt(1, 20, 0), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Aspirin, Atorvastatin" },
+        { title: "Physical therapy — in-home", type: "therapy", scheduledAt: fmt(2, 11, 0), recurrence: "weekly", priority: "green", caregiverResponsible: true, notes: "PT focuses on balance and fall prevention. Donnie responds well to encouragement." },
+        { title: "Blood sugar check", type: "task", scheduledAt: fmt(1, 7, 30), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Log result in vitals. Target range 80–130 fasting." },
+        { title: "Weekly family check-in call", type: "other", scheduledAt: fmt(5, 18, 0), recurrence: "weekly", priority: "green", caregiverResponsible: false, notes: "Video call with the family. Donnie usually enjoys these.", responsibilityNote: "Family will initiate the call" },
+      ];
+      for (const s of scheduleItems) {
+        db.insert(scheduleEvents).values({ clientId: cid, isCompleted: false, alarmEnabled: false, reminderMinutes: 30, ...s } as any).run();
+      }
+
+      // ── Medications ──────────────────────────────────────────────────────
+      const meds = [
+        { name: "Donepezil", genericName: "Donepezil HCl", form: "tablet", dosageAmount: 10, dosageUnit: "mg", scheduleType: "scheduled", frequency: "once_daily", scheduledTimes: JSON.stringify(["08:00"]), purpose: "Alzheimer's disease — cognitive symptom management", prescribingPhysician: "Dr. Elena Martinez, Neurology", instructions: "Take in the morning with food", status: "active", startDate: "2024-01-15" },
+        { name: "Metformin", genericName: "Metformin HCl", form: "tablet", dosageAmount: 500, dosageUnit: "mg", scheduleType: "scheduled", frequency: "twice_daily", scheduledTimes: JSON.stringify(["08:00", "18:00"]), purpose: "Type 2 Diabetes — blood sugar control", prescribingPhysician: "Dr. James Patel, Primary Care", instructions: "Take with meals", status: "active", startDate: "2019-06-22" },
+        { name: "Lisinopril", genericName: "Lisinopril", form: "tablet", dosageAmount: 10, dosageUnit: "mg", scheduleType: "scheduled", frequency: "once_daily", scheduledTimes: JSON.stringify(["08:00"]), purpose: "Hypertension — blood pressure management", prescribingPhysician: "Dr. James Patel, Primary Care", instructions: "Take in the morning. Monitor for dizziness.", status: "active", startDate: "2018-03-05" },
+        { name: "Aspirin", genericName: "Aspirin", form: "tablet", dosageAmount: 81, dosageUnit: "mg", scheduleType: "scheduled", frequency: "once_daily", scheduledTimes: JSON.stringify(["20:00"]), purpose: "Cardiovascular — daily low-dose aspirin therapy", prescribingPhysician: "Dr. James Patel, Primary Care", instructions: "Take in the evening with water", status: "active", startDate: "2020-01-01" },
+        { name: "Atorvastatin", genericName: "Atorvastatin Calcium", form: "tablet", dosageAmount: 20, dosageUnit: "mg", scheduleType: "scheduled", frequency: "once_daily", scheduledTimes: JSON.stringify(["20:00"]), purpose: "Cholesterol management", prescribingPhysician: "Dr. James Patel, Primary Care", instructions: "Take in the evening", status: "active", startDate: "2021-04-10" },
+      ];
+      for (const m of meds) {
+        db.insert(medications).values({ clientId: cid, createdAt: now.toISOString(), updatedAt: now.toISOString(), ...m } as any).run();
+      }
+
+      // ── Vitals ───────────────────────────────────────────────────────────
+      const vitalsData = [
+        { recordedAt: fmt(-3, 8, 30), bloodPressureSystolic: 138, bloodPressureDiastolic: 86, heartRate: 74, temperature: 98.4, oxygenSaturation: 97, weight: 168, bloodGlucose: 112, painLevel: 1, mood: "calm", cognitionLevel: "oriented", fluidIntake: 40, bowelMovement: true, bowelNotes: "normal", urination: true, urinationNotes: "normal" },
+        { recordedAt: fmt(-2, 8, 15), bloodPressureSystolic: 142, bloodPressureDiastolic: 88, heartRate: 78, temperature: 98.6, oxygenSaturation: 96, weight: 168, bloodGlucose: 124, painLevel: 2, mood: "anxious", cognitionLevel: "mild_confusion", fluidIntake: 32, bowelMovement: false, urination: true, urinationNotes: "normal", notes: "Seemed anxious at check. BP slightly elevated — likely situational." },
+        { recordedAt: fmt(-1, 8, 20), bloodPressureSystolic: 136, bloodPressureDiastolic: 84, heartRate: 72, temperature: 98.2, oxygenSaturation: 98, weight: 167, bloodGlucose: 108, painLevel: 0, mood: "happy", cognitionLevel: "oriented", fluidIntake: 48, bowelMovement: true, bowelNotes: "normal", urination: true, urinationNotes: "normal", notes: "Great morning. Most lucid he's been all week." },
+      ];
+      for (const v of vitalsData) {
+        db.insert(vitals).values({ clientId: cid, caregiverId: demoCG.id, ...v } as any).run();
+      }
+
+      // ── Messages ─────────────────────────────────────────────────────────
+      const thread = db.insert(chatThreads).values({
+        clientId: cid,
+        name: "Care Team",
+        members: JSON.stringify([demoUser.id, demoCG.id]),
+        createdByUserId: demoUser.id,
+        isOpen: true,
+        createdAt: fmt(-5),
+      }).returning().get();
+
+      const msgData = [
+        { senderId: demoCG.id, content: "Good morning! Just checked in on Donnie — he had a restful night and is in good spirits. Blood sugar was 108 this morning, right in range.", sentAt: fmt(-1, 7, 45) },
+        { senderId: demoUser.id, content: "That's great to hear, Sarah. Thank you. Did he take the Donepezil okay? He's been resistant the last couple of mornings.", sentAt: fmt(-1, 8, 2) },
+        { senderId: demoCG.id, content: "Yes — took it with breakfast no problem today. I think having the eggs ready first helped. He was hungry and in a better mood.", sentAt: fmt(-1, 8, 10) },
+        { senderId: demoUser.id, content: "Smart thinking. I'll remember that. Don't forget we have the neurology appointment Thursday at 10:30. I'll handle the transport.", sentAt: fmt(-1, 8, 15) },
+        { senderId: demoCG.id, content: "Got it — I'll make sure the care log and med list are printed and ready for you the night before. Is the whole family coming?", sentAt: fmt(-1, 8, 22) },
+        { senderId: demoUser.id, content: "Just me and my sister. We'll probably grab lunch with Dad after if he's up for it.", sentAt: fmt(-1, 8, 30) },
+        { senderId: demoCG.id, content: "He'll love that. He mentioned your names twice yesterday — good days.", sentAt: fmt(-1, 8, 35) },
+        { senderId: demoCG.id, content: "Quick note — he refused the shower this morning. Didn't push it, washed up at the sink instead. Will try again this afternoon.", sentAt: fmt(0, 9, 25), priority: "yellow" },
+        { senderId: demoUser.id, content: "Understood. If he's still resistant this afternoon, that's okay — tomorrow morning with music on usually works better.", sentAt: fmt(0, 9, 40) },
+      ];
+      for (const m of msgData) {
+        db.insert(messages).values({ threadId: thread.id, messageType: "text", isRead: false, readByUserIds: "[]", ...m } as any).run();
+      }
+
+      res.json({
+        success: true,
+        message: "Demo account seeded successfully",
+        credentials: { email: DEMO_EMAIL, password: DEMO_PASSWORD },
+        clientId: cid,
+        userId: demoUser.id,
+        cgUserId: demoCG.id,
+      });
+    } catch (err: any) {
+      console.error("Demo seed error:", err);
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // GET /api/demo/status — returns { isDemo: true } if current session is the demo account
+  app.get("/api/demo/status", requireAuth, (req: any, res) => {
+    const isDemoAccount = req.authAccount?.email === DEMO_EMAIL;
+    res.json({ isDemo: isDemoAccount });
+  });
+
+  // ── ONE-SHOT: GET /api/admin/fix-bonnie-list
   // ONE-SHOT: GET /api/admin/fix-bonnie-list — list CG users with no clientId
   app.get("/api/admin/fix-bonnie-list", (_req, res) => {
     try {
