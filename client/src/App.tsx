@@ -468,10 +468,14 @@ function RealAuthGate() {
   const demoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
 
   useEffect(() => {
-    apiRequest("GET", "/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
+    const justLoggedIn = sessionStorage.getItem("cnp_just_logged_in") === "1";
+
+    async function checkMe(retrying = false) {
+      try {
+        const res = await fetch("/api/auth/me", { credentials: "include" });
+        const data = await res.json();
         if (data?.email && !data?.isDemoMode) {
+          sessionStorage.removeItem("cnp_just_logged_in");
           setRealUser({
             id: data.id,
             name: data.name,
@@ -483,15 +487,17 @@ function RealAuthGate() {
             carePathChoice: data.carePathChoice ?? null,
           });
           if (data.onboardingCompletedAt) setOnboardingDone(true);
-          // Once the user has a real clientId (connected to a care circle),
-          // clear the demo preview flag so they no longer see demo data.
-          if (data.clientId) {
-            sessionStorage.removeItem("cnp_demo_preview");
-          }
+          if (data.clientId) sessionStorage.removeItem("cnp_demo_preview");
+        } else if (justLoggedIn && !retrying) {
+          // Cookie may not have propagated yet on Android — retry once after 500ms
+          setTimeout(() => checkMe(true), 500);
+          return; // don't call setChecking yet — retry will handle it
         }
-      })
-      .catch(() => {})
-      .finally(() => setChecking(false));
+      } catch {}
+      setChecking(false); // called after first attempt (no retry) or after retry
+    }
+
+    checkMe();
   }, []);
 
   if (checking) return null; // brief flicker prevention

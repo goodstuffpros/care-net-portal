@@ -67,8 +67,10 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
+      // Cache the user email so RealAuthGate can retry /api/auth/me if the
+      // cookie hasn't propagated yet on first load (Android Chrome timing issue).
+      sessionStorage.setItem("cnp_just_logged_in", "1");
       // Full reload — ensures RealAuthGate re-runs /api/auth/me with the new cookie.
-      // navigate("/") alone doesn't re-mount RealAuthGate if already at "/".
       window.location.href = "/";
     } catch (err: any) {
       const rawMsg: string = err.message || "";
