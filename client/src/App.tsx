@@ -358,6 +358,10 @@ const PATH_TO_HASH_ROUTES: Record<string, string> = {
 };
 
 export default function App() {
+  // loggedIn flag — set to true after successful login so we go straight to
+  // RealAuthGate without any window.location navigation (which breaks in iframes).
+  const [loggedIn, setLoggedIn] = useState(false);
+
   const [hash, setHash] = useState(
     typeof window !== "undefined" ? window.location.hash : ""
   );
@@ -434,6 +438,10 @@ export default function App() {
     );
   }
 
+  // Successful login sets this flag — go straight to RealAuthGate without
+  // any window.location navigation (navigation breaks inside Perplexity iframe).
+  if (loggedIn) return <RealAuthGate />;
+
   // Auth page check — hash path OR ?page= query param
   const AuthPage = AUTH_ROUTES[effectivePath];
   if (AuthPage) {
@@ -441,6 +449,16 @@ export default function App() {
     // so the page's getTokenFromHash() can read it
     if (tokenParam && typeof window !== "undefined" && !window.location.hash.includes("token=")) {
       window.location.hash = `${effectivePath}?token=${tokenParam}`;
+    }
+    // For login page — pass onLoginSuccess so it can trigger RealAuthGate without navigation
+    if (effectivePath === "/login") {
+      return (
+        <QueryClientProvider client={queryClient}>
+          <Router hook={useHashLocation}>
+            <LoginPage onLoginSuccess={() => setLoggedIn(true)} />
+          </Router>
+        </QueryClientProvider>
+      );
     }
     return (
       <QueryClientProvider client={queryClient}>

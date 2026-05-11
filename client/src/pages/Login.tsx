@@ -13,7 +13,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Loader2, Eye, EyeOff, Heart, Mail, CheckCircle2 } from "lucide-react";
 
-export default function LoginPage() {
+interface LoginPageProps {
+  onLoginSuccess?: () => void;
+}
+
+export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -67,13 +71,18 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Store token in both localStorage and sessionStorage — belt and suspenders for Android Chrome.
-      // RealAuthGate checks localStorage via getAuthToken(), but sessionStorage as fallback.
+      // Store token — belt and suspenders across localStorage + sessionStorage.
       if (body.token) {
         setAuthToken(body.token);
         try { sessionStorage.setItem("cn_auth_token", body.token); } catch {}
       }
-      window.location.href = "/#/";
+      // Trigger RealAuthGate via callback — no window.location navigation needed.
+      // This works in all environments including Perplexity iframe.
+      if (onLoginSuccess) {
+        onLoginSuccess();
+      } else {
+        window.location.href = "/#/";
+      }
     } catch (err: any) {
       const rawMsg: string = err.message || "";
       const friendlyMsg = rawMsg.includes("Invalid email or password")
