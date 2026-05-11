@@ -275,10 +275,10 @@ export default function SchedulePage() {
   const pastEvents = allFiltered.filter(e => new Date(e.scheduledAt) < todayStart);
 
   const grouped = groupByDay(upcomingEvents);
-  const sortedDays = Object.keys(grouped).sort(); // ascending — soonest first
+  const sortedDays = Object.keys(grouped).sort((a, b) => new Date(a).getTime() - new Date(b).getTime()); // ascending — soonest first
 
   const pastGrouped = groupByDay(pastEvents);
-  const pastSortedDays = Object.keys(pastGrouped).sort().reverse(); // descending — most recent first
+  const pastSortedDays = Object.keys(pastGrouped).sort((a, b) => new Date(b).getTime() - new Date(a).getTime()); // descending — most recent first
 
   function renderEventCard(event: ScheduleEvent) {
     const Icon = TYPE_ICONS[event.type] || Calendar;
