@@ -42,6 +42,7 @@ import NavOverlay, { NAV_COLORS } from "@/components/NavOverlay";
 import { WellbeingModal, ProactiveNudgeBanner } from "@/components/WellbeingModal";
 import { NeedAMomentModal } from "@/components/NeedAMomentModal";
 import DemoBanner from "@/components/DemoBanner";
+import DemoApplyCTA from "@/components/DemoApplyCTA";
 
 const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; emergency?: boolean }[] = [
   { path: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -988,6 +989,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Demo Banner — only visible when logged in as demo account */}
         {isDemo && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
+
+        {/* Demo floating CTA — nudges visitors to apply for real access */}
+        {isDemo && <DemoApplyCTA />}
 
         {/* Top Bar */}
         <header className={cn(

@@ -13,7 +13,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { useLocation } from "wouter";
 import { apiRequest, clearAuthToken } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { Eye, LogOut, RefreshCw, Loader2 } from "lucide-react";
+import { Eye, LogOut, RefreshCw, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const IDLE_MINUTES = 30;
@@ -126,6 +126,16 @@ export default function DemoBanner({ userEmail, onLogout }: DemoBannerProps) {
       <span className="flex-1 min-w-0 truncate">
         You're viewing a shared demo.{" "}
         <span className="opacity-75">Your entries are visible to others.</span>
+        {" — "}
+        <a
+          href="/#/apply"
+          className={cn(
+            "underline underline-offset-2 font-semibold hover:opacity-80 transition-opacity",
+            urgentCountdown ? "text-white" : "text-amber-950"
+          )}
+        >
+          Ready to try it for real? Apply for access.
+        </a>
       </span>
 
       {/* Countdown */}
