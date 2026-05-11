@@ -67,9 +67,9 @@ export default function LoginPage() {
           console.error("[invite accept] failed:", err);
         }
       }
-      // Normal login — invalidate cache then navigate
-      await queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
-      navigate("/");
+      // Full reload — ensures RealAuthGate re-runs /api/auth/me with the new cookie.
+      // navigate("/") alone doesn't re-mount RealAuthGate if already at "/".
+      window.location.href = "/";
     } catch (err: any) {
       const rawMsg: string = err.message || "";
       const friendlyMsg = rawMsg.includes("Invalid email or password")
