@@ -47,7 +47,7 @@ const CAREGIVER_TRACK: Track = {
       id: "mod01_cg_profile",
       title: "Creating Your Caregiver Profile",
       subtitle: "Module 1 · Core Onboarding",
-      image: `${STATIC_BASE}/university/new_cg_client_profile.jpg`,
+      image: `${STATIC_BASE}/university/new_cg_family_profile.jpg`,
       narration: "Your caregiver profile is your professional identity inside Care Net Portal. Tap My Profile to set your name, contact info, credentials, and role. This is what families see when they connect with you — make it complete and accurate before your first shift.",
       duration: "3 min", knowledgePoints: 4,
     },
