@@ -314,8 +314,20 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
     setProgress(100);
   }
 
+  // Auto-play on mount
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const t = setTimeout(() => {
+      audio.play()
+        .then(() => setPlaying(true))
+        .catch(() => {}); // user gesture required on some browsers — they tap play manually
+    }, 600);
+    return () => clearTimeout(t);
+  }, []);
+
   return (
-    <div className="flex flex-col bg-black" style={{ height: '100dvh', minHeight: '-webkit-fill-available', maxHeight: '100dvh', overflow: 'hidden' }}>
+    <div className="flex flex-col bg-black" style={{ minHeight: '100dvh' }}>
       <audio
         ref={audioRef}
         src={`${API_BASE}/cnu-audio/welcome.mp3`}
@@ -330,90 +342,104 @@ function WelcomeGate({ onClose }: { onClose: () => void }) {
         playsInline
       />
 
-      <div className="absolute inset-0 bg-gradient-to-b from-[hsl(175,55%,10%)] to-black pointer-events-none" />
+      {/* Full-screen screenshot backdrop */}
+      <div className="absolute inset-0">
+        <img
+          src={`${STATIC_BASE}/university/new_cg_dashboard.jpg`}
+          alt="Care Net Portal"
+          className="w-full h-full object-contain object-top"
+        />
+        <div
+          className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
+          style={{ background: 'linear-gradient(to top, hsl(175,55%,10%) 0%, transparent 100%)' }}
+        />
+      </div>
 
-      {/* Center content — top-aligned with 20vh push, bottom cleared for pinned button */}
-      <div className="relative flex-1 flex flex-col items-center justify-start px-6 gap-5 overflow-hidden" style={{ paddingTop: '20vh', paddingBottom: '8rem' }}>
-        {/* Logo mark — smaller on tight screens */}
-        <div className="flex flex-col items-center gap-2">
-          <svg width="52" height="43" viewBox="0 0 100 82" fill="none">
-            <line x1="45.1" y1="17.5" x2="16.9" y2="60.5" stroke="hsl(175,60%,55%)" strokeWidth="1.6" opacity="0.55"/>
-            <line x1="54.9" y1="17.5" x2="83.1" y2="60.5" stroke="hsl(175,60%,55%)" strokeWidth="1.6" opacity="0.55"/>
-            <polyline points="21,68 34,68 38,58 43,76 50,55 57,76 62,68 79,68" stroke="hsl(175,70%,65%)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-            <circle cx="50" cy="10" r="9" fill="hsl(175,55%,42%)"/>
-            <circle cx="50" cy="7.5" r="2.5" fill="hsl(175,70%,72%)"/>
-            <path d="M44,14 Q44,11 50,11 Q56,11 56,14 Z" fill="hsl(175,70%,72%)"/>
-            <circle cx="12" cy="68" r="9" fill="hsl(175,55%,42%)"/>
-            <polygon points="12,61 7,66 17,66" fill="hsl(175,70%,72%)"/>
-            <rect x="7" y="66" width="10" height="6" fill="hsl(175,70%,72%)"/>
-            <rect x="10" y="68" width="4" height="4" rx="0.5" fill="hsl(175,35%,32%)"/>
-            <circle cx="88" cy="68" r="9" fill="hsl(175,55%,42%)"/>
-            <path d="M88,74 C85,71 80,68 80,64 C80,61.5 82,60 84,61.5 C85.5,62.5 87,64 88,65.5 C89,64 90.5,62.5 92,61.5 C94,60 96,61.5 96,64 C96,68 91,71 88,74 Z" fill="hsl(175,70%,72%)"/>
-          </svg>
-          <div className="text-center">
-            <div style={{ fontFamily: "'DM Serif Display', serif", fontSize: 24, color: '#fff', letterSpacing: '-0.02em', lineHeight: 1 }}>
-              Care<span style={{ color: 'hsl(175,70%,65%)' }}>Net</span>
-            </div>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.14em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.35)', marginTop: 2 }}>University</div>
-          </div>
+      {/* Example banner */}
+      <div className="relative flex items-center justify-center px-4 pt-3 pb-0">
+        <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur px-3 py-1 rounded-full">
+          <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
+          <span className="text-white/40 text-[10px] tracking-wide">Welcome to CareNet University</span>
+        </div>
+      </div>
+
+      {/* Top bar */}
+      <div className="relative flex items-center justify-between px-4 pt-2 pb-3">
+        <div className="w-9" />
+        <div className="bg-black/40 backdrop-blur px-3 py-1.5 rounded-full">
+          <span className="text-white/70 text-xs font-medium">Welcome</span>
+        </div>
+        <div className="w-9" />
+      </div>
+
+      {/* Spacer pushes controls to bottom */}
+      <div className="flex-1" />
+
+      {/* Bottom controls — same pattern as LessonViewer */}
+      <div className="relative px-4 pb-2 space-y-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
+
+        {/* Title + subtitle */}
+        <div className="space-y-0.5">
+          <h2 className="text-white font-bold text-base leading-tight" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+            A Personal Welcome from Becky
+          </h2>
+          <p className="text-white/50 text-xs">10+ years caregiving experience · She built this</p>
         </div>
 
-        <div className="text-center space-y-1 max-w-xs">
-          <p className="text-white/90 text-sm leading-snug" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            A personal welcome from Becky
-          </p>
-          <p className="text-white/45 text-xs leading-relaxed">
-            10+ years caregiving experience. She built this. She'll walk you through it.
-          </p>
+        {/* Progress bar */}
+        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
+          <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: 'hsl(175,70%,55%)' }} />
         </div>
 
-        <div className="w-full max-w-xs space-y-3">
+        {/* Play / stop row */}
+        <div className="flex items-center gap-3">
           <button
             onClick={togglePlay}
-            className="w-full flex items-center justify-center gap-3 py-3.5 rounded-2xl transition-all"
-            style={{ background: 'hsl(175,55%,28%)' }}
+            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl flex-1 justify-center transition-all"
+            style={{ background: 'hsl(175,55%,25%)' }}
           >
-            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
               {playing
-                ? <div className="flex gap-1">
-                    <div className="w-1.5 h-4 bg-white rounded-full" />
-                    <div className="w-1.5 h-4 bg-white rounded-full" />
-                  </div>
-                : <Play size={16} className="text-white ml-0.5" />
+                ? <div className="flex gap-1"><div className="w-1 h-3.5 bg-white rounded-full" /><div className="w-1 h-3.5 bg-white rounded-full" /></div>
+                : <Play size={14} className="text-white ml-0.5" />
               }
             </div>
             <span className="text-white font-semibold text-sm">
               {playing ? 'Pause' : hasPlayed ? 'Play Again' : 'Play Welcome'}
             </span>
           </button>
-
-          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-            <div className="h-full rounded-full transition-all" style={{ width: `${progress}%`, background: 'hsl(175,70%,55%)' }} />
-          </div>
-          {audioError ? (
-            <p className="text-center text-red-400 text-[10px]">{audioError}</p>
-          ) : (
-            <p className="text-center text-white/30 text-[10px]">~82 seconds</p>
-          )}
         </div>
-      </div>
 
-      {/* Bottom button — absolutely pinned, always visible */}
-      <div className="absolute bottom-0 left-0 right-0 px-6 pt-3" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom, 1.5rem))' }}>
-        <button
-          onClick={() => { audioRef.current?.pause(); onClose(); }}
-          className={cn(
-            "w-full py-3.5 rounded-2xl font-semibold text-sm transition-all",
-            hasPlayed
-              ? "bg-white text-[hsl(175,55%,22%)] hover:bg-white/90"
-              : "bg-white/10 text-white/40"
-          )}
-        >
-          {hasPlayed ? "Let's get started →" : "Skip for now"}
-        </button>
-        {!hasPlayed && (
-          <p className="text-center text-white/25 text-[10px] mt-2">Listen to the welcome first for the best experience</p>
+        {audioError && (
+          <p className="text-center text-red-400 text-[10px]">{audioError}</p>
         )}
+
+        {/* CTA row — matches LessonViewer Mark Complete / Next */}
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={() => { audioRef.current?.pause(); onClose(); }}
+            className="flex-1 py-3 rounded-2xl font-semibold text-sm transition-all bg-white/10 text-white/60 hover:bg-white/15"
+          >
+            Skip for now
+          </button>
+          <button
+            onClick={() => { audioRef.current?.pause(); onClose(); }}
+            className={cn(
+              "flex-1 py-3 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-1.5",
+              hasPlayed
+                ? "bg-white text-[hsl(175,55%,22%)]"
+                : "bg-white/20 text-white/40"
+            )}
+            disabled={!hasPlayed}
+          >
+            Get Started <ChevronRight size={16} />
+          </button>
+        </div>
+
+        {/* Points / duration hint */}
+        <div className="flex items-center justify-center gap-3 pb-1">
+          <span className="text-white/25 text-[10px]">~82 seconds</span>
+        </div>
       </div>
     </div>
   );
