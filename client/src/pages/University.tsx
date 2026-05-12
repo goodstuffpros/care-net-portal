@@ -119,7 +119,7 @@ const CAREGIVER_TRACK: Track = {
       id: "mod10_notifications",
       title: "Notifications — Settings & Alerts",
       subtitle: "Module 10 · Daily Use",
-      image: `${STATIC_BASE}/university/new_cg_messages.jpg`,
+      image: `${STATIC_BASE}/university/new_cg_notes.jpg`,
       narration: "Tap the bell in the top right to see all your alerts. Red alerts require immediate attention — these include urgent Care Log entries, schedule changes added by the family, and new medications. Yellow flags are informational. Configure which alerts you receive in your notification settings to keep your feed focused.",
       duration: "2 min", knowledgePoints: 3,
     },
