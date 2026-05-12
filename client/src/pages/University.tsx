@@ -582,6 +582,14 @@ function LessonViewer({
 
         {/* Action buttons */}
         <div className="flex items-center gap-2">
+          {/* Always-visible Exit button */}
+          <button
+            onClick={() => { stopBecky(); onClose(); }}
+            className="w-11 h-11 rounded-2xl bg-white/10 flex items-center justify-center hover:bg-white/20 transition-all flex-shrink-0"
+            title="Exit lesson"
+          >
+            <X size={16} className="text-white/70" />
+          </button>
           {!isCompleted && (
             <button
               onClick={handleMarkComplete}

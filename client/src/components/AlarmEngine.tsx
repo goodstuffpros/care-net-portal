@@ -103,7 +103,9 @@ export function AlarmEngine() {
     setBanners(prev => prev.filter(b => b.id !== id));
   }
 
-  if (banners.length === 0) return null;
+  // Screenshot mode — suppress all alarm banners for clean CNU screenshots
+  const screenshotMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
+  if (banners.length === 0 || screenshotMode) return null;
 
   return (
     <div className="fixed top-4 left-0 right-0 z-[200] flex flex-col items-center gap-2 px-4 pointer-events-none">

@@ -178,6 +178,10 @@ const TIMEZONES = [
   { value: "UTC",                   label: "UTC (Coordinated Universal Time)" },
 ] as const;
 
+// Screenshot mode — suppresses all banners, popups, and overlays for clean CNU screenshots.
+// Activated by appending ?screenshot=1 to any URL.
+const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
+
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
@@ -250,7 +254,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const REFERRAL_POPUP_KEY = `cnp_referral_popup_${isRealSession ? activeUser.id : "demo"}`;
   const [referralPopupOpen, setReferralPopupOpen] = useState(false);
   useEffect(() => {
-    if (!isRealSession) return;
+    if (!isRealSession || SCREENSHOT_MODE) return;
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(REFERRAL_POPUP_KEY) : null;
     const lastShown = raw ? new Date(raw) : null;
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
@@ -988,10 +992,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* Main Content */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Demo Banner — only visible when logged in as demo account */}
-        {isDemo && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
+        {isDemo && !SCREENSHOT_MODE && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
 
         {/* Demo floating CTA — nudges visitors to apply for real access */}
-        {isDemo && <DemoApplyCTA />}
+        {isDemo && !SCREENSHOT_MODE && <DemoApplyCTA />}
 
         {/* Top Bar */}
         <header className={cn(
@@ -1392,7 +1396,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             />
           )} */}
           {/* Pre-connection demo mode banner */}
-          {showPreConnBanner && (
+          {showPreConnBanner && !SCREENSHOT_MODE && (
             <div className="mx-4 mt-4 rounded-xl border border-teal-400/40 bg-teal-50 dark:bg-teal-950/40 px-4 py-3 flex items-start gap-3">
               <div className="w-8 h-8 rounded-lg bg-teal-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
                 <GraduationCap size={15} className="text-teal-600 dark:text-teal-400" />
@@ -1525,7 +1529,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <HelpDesk hfmActive={hfmActive} />
 
       {/* ── Invite a Friend sheet ── */}
-      {referralSheetOpen && (
+      {referralSheetOpen && !SCREENSHOT_MODE && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setReferralSheetOpen(false); setReferralEmailSent(false); setReferralEmail(""); }} />
           <div className="relative w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl border border-border shadow-2xl p-6 z-10">
@@ -1596,7 +1600,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ── Monthly referral popup ── */}
-      {referralPopupOpen && (
+      {referralPopupOpen && !SCREENSHOT_MODE && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismissReferralPopup} />
           <div className="relative w-full max-w-sm bg-background rounded-2xl border border-border shadow-2xl p-6 z-10 text-center">

@@ -322,7 +322,9 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
     }
   }
 
-  if (!visible) return null;
+  // Screenshot mode — never show module intro overlays for clean screenshots
+  const screenshotMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
+  if (!visible || screenshotMode) return null;
 
   const lesson = LESSONS[moduleKey];
   const image = useFamily && lesson.familyImage ? lesson.familyImage : lesson.image;
