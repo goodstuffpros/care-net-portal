@@ -44,6 +44,16 @@ const CAREGIVER_TRACK: Track = {
   audience: "caregiver",
   lessons: [
     {
+      id: "mod00_welcome",
+      title: "Welcome to CareNet University",
+      subtitle: "Getting Started",
+      image: `${STATIC_BASE}/university/new_cg_dashboard.jpg`,
+      narration: "Welcome to CareNet University. I'm Becky — I've been a private caregiver for over ten years, and I helped build this platform from the ground up. Every module in this course covers a real tool inside your portal. You'll learn what each page does, how to use it, and why it matters for the people in your care. The lessons are short — most are under four minutes. You can listen while you work, or sit down and go through them all at once. Either way, I'll walk you through it. Let's get started.",
+      duration: "2 min",
+      knowledgePoints: 2,
+      useBeckyVoice: true,
+    },
+    {
       id: "mod01_cg_profile",
       title: "Creating Your Caregiver Profile",
       subtitle: "Module 1 · Core Onboarding",
@@ -270,180 +280,6 @@ const FAMILY_TRACK: Track = {
 };
 
 const ALL_TRACKS = [CAREGIVER_TRACK, FAMILY_TRACK];
-
-// ── Welcome Video Gate ────────────────────────────────────────────────────────
-function WelcomeGate({ onClose }: { onClose: () => void }) {
-  const audioRef = useRef<HTMLAudioElement>(null);
-  const [playing, setPlaying] = useState(false);
-  const [hasPlayed, setHasPlayed] = useState(false);
-  const [progress, setProgress] = useState(0);
-  const [audioError, setAudioError] = useState<string | null>(null);
-
-  function togglePlay() {
-    const audio = audioRef.current;
-    if (!audio) return;
-    if (playing) {
-      audio.pause();
-      setPlaying(false);
-    } else {
-      setAudioError(null);
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise
-          .then(() => { setPlaying(true); })
-          .catch((err) => {
-            console.error('Audio play failed:', err);
-            setAudioError('Tap again to play');
-            setPlaying(false);
-          });
-      } else {
-        setPlaying(true);
-      }
-    }
-  }
-
-  function handleTimeUpdate() {
-    const audio = audioRef.current;
-    if (!audio || !audio.duration) return;
-    setProgress((audio.currentTime / audio.duration) * 100);
-  }
-
-  function handleEnded() {
-    setPlaying(false);
-    setHasPlayed(true);
-    setProgress(100);
-  }
-
-  // Auto-play on mount
-  useEffect(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-    const t = setTimeout(() => {
-      audio.play()
-        .then(() => setPlaying(true))
-        .catch(() => {}); // user gesture required on some browsers — they tap play manually
-    }, 600);
-    return () => clearTimeout(t);
-  }, []);
-
-  return (
-    <div className="flex flex-col bg-black" style={{ minHeight: '100dvh' }}>
-      <audio
-        ref={audioRef}
-        src={`${API_BASE}/cnu-audio/welcome.mp3`}
-        onTimeUpdate={handleTimeUpdate}
-        onEnded={handleEnded}
-        onCanPlay={() => setAudioError(null)}
-        onError={(e) => {
-          console.error('Audio element error:', e);
-          setAudioError('Audio unavailable — check connection');
-        }}
-        preload="auto"
-        playsInline
-      />
-
-      {/* Full-screen screenshot backdrop */}
-      <div className="absolute inset-0">
-        <img
-          src={`${STATIC_BASE}/university/new_cg_dashboard.jpg`}
-          alt="Care Net Portal"
-          className="w-full h-full object-contain object-top"
-        />
-        <div
-          className="absolute bottom-0 left-0 right-0 h-64 pointer-events-none"
-          style={{ background: 'linear-gradient(to top, hsl(175,55%,10%) 0%, transparent 100%)' }}
-        />
-      </div>
-
-      {/* Example banner */}
-      <div className="relative flex items-center justify-center px-4 pt-3 pb-0">
-        <div className="flex items-center gap-1.5 bg-black/50 backdrop-blur px-3 py-1 rounded-full">
-          <div className="w-1.5 h-1.5 rounded-full bg-amber-400/80" />
-          <span className="text-white/40 text-[10px] tracking-wide">Welcome to CareNet University</span>
-        </div>
-      </div>
-
-      {/* Top bar */}
-      <div className="relative flex items-center justify-between px-4 pt-2 pb-3">
-        <div className="w-9" />
-        <div className="bg-black/40 backdrop-blur px-3 py-1.5 rounded-full">
-          <span className="text-white/70 text-xs font-medium">Welcome</span>
-        </div>
-        <div className="w-9" />
-      </div>
-
-      {/* Spacer pushes controls to bottom */}
-      <div className="flex-1" />
-
-      {/* Bottom controls — same pattern as LessonViewer */}
-      <div className="relative px-4 pb-2 space-y-3" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom, 1rem))' }}>
-
-        {/* Title + subtitle */}
-        <div className="space-y-0.5">
-          <h2 className="text-white font-bold text-base leading-tight" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            A Personal Welcome from Becky
-          </h2>
-          <p className="text-white/50 text-xs">10+ years caregiving experience · She built this</p>
-        </div>
-
-        {/* Progress bar */}
-        <div className="h-1.5 rounded-full bg-white/10 overflow-hidden">
-          <div className="h-full rounded-full transition-all duration-300" style={{ width: `${progress}%`, background: 'hsl(175,70%,55%)' }} />
-        </div>
-
-        {/* Play / stop row */}
-        <div className="flex items-center gap-3">
-          <button
-            onClick={togglePlay}
-            className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl flex-1 justify-center transition-all"
-            style={{ background: 'hsl(175,55%,25%)' }}
-          >
-            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-              {playing
-                ? <div className="flex gap-1"><div className="w-1 h-3.5 bg-white rounded-full" /><div className="w-1 h-3.5 bg-white rounded-full" /></div>
-                : <Play size={14} className="text-white ml-0.5" />
-              }
-            </div>
-            <span className="text-white font-semibold text-sm">
-              {playing ? 'Pause' : hasPlayed ? 'Play Again' : 'Play Welcome'}
-            </span>
-          </button>
-        </div>
-
-        {audioError && (
-          <p className="text-center text-red-400 text-[10px]">{audioError}</p>
-        )}
-
-        {/* CTA row — matches LessonViewer Mark Complete / Next */}
-        <div className="flex gap-2 pt-1">
-          <button
-            onClick={() => { audioRef.current?.pause(); onClose(); }}
-            className="flex-1 py-3 rounded-2xl font-semibold text-sm transition-all bg-white/10 text-white/60 hover:bg-white/15"
-          >
-            Skip for now
-          </button>
-          <button
-            onClick={() => { audioRef.current?.pause(); onClose(); }}
-            className={cn(
-              "flex-1 py-3 rounded-2xl font-semibold text-sm transition-all flex items-center justify-center gap-1.5",
-              hasPlayed
-                ? "bg-white text-[hsl(175,55%,22%)]"
-                : "bg-white/20 text-white/40"
-            )}
-            disabled={!hasPlayed}
-          >
-            Get Started <ChevronRight size={16} />
-          </button>
-        </div>
-
-        {/* Points / duration hint */}
-        <div className="flex items-center justify-center gap-3 pb-1">
-          <span className="text-white/25 text-[10px]">~82 seconds</span>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 // ── Lesson Viewer ─────────────────────────────────────────────────────────────
 function LessonViewer({
@@ -694,7 +530,6 @@ export default function UniversityPage() {
     };
   }, []);
 
-  const [showGate, setShowGate] = useState<boolean>(() => !(window as any).__cnuVisited);
   const [activeLesson, setActiveLesson] = useState<{ lesson: Lesson; track: Track } | null>(null);
   const [activeTrack, setActiveTrack] = useState<Track | null>(null);
 
@@ -723,10 +558,6 @@ export default function UniversityPage() {
     completeMutation.mutate({ lessonId: id, trackId: track.id, knowledgePoints: points });
   }
 
-  function handleGateClose() {
-    (window as any).__cnuVisited = true;
-    setShowGate(false);
-  }
 
   function trackProgress(track: Track) {
     const done = track.lessons.filter(l => completed.has(l.id)).length;
@@ -737,7 +568,6 @@ export default function UniversityPage() {
     ? ALL_TRACKS  // caregivers see both tracks
     : ALL_TRACKS.filter(t => t.audience === "family" || t.audience === "both");
 
-  if (showGate) return <WelcomeGate onClose={handleGateClose} />;
 
   // ── Track detail view ────────────────────────────────────────────────────
   if (activeTrack) {
