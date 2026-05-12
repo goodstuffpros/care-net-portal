@@ -2620,6 +2620,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       };
 
       // ── Wipe existing demo data ──────────────────────────────────────────
+      // Wipe demo CG account first (prevents UNIQUE constraint on re-seed)
+      const existingCGAcct = db.select().from(authAccounts).where(eq(authAccounts.email, "democg@carenetportal.com")).get();
+      if (existingCGAcct) {
+        db.delete(authSessions).where(eq(authSessions.authAccountId, existingCGAcct.id)).run();
+        if (existingCGAcct.userId) db.delete(users).where(eq(users.id, existingCGAcct.userId)).run();
+        db.delete(authAccounts).where(eq(authAccounts.id, existingCGAcct.id)).run();
+      }
+
       const existingAccount = db.select().from(authAccounts).where(eq(authAccounts.email, DEMO_EMAIL)).get();
       if (existingAccount?.userId) {
         const demoUser = db.select().from(users).where(eq(users.id, existingAccount.userId)).get();
