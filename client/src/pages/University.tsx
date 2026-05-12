@@ -44,16 +44,6 @@ const CAREGIVER_TRACK: Track = {
   audience: "caregiver",
   lessons: [
     {
-      id: "mod00_welcome",
-      title: "Welcome to CareNet University",
-      subtitle: "Getting Started",
-      image: `${STATIC_BASE}/university/new_cg_dashboard.jpg`,
-      narration: "Welcome to CareNet University. I'm Becky — I've been a private caregiver for over ten years, and I helped build this platform from the ground up. Every module in this course covers a real tool inside your portal. You'll learn what each page does, how to use it, and why it matters for the people in your care. The lessons are short — most are under four minutes. You can listen while you work, or sit down and go through them all at once. Either way, I'll walk you through it. Let's get started.",
-      duration: "2 min",
-      knowledgePoints: 2,
-      useBeckyVoice: true,
-    },
-    {
       id: "mod01_cg_profile",
       title: "Creating Your Caregiver Profile",
       subtitle: "Module 1 · Core Onboarding",
