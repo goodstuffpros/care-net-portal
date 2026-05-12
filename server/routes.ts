@@ -2703,6 +2703,17 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         lastLoginAt: now.toISOString(),
       }).run();
 
+      // ── Auth account for demo CG (so CG portal can be accessed for screenshots/testing) ──
+      const cgPasswordHash = await hashPassword(DEMO_PASSWORD);
+      db.insert(authAccounts).values({
+        email: "demoCG@carenetportal.com",
+        passwordHash: cgPasswordHash,
+        userId: demoCG.id,
+        emailVerified: true,
+        createdAt: now.toISOString(),
+        lastLoginAt: now.toISOString(),
+      }).run();
+
       const cid = demoClient.id;
 
       // ── Care Log entries ─────────────────────────────────────────────────
