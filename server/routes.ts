@@ -2686,7 +2686,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       const demoCG = db.insert(users).values({
         name: "Sarah (Demo CG)",
         role: "caregiver",
-        email: "demoCG@carenetportal.com",
+        email: "democg@carenetportal.com",
         clientId: demoClient.id,
         onboardingCompletedAt: now.toISOString(),
         avatarInitials: "SC",
@@ -2705,8 +2705,9 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
       // ── Auth account for demo CG (so CG portal can be accessed for screenshots/testing) ──
       const cgPasswordHash = await hashPassword(DEMO_PASSWORD);
+      const DEMO_CG_EMAIL = "democg@carenetportal.com"; // lowercase — login endpoint lowercases input
       db.insert(authAccounts).values({
-        email: "demoCG@carenetportal.com",
+        email: DEMO_CG_EMAIL,
         passwordHash: cgPasswordHash,
         userId: demoCG.id,
         emailVerified: true,
