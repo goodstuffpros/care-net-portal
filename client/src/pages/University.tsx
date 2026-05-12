@@ -71,7 +71,7 @@ const CAREGIVER_TRACK: Track = {
       id: "mod04_family_members",
       title: "Adding Family Member Profiles",
       subtitle: "Module 4 · Core Onboarding",
-      image: `${STATIC_BASE}/university/new_cg_nav_overlay.jpg`,
+      image: `${STATIC_BASE}/university/new_cg_caregivers.jpg`,
       narration: "The Main Contact can add Secondary Family Members to the care network. Each family member gets their own login with controlled visibility — they see the Care Log, Schedule, and Medications but not caregiver-only tools. Set notification preferences per person so the right alerts reach the right people.",
       duration: "3 min", knowledgePoints: 4,
     },
