@@ -362,6 +362,18 @@ export default function App() {
   // RealAuthGate without any window.location navigation (which breaks in iframes).
   const [loggedIn, setLoggedIn] = useState(false);
 
+  // One-time redirect to '#/' after login — must live in useEffect, NOT in render,
+  // because the render block re-runs on every hashchange and would trap navigation.
+  useEffect(() => {
+    if (loggedIn && typeof window !== "undefined") {
+      const h = window.location.hash;
+      if (h && h !== "#/" && h !== "") {
+        window.location.hash = "/";
+      }
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loggedIn]);
+
   const [hash, setHash] = useState(
     typeof window !== "undefined" ? window.location.hash : ""
   );
@@ -438,13 +450,11 @@ export default function App() {
     );
   }
 
-  // Successful login sets this flag — go straight to RealAuthGate without
-  // any window.location navigation (navigation breaks inside Perplexity iframe).
-  // Also clear the hash so wouter lands on '/' (Dashboard) not '/login'.
+  // Successful login sets this flag — go straight to RealAuthGate.
+  // Do NOT touch window.location.hash here — this block re-runs on every
+  // hashchange, so any hash assignment here would cancel every navigation.
+  // The one-time redirect to '/' is handled by a useEffect below.
   if (loggedIn) {
-    if (typeof window !== "undefined" && window.location.hash !== "#/" && window.location.hash !== "") {
-      window.location.hash = "/";
-    }
     return <RealAuthGate />;
   }
 

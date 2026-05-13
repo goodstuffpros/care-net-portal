@@ -283,7 +283,7 @@ export default function NavOverlay({
       <div
         className={cn(
           "fixed inset-0 z-50 flex flex-col bg-background transition-transform duration-250 ease-out overflow-y-auto",
-          isOpen ? "translate-y-0" : "-translate-y-full"
+          isOpen ? "translate-y-0 pointer-events-auto" : "-translate-y-full pointer-events-none"
         )}
         role="dialog"
         aria-label="Navigation menu"
@@ -378,7 +378,7 @@ export default function NavOverlay({
                   }}
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
                   style={{
-                    touchAction: "none",
+                    touchAction: isDraggingAny ? "none" : "pan-y",
                   }}
                   className={cn(
                     "flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
