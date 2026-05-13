@@ -378,7 +378,7 @@ export default function NavOverlay({
                   }}
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
                   style={{
-                    touchAction: isDraggingAny ? "none" : "pan-y",
+                    touchAction: "none",
                   }}
                   className={cn(
                     "flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
