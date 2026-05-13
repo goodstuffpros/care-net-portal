@@ -94,7 +94,7 @@ function EntryCard({ item, onSaved, onDeleted }: {
   return (
     <div className={cn(
       "rounded-xl border transition-all",
-      item.isPlaceholder ? "border-amber-300 dark:border-amber-700/50 bg-amber-50/40 dark:bg-amber-950/10" :
+      item.isPlaceholder ? "border-teal-300 dark:border-teal-600/60 bg-white dark:bg-slate-800" :
         "border-border bg-card",
       !item.isActive && "opacity-50"
     )}>
@@ -104,7 +104,7 @@ function EntryCard({ item, onSaved, onDeleted }: {
         onClick={() => !editing && setExpanded(v => !v)}
       >
         {item.isPlaceholder ? (
-          <div className="flex items-center gap-1.5 mt-0.5 text-amber-600 dark:text-amber-400 text-[10px] font-semibold uppercase tracking-wide flex-shrink-0 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-full border border-amber-300 dark:border-amber-700/40">
+          <div className="flex items-center gap-1.5 mt-0.5 text-teal-700 dark:text-teal-300 text-[10px] font-semibold uppercase tracking-wide flex-shrink-0 bg-teal-50 dark:bg-teal-900/40 px-2 py-1 rounded-full border border-teal-300 dark:border-teal-600/60">
             <AlertTriangle size={9} /> Placeholder
           </div>
         ) : (
@@ -1173,9 +1173,9 @@ export default function BeckyAdminPage() {
               <div className="text-white text-lg font-bold">{data?.items?.length ?? 0}</div>
               <div className="text-white/40 text-[10px] mt-0.5">Total Entries</div>
             </div>
-            <div className="rounded-xl bg-amber-900/20 border border-amber-700/30 p-3 text-center">
-              <div className="text-amber-400 text-lg font-bold">{data?.items?.filter((i: LibraryItem) => i.isPlaceholder).length ?? 0}</div>
-              <div className="text-amber-500/60 text-[10px] mt-0.5">Need Your Edit</div>
+            <div className="rounded-xl bg-teal-900/20 border border-teal-700/30 p-3 text-center">
+              <div className="text-teal-300 text-lg font-bold">{data?.items?.filter((i: LibraryItem) => i.isPlaceholder).length ?? 0}</div>
+              <div className="text-teal-400/70 text-[10px] mt-0.5">Need Your Edit</div>
             </div>
             <div className="rounded-xl bg-emerald-900/20 border border-emerald-700/30 p-3 text-center">
               <div className="text-emerald-400 text-lg font-bold">{data?.items?.filter((i: LibraryItem) => !i.isPlaceholder && i.isActive).length ?? 0}</div>
@@ -1186,11 +1186,11 @@ export default function BeckyAdminPage() {
 
         {/* Placeholder notice */}
         {placeholderCount > 0 && (
-          <div className="rounded-xl border border-amber-600/30 bg-amber-950/20 px-4 py-3 flex items-start gap-3">
-            <AlertTriangle size={16} className="text-amber-400 flex-shrink-0 mt-0.5" />
+          <div className="rounded-xl border border-teal-600/30 bg-teal-950/20 px-4 py-3 flex items-start gap-3">
+            <AlertTriangle size={16} className="text-teal-400 flex-shrink-0 mt-0.5" />
             <div>
-              <div className="text-amber-300 text-sm font-medium">{placeholderCount} placeholder {placeholderCount === 1 ? "entry needs" : "entries need"} your voice</div>
-              <div className="text-amber-500/70 text-xs mt-0.5 leading-relaxed">
+              <div className="text-teal-200 text-sm font-medium">{placeholderCount} placeholder {placeholderCount === 1 ? "entry needs" : "entries need"} your voice</div>
+              <div className="text-teal-400/70 text-xs mt-0.5 leading-relaxed">
                 These responses were written as stand-ins. Tap "Write My Version" on any entry to replace it with your own words.
               </div>
             </div>
