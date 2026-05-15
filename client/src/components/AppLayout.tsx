@@ -57,7 +57,7 @@ const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; 
   { path: "/vitals", labelKey: "nav.vitals", icon: Activity },
   { path: "/badges", labelKey: "nav.badges", icon: Award },
   { path: "/thoughts", labelKey: "nav.thoughts", icon: BookHeart },
-  { path: "/wellbeing", labelKey: "nav.wellbeing", icon: MessageCircleHeart },
+  // { path: "/wellbeing", labelKey: "nav.wellbeing", icon: MessageCircleHeart }, // DISABLED — not enough content yet
   { path: "/my-profile", labelKey: "nav.myProfile", icon: UserPlus },
   { path: "/trends", labelKey: "nav.trends", icon: TrendingUp },
   { path: "/handoff", labelKey: "nav.handoff", icon: ClipboardSignature },
