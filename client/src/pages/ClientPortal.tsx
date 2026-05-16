@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink } from "lucide-react";
@@ -18,6 +19,84 @@ import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 import ClientListEditor from "@/components/ClientListEditor";
+
+// ── Care Directory constants ────────────────────────────────────────────────
+const DIR_TITLES = [
+  // Medical / Clinical
+  "Primary Care Doctor (GP)",
+  "Specialist",
+  "Eye Doctor",
+  "Dentist",
+  "Physical Therapist",
+  "Occupational Therapist",
+  "Speech Therapist",
+  "Pharmacist",
+  "Home Health Agency",
+  "Hospice / Palliative Care",
+  // Personal / Lifestyle
+  "Hair Stylist / Barber",
+  "Nail Technician",
+  "Massage Therapist",
+  "Veterinarian",
+  // Home & Practical
+  "Handyman",
+  "Mechanic",
+  "Lawn Care",
+  // Spiritual / Community
+  "Clergy / Pastor",
+  "Church / Place of Worship",
+  // Social / Relationships
+  "Best Friend",
+  "Neighbor",
+  // Other
+  "Other",
+] as const;
+
+const SPECIALTIES = [
+  "Allergy & Immunology",
+  "Cardiology",
+  "Dermatology",
+  "Endocrinology",
+  "Gastroenterology",
+  "Geriatrics",
+  "Hematology / Oncology",
+  "Infectious Disease",
+  "Nephrology (Kidney)",
+  "Neurology",
+  "Ophthalmology (Eye)",
+  "Orthopedics",
+  "Otolaryngology (ENT)",
+  "Palliative Care",
+  "Physiatry (Rehab Medicine)",
+  "Psychiatry",
+  "Pulmonology (Lung)",
+  "Rheumatology",
+  "Sleep Medicine",
+  "Urology",
+  "Vascular Surgery",
+  "Wound Care",
+  "Other",
+] as const;
+
+// ── Primary Condition constants (shared with SampleClientModal) ──────────────
+const CONDITIONS = [
+  "Dementia / Alzheimer's",
+  "Parkinson's disease",
+  "Stroke recovery",
+  "ALS (Lou Gehrig's disease)",
+  "Multiple sclerosis",
+  "Hip or knee replacement recovery",
+  "Heart failure / cardiac care",
+  "COPD / respiratory care",
+  "Cancer care",
+  "Diabetes management",
+  "General elderly care",
+  "Post-surgical recovery",
+  "Traumatic brain injury",
+  "Spinal cord injury",
+  "Developmental disability",
+  "Other",
+] as const;
 
 const ROLE_LABELS: Record<string, string> = {
   caregiver: "Caregiver",
@@ -42,7 +121,9 @@ export default function ClientPortalPage() {
   const [directoryDetailEntry, setDirectoryDetailEntry] = useState<CareDirectoryEntry | null>(null);
   const [directoryAddOpen, setDirectoryAddOpen] = useState(false);
   const [directoryEditEntry, setDirectoryEditEntry] = useState<CareDirectoryEntry | null>(null);
-  const [dirForm, setDirForm] = useState({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+  // titleSelect = the dropdown value; specialty = sub-field when Specialist is chosen
+  // title (stored/sent) is derived: "Specialist – Neurology" or just titleSelect for others
+  const [dirForm, setDirForm] = useState({ titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "" });
   const [dirDeleteConfirm, setDirDeleteConfirm] = useState<number | null>(null);
 
   const [editingClient, setEditingClient] = useState(false);
@@ -85,12 +166,24 @@ export default function ClientPortalPage() {
     enabled: !!selectedClientId,
   });
 
+  // Derive the stored title string from form state
+  function deriveDirTitle(f: typeof dirForm): string {
+    if (f.titleSelect === "Specialist") {
+      const spec = f.specialty === "Other" ? (f.specialtyOther.trim() || "Other") : f.specialty;
+      return spec ? `Specialist – ${spec}` : "Specialist";
+    }
+    if (f.titleSelect === "Other") return f.titleOther.trim() || "Other";
+    return f.titleSelect;
+  }
+
+  const BLANK_DIR_FORM = { titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "" };
+
   const addDirectoryMutation = useMutation({
-    mutationFn: (data: typeof dirForm) => apiRequest("POST", `/api/clients/${selectedClientId}/directory`, data),
+    mutationFn: (data: typeof dirForm) => apiRequest("POST", `/api/clients/${selectedClientId}/directory`, { ...data, title: deriveDirTitle(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "directory"] });
       setDirectoryAddOpen(false);
-      setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+      setDirForm(BLANK_DIR_FORM);
       toast({ title: "Entry added", description: "Care Directory entry saved." });
     },
     onError: () => toast({ title: "Error", description: "Could not save entry.", variant: "destructive" }),
@@ -98,11 +191,11 @@ export default function ClientPortalPage() {
 
   const editDirectoryMutation = useMutation({
     mutationFn: ({ id, data }: { id: number; data: typeof dirForm }) =>
-      apiRequest("PATCH", `/api/clients/${selectedClientId}/directory/${id}`, data),
+      apiRequest("PATCH", `/api/clients/${selectedClientId}/directory/${id}`, { ...data, title: deriveDirTitle(data) }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "directory"] });
       setDirectoryEditEntry(null);
-      setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+      setDirForm(BLANK_DIR_FORM);
       toast({ title: "Entry updated" });
     },
     onError: () => toast({ title: "Error", description: "Could not update entry.", variant: "destructive" }),
@@ -261,6 +354,16 @@ export default function ClientPortalPage() {
                 )}
               </div>
 
+              {/* Primary Condition */}
+              {client?.primaryCondition && (
+                <div>
+                  <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-2">Primary Condition</div>
+                  <div className="inline-flex items-center px-3 py-1.5 rounded-full bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-900/60 text-blue-700 dark:text-blue-300 text-sm font-medium">
+                    {client.primaryCondition}
+                  </div>
+                </div>
+              )}
+
               {/* Diagnoses */}
               {diagnoses.length > 0 && (
                 <div>
@@ -333,6 +436,42 @@ export default function ClientPortalPage() {
                 </div>
               </div>
 
+              {/* Primary Condition */}
+              <div className="space-y-1.5">
+                <Label>Primary Condition</Label>
+                {(() => {
+                  const val = editForm.primaryCondition || "";
+                  const isKnown = CONDITIONS.includes(val as any);
+                  const selectVal = isKnown ? val : (val ? "Other" : "");
+                  const otherVal = isKnown ? "" : val;
+                  return (
+                    <div className="space-y-2">
+                      <Select
+                        value={selectVal}
+                        onValueChange={v => setEditForm(f => ({ ...f, primaryCondition: v === "Other" ? "" : v }))}
+                      >
+                        <SelectTrigger data-testid="edit-condition-select">
+                          <SelectValue placeholder="Select primary condition..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CONDITIONS.map(c => (
+                            <SelectItem key={c} value={c}>{c}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      {selectVal === "Other" && (
+                        <Input
+                          placeholder="Describe condition"
+                          value={otherVal}
+                          onChange={e => setEditForm(f => ({ ...f, primaryCondition: e.target.value }))}
+                          data-testid="edit-condition-other"
+                        />
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
               {/* Diagnoses editor */}
               <ClientListEditor
                 label="Diagnoses"
@@ -395,7 +534,7 @@ export default function ClientPortalPage() {
               <Button
                 size="sm"
                 className="h-8 px-3 gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white"
-                onClick={() => { setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); setDirectoryAddOpen(true); }}
+                onClick={() => { setDirForm(BLANK_DIR_FORM); setDirectoryAddOpen(true); }}
                 data-testid="add-directory-entry-btn"
               >
                 <Plus size={13} /> Add Entry
@@ -490,8 +629,20 @@ export default function ClientPortalPage() {
                   variant="outline"
                   className="flex-1 gap-1.5"
                   onClick={() => {
+                    // Reverse-parse stored title back into form state
+                    const stored = directoryDetailEntry.title;
+                    let titleSelect = DIR_TITLES.includes(stored as any) ? stored : "";
+                    let specialty = ""; let specialtyOther = ""; let titleOther = "";
+                    if (stored.startsWith("Specialist – ")) {
+                      titleSelect = "Specialist";
+                      const spec = stored.replace("Specialist – ", "");
+                      if (SPECIALTIES.includes(spec as any)) { specialty = spec; }
+                      else { specialty = "Other"; specialtyOther = spec; }
+                    } else if (!DIR_TITLES.includes(stored as any)) {
+                      titleSelect = "Other"; titleOther = stored;
+                    }
                     setDirForm({
-                      title: directoryDetailEntry.title,
+                      titleSelect, specialty, specialtyOther, titleOther,
                       name: directoryDetailEntry.name || "",
                       phone: directoryDetailEntry.phone || "",
                       email: directoryDetailEntry.email || "",
@@ -527,22 +678,72 @@ export default function ClientPortalPage() {
             <div className="flex items-center justify-between">
               <div className="font-semibold">{directoryEditEntry ? "Edit Entry" : "Add to Care Directory"}</div>
               <button
-                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); }}
+                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm(BLANK_DIR_FORM); }}
                 className="text-muted-foreground hover:text-foreground transition-colors"
               >
                 <X size={18} />
               </button>
             </div>
             <div className="space-y-3">
+              {/* Title dropdown */}
               <div className="space-y-1.5">
                 <Label className="text-xs">Category / Title <span className="text-red-500">*</span></Label>
-                <Input
-                  placeholder="e.g. Eye Doctor, Hair Salon, Physical Therapist"
-                  value={dirForm.title}
-                  onChange={e => setDirForm(f => ({ ...f, title: e.target.value }))}
-                  data-testid="dir-input-title"
-                />
+                <Select
+                  value={dirForm.titleSelect}
+                  onValueChange={v => setDirForm(f => ({ ...f, titleSelect: v, specialty: "", specialtyOther: "", titleOther: "" }))}
+                >
+                  <SelectTrigger data-testid="dir-select-title">
+                    <SelectValue placeholder="Select a category..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DIR_TITLES.map(t => (
+                      <SelectItem key={t} value={t}>{t}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+
+              {/* Specialist sub-dropdown */}
+              {dirForm.titleSelect === "Specialist" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Specialty <span className="text-red-500">*</span></Label>
+                  <Select
+                    value={dirForm.specialty}
+                    onValueChange={v => setDirForm(f => ({ ...f, specialty: v, specialtyOther: "" }))}
+                  >
+                    <SelectTrigger data-testid="dir-select-specialty">
+                      <SelectValue placeholder="Select specialty..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SPECIALTIES.map(s => (
+                        <SelectItem key={s} value={s}>{s}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  {dirForm.specialty === "Other" && (
+                    <Input
+                      placeholder="Describe specialty"
+                      value={dirForm.specialtyOther}
+                      onChange={e => setDirForm(f => ({ ...f, specialtyOther: e.target.value }))}
+                      data-testid="dir-input-specialty-other"
+                    />
+                  )}
+                </div>
+              )}
+
+              {/* Other free text */}
+              {dirForm.titleSelect === "Other" && (
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Describe <span className="text-red-500">*</span></Label>
+                  <Input
+                    placeholder="e.g. Pinky Toenail Specialist"
+                    value={dirForm.titleOther}
+                    onChange={e => setDirForm(f => ({ ...f, titleOther: e.target.value }))}
+                    data-testid="dir-input-title-other"
+                  />
+                </div>
+              )}
+
               <div className="space-y-1.5">
                 <Label className="text-xs">Name</Label>
                 <Input
@@ -596,13 +797,19 @@ export default function ClientPortalPage() {
               <Button
                 variant="outline"
                 className="flex-1"
-                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); }}
+                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm(BLANK_DIR_FORM); }}
               >
                 Cancel
               </Button>
               <Button
                 className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
-                disabled={!dirForm.title.trim() || addDirectoryMutation.isPending || editDirectoryMutation.isPending}
+                disabled={(
+                  !dirForm.titleSelect ||
+                  (dirForm.titleSelect === "Specialist" && !dirForm.specialty) ||
+                  (dirForm.titleSelect === "Specialist" && dirForm.specialty === "Other" && !dirForm.specialtyOther.trim()) ||
+                  (dirForm.titleSelect === "Other" && !dirForm.titleOther.trim()) ||
+                  addDirectoryMutation.isPending || editDirectoryMutation.isPending
+                )}
                 onClick={() => {
                   if (directoryEditEntry) {
                     editDirectoryMutation.mutate({ id: directoryEditEntry.id, data: dirForm });
