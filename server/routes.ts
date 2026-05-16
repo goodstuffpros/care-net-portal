@@ -2699,10 +2699,22 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       // 5. Delete badge surveys + scores
       db.delete(badgeSurveys).where(eq(badgeSurveys.submittedByUserId, userId)).run();
       db.delete(badgeScores).where(eq(badgeScores.userId, userId)).run();
-      // 6. Delete connection invites (sent or received)
-      db.delete(connectionInvites).where(eq(connectionInvites.invitedByUserId, userId)).run();
-      db.delete(connectionInvites).where(eq(connectionInvites.acceptedByUserId, userId)).run();
-      // 7. Finally delete the user row
+      // 6. Delete connection invites (sent or received) — use raw SQL to avoid missing-column errors
+      sqlite.prepare(`DELETE FROM connection_invites WHERE sender_user_id = ?`).run(userId);
+      try { sqlite.prepare(`DELETE FROM connection_invites WHERE accepted_by_user_id = ?`).run(userId); } catch { /* column may not exist on older DBs */ }
+      // 7. If MC, clear primaryContactId on the client so the portal isn't orphaned
+      if (user.role === 'primary_family' && user.clientId) {
+        const remainingUsers = db.select().from(users)
+          .where(eq(users.clientId, user.clientId)).all()
+          .filter(u => u.id !== userId);
+        if (remainingUsers.length === 0) {
+          // No other users on this portal — delete the client row too
+          sqlite.prepare(`DELETE FROM clients WHERE id = ?`).run(user.clientId);
+        } else {
+          sqlite.prepare(`UPDATE clients SET primary_contact_id = NULL WHERE id = ? AND primary_contact_id = ?`).run(user.clientId, userId);
+        }
+      }
+      // 8. Finally delete the user row
       db.delete(users).where(eq(users.id, userId)).run();
       res.json({ success: true, deletedUserId: userId, email: authAccount?.email ?? null });
     } catch (err: any) {
