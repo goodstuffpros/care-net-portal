@@ -41,7 +41,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function CaregiversPage() {
-  const { activeUser, selectedClientId, appMode } = useApp();
+  const { activeUser, selectedClientId, appMode, isPracticeClient } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -317,7 +317,14 @@ export default function CaregiversPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Invite buttons — MC only. CGs see this page read-only. */}
+          {/* Invite a Family Contact — CG only, shown when not yet connected to a real client */}
+          {canManage && isPracticeClient && (
+            <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="cg-invite-family-btn">
+              <Link2 size={15} /> Invite a Family Contact
+            </Button>
+          )}
+
+          {/* Invite buttons — MC only */}
           {isFamily && (
             <>
               <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
