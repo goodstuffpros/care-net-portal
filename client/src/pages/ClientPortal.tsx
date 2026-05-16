@@ -1596,8 +1596,13 @@ function NotifToggle({ label, userId, field, prefs, onToggle, readOnly = false }
 
   return (
     <label className={cn("flex items-center gap-1.5 select-none", readOnly ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
-      <Switch checked={checked} onCheckedChange={handleChange} disabled={readOnly} className="scale-75" />
-      <span className="text-xs text-muted-foreground">{label}</span>
+      <Switch
+        checked={checked}
+        onCheckedChange={handleChange}
+        disabled={readOnly}
+        className="scale-75 data-[state=checked]:bg-teal-600 data-[state=unchecked]:bg-zinc-300 dark:data-[state=unchecked]:bg-zinc-600"
+      />
+      <span className={cn("text-xs", checked ? "text-teal-700 dark:text-teal-400 font-medium" : "text-muted-foreground")}>{label}</span>
     </label>
   );
 }
