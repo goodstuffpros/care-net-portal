@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
+import { SampleClientModal } from "@/components/SampleClientModal";
 
 function formatTime(isoString: string) {
   return new Date(isoString).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -94,6 +95,7 @@ export default function DashboardPage() {
 
   const [, navigate] = useLocation();
   const [sampleNudgeDismissed, setSampleNudgeDismissed] = useState(false);
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
   // Nudge: show for CGs who have no sample and no real client
   const showSampleNudge =
     isCaregiverRole(activeUser.role) &&
@@ -121,7 +123,7 @@ export default function DashboardPage() {
               Create a sample client and explore everything the portal can do — no real data needed. You can showcase it to potential families.
             </p>
             <button
-              onClick={() => { window.location.hash = "/my-profile"; }}
+              onClick={() => setSampleModalOpen(true)}
               className="mt-2 text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2"
               data-testid="dashboard-sample-nudge-cta"
             >
@@ -396,6 +398,17 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Sample Client creation modal — triggered from the dashboard nudge */}
+      <SampleClientModal
+        open={sampleModalOpen}
+        onOpenChange={setSampleModalOpen}
+        onCreated={() => {
+          setSampleModalOpen(false);
+          setSampleNudgeDismissed(true);
+          window.location.reload();
+        }}
+      />
     </div>
   );
 }
