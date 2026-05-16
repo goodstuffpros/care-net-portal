@@ -252,10 +252,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [referralEmailSent, setReferralEmailSent] = useState(false);
 
   // Monthly referral popup — shows once per 30 days per real session user
+  // Never shows within 24 hours of onboarding completion (don't interrupt new users)
   const REFERRAL_POPUP_KEY = `cnp_referral_popup_${isRealSession ? activeUser.id : "demo"}`;
   const [referralPopupOpen, setReferralPopupOpen] = useState(false);
   useEffect(() => {
     if (!isRealSession || SCREENSHOT_MODE) return;
+    // Skip if user just completed onboarding (within last 24 hours)
+    if (activeUser.onboardingCompletedAt) {
+      const completedAt = new Date(activeUser.onboardingCompletedAt);
+      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+      if (completedAt > oneDayAgo) return;
+    }
     const raw = typeof window !== "undefined" ? window.localStorage.getItem(REFERRAL_POPUP_KEY) : null;
     const lastShown = raw ? new Date(raw) : null;
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
