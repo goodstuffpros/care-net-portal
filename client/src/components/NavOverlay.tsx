@@ -326,8 +326,8 @@ export default function NavOverlay({
               {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
-            {/* Becky Admin — caregiver only, hidden in family portal */}
-            {isCaregiverRole(activeUser.role) && portalMode !== "family" && (
+            {/* Becky Admin — David (11) and Becky (12) only, never visible to other users */}
+            {(activeUser.id === 11 || activeUser.id === 12) && (
               <a
                 href={`${"__PORT_5000__".startsWith("__") ? "" : "__PORT_5000__"}/becky-admin`}
                 target="_blank"
