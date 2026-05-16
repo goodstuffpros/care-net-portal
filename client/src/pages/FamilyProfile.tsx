@@ -39,7 +39,7 @@ const TIMEZONES = [
 
 // ── Relationship options ──────────────────────────────────────────────────────
 const RELATIONSHIP_OPTIONS = [
-  "Spouse / Partner", "Adult Child", "Parent", "Sibling",
+  "Myself", "Spouse / Partner", "Adult Child", "Parent", "Sibling",
   "Grandchild", "Niece / Nephew", "Close Friend", "Other Family Member", "Guardian",
 ];
 
@@ -166,7 +166,8 @@ export default function FamilyProfile() {
   // Local editable state for demo mode
   const [localName, setLocalName] = useState(activeUser.name);
   const [localPhone, setLocalPhone] = useState((activeUser as any).phone ?? "");
-  const [relationship, setRelationship] = useState("Adult Child");
+  const isSelfCare = activeUser.role === "self_care";
+  const [relationship, setRelationship] = useState(isSelfCare ? "Myself" : "Adult Child");
   const [primaryContact, setPrimaryContact] = useState(activeUser.role === "primary_family");
 
   // ── Update mutation ──────────────────────────────────────────────────────────

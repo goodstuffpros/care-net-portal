@@ -104,7 +104,12 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
 
   function enterApp() {
     // Full reload so RealAuthGate re-checks session
-    window.location.href = "/";
+    // self_care lands on Client Profile so they can complete their record right away
+    if (isSelfManaged) {
+      window.location.href = "/#/portal";
+    } else {
+      window.location.href = "/";
+    }
   }
 
   return (
