@@ -7,12 +7,13 @@
  */
 
 import { useState } from "react";
-import { Heart, GraduationCap, UserPlus, Copy, Check, ChevronRight, BookOpen, Users, Sparkles } from "lucide-react";
+import { Heart, GraduationCap, UserPlus, Copy, Check, ChevronRight, BookOpen, Users, Sparkles, Rocket } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
+import { SampleClientModal } from "@/components/SampleClientModal";
 
 interface PreConnectionProps {
   name: string;
@@ -33,6 +34,7 @@ export default function PreConnectionScreen({ name, role, email, onGoToUniversit
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
+  const [sampleModalOpen, setSampleModalOpen] = useState(false);
 
   const firstName = name.split(" ")[0];
 
@@ -139,22 +141,45 @@ export default function PreConnectionScreen({ name, role, email, onGoToUniversit
               </Button>
             </div>
 
+            {/* Take it for a ride — Sample Client CTA */}
+            <button
+              onClick={() => setSampleModalOpen(true)}
+              className="w-full flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors text-left group"
+              data-testid="take-it-for-a-ride-btn"
+            >
+              <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <Rocket className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Take it for a ride</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">Create a sample client and explore the full portal — no real data required.</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-amber-500 group-hover:text-amber-700 transition-colors flex-shrink-0" />
+            </button>
+
             {/* Demo note */}
             <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/50 border border-border">
               <Sparkles className="w-4 h-4 text-muted-foreground mt-0.5 flex-shrink-0" />
               <p className="text-xs text-muted-foreground">
-                Want to explore the full app first?{" "}
+                Want to learn the platform step by step?{" "}
                 <button
                   onClick={onGoToUniversity}
                   className="text-primary underline underline-offset-2 hover:no-underline"
                 >
                   Open Care Net University
                 </button>{" "}
-                — it includes a live demo you can walk through.
+                — Becky walks you through everything.
               </p>
             </div>
           </div>
         )}
+
+        {/* Sample Client Modal */}
+        <SampleClientModal
+          open={sampleModalOpen}
+          onOpenChange={setSampleModalOpen}
+          onCreated={() => window.location.replace("/")}
+        />
 
         {/* MC experience */}
         {isMC(role) && (

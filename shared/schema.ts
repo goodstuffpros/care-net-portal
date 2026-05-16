@@ -43,6 +43,8 @@ export const clients = sqliteTable("clients", {
   primaryContactId: integer("primary_contact_id"), // user id of primary family contact
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   appMode: text("app_mode").default("caregiver"), // 'caregiver' | 'precare'
+  isPractice: integer("is_practice", { mode: "boolean" }).default(false), // CG sample/practice client
+  isShowcase: integer("is_showcase", { mode: "boolean" }).default(false), // CG has opted to show to potential families
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });

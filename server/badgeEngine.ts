@@ -12,7 +12,7 @@ import { db } from "./db";
 import {
   shifts, careFlags, scheduleEvents, messages, chatThreads,
   activityLogs, mediaItems, outings, vitals, medicationLogs, medications,
-  badgeSurveys, badgeScores, careScopes,
+  badgeSurveys, badgeScores, careScopes, clients,
   type BadgeScore, type CareScope,
 } from "@shared/schema";
 import { eq, and, gte, lte, desc } from "drizzle-orm";
@@ -507,12 +507,18 @@ export async function computeBadgeScore(caregiverId: number, clientId: number): 
 
   // ── Overall Score ─────────────────────────────────────────────────────────
 
-  const overallScore = clamp(
+  const rawOverallScore = clamp(
     commScore * DIM_WEIGHTS.communication +
     depScore * DIM_WEIGHTS.dependability +
     knwScore * DIM_WEIGHTS.knowledge +
     conScore * DIM_WEIGHTS.connection
   );
+
+  // Practice client cap: sample portal activity earns max 25% of overall score
+  const clientRecord = db.select().from(clients).where(eq(clients.id, clientId)).get();
+  const isPractice = clientRecord?.isPractice ?? false;
+  const PRACTICE_CAP = 25;
+  const overallScore = isPractice ? Math.min(rawOverallScore, PRACTICE_CAP) : rawOverallScore;
 
   // ── Upsert into DB ────────────────────────────────────────────────────────
 

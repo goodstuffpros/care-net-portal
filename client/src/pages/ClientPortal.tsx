@@ -32,7 +32,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function ClientPortalPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, isPracticeClient, isShowcaseMode } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   // ── Invite Family Member sheet (MC only) ──────────────────────────────────────
@@ -114,7 +114,7 @@ export default function ClientPortalPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
   });
 
-  const canEdit = activeUser.role === "primary_family";
+  const canEdit = activeUser.role === "primary_family" && !isShowcaseMode;
 
   if (clientLoading) {
     return (
@@ -153,6 +153,17 @@ export default function ClientPortalPage() {
 
   return (
     <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
+
+      {/* Showcase mode banner */}
+      {isPracticeClient && isShowcaseMode && (
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+          <span className="text-base">👁</span>
+          <div>
+            <strong>Showcase View</strong> — Edit controls are hidden. This is what a potential family will see when you share this portal with them.
+          </div>
+        </div>
+      )}
+
       <div className="pb-3 border-b border-border space-y-2">
         <div className="flex items-center gap-3">
           <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />

@@ -183,7 +183,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
@@ -993,6 +993,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Demo Banner — only visible when logged in as demo account */}
         {isDemo && !SCREENSHOT_MODE && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
+
+        {/* Sample Client Banner — shown whenever a CG is in practice/sample mode */}
+        {isPracticeClient && !SCREENSHOT_MODE && (
+          <div className="w-full bg-amber-500 text-white text-xs font-medium px-4 py-1.5 flex items-center justify-center gap-2 text-center">
+            <span className="inline-block w-1.5 h-1.5 rounded-full bg-white opacity-80 flex-shrink-0" />
+            Sample Mode — this is a practice portal. No real data.
+          </div>
+        )}
 
         {/* Demo floating CTA — nudges visitors to apply for real access */}
         {isDemo && !SCREENSHOT_MODE && <DemoApplyCTA />}

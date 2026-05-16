@@ -29,7 +29,7 @@ function formatMsgTime(iso: string) {
 }
 
 export default function MessagesPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, isPracticeClient } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -210,6 +210,26 @@ export default function MessagesPage() {
   };
 
   const activeThread = threads.find(t => t.id === activeThreadId);
+
+  // Sample mode — messages are not functional without a real MC
+  if (isPracticeClient) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-57px)] px-6 text-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700 flex items-center justify-center">
+          <span className="text-2xl">💬</span>
+        </div>
+        <div className="space-y-1.5 max-w-xs">
+          <p className="font-semibold text-foreground">Messages aren't active in Sample Mode</p>
+          <p className="text-sm text-muted-foreground">
+            There's no Main Contact connected to this sample client. Once a real family connects, messages open up here.
+          </p>
+        </div>
+        <div className="text-xs px-3 py-1.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700">
+          Sample Mode
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-[calc(100vh-57px)] overflow-hidden">

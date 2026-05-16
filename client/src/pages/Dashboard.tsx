@@ -55,7 +55,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -109,8 +109,11 @@ export default function DashboardPage() {
             {new Date().getHours() < 12 ? t("dashboard.greeting.morning", { name: activeUser.name.split(" ")[0] }) : new Date().getHours() < 17 ? t("dashboard.greeting.afternoon", { name: activeUser.name.split(" ")[0] }) : t("dashboard.greeting.evening", { name: activeUser.name.split(" ")[0] })}
           </h1>
           {client ? (
-            <p className="text-muted-foreground text-sm mt-1">
+            <p className="text-muted-foreground text-sm mt-1 flex items-center gap-2 flex-wrap">
               {t("dashboard.viewing")} <span className="text-foreground font-medium">{client.name}</span>
+              {isPracticeClient && (
+                <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-700 font-medium">Sample</span>
+              )}
             </p>
           ) : (
             <p className="text-muted-foreground text-sm mt-1">Care Net Portal — {new Date().toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })}</p>

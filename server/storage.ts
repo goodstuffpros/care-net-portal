@@ -388,6 +388,9 @@ try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN display_name TEXT`)
 // clients — extended medical profile fields
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN diagnoses TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN assistive_devices TEXT`); } catch {}
+// clients — sample portal columns
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_practice INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_showcase INTEGER DEFAULT 0`); } catch {}
 
 // shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
 try {
@@ -694,6 +697,10 @@ export interface IStorage {
   getClientById(id: number): Client | undefined;
   createClient(data: InsertClient): Client;
   updateClient(id: number, data: Partial<InsertClient>): Client | undefined;
+  getPracticeClientByCaregiverId(caregiverId: number): Client | undefined;
+  createPracticeClient(caregiverId: number, dateOfBirth: string, primaryCondition: string): Client;
+  deletePracticeClient(clientId: number): void;
+  setShowcase(clientId: number, isShowcase: boolean): Client | undefined;
 
   // Schedule Events
   getScheduleEventsByClient(clientId: number): ScheduleEvent[];
@@ -846,6 +853,26 @@ export const storage: IStorage = {
   getClientById: (id) => db.select().from(clients).where(eq(clients.id, id)).get(),
   createClient: (data) => db.insert(clients).values(data).returning().get(),
   updateClient: (id, data) => db.update(clients).set(data).where(eq(clients.id, id)).returning().get(),
+  getPracticeClientByCaregiverId: (caregiverId) =>
+    db.select().from(clients)
+      .where(and(eq(clients.caregiverId, caregiverId), eq(clients.isPractice, true)))
+      .get(),
+  createPracticeClient: (caregiverId, dateOfBirth, primaryCondition) =>
+    db.insert(clients).values({
+      name: "Sample Client",
+      caregiverId,
+      dateOfBirth,
+      primaryCondition,
+      isPractice: true,
+      isShowcase: false,
+      isActive: true,
+      appMode: "caregiver",
+    }).returning().get(),
+  deletePracticeClient: (clientId) => {
+    db.delete(clients).where(eq(clients.id, clientId)).run();
+  },
+  setShowcase: (clientId, isShowcase) =>
+    db.update(clients).set({ isShowcase }).where(eq(clients.id, clientId)).returning().get(),
 
   // Schedule Events
   getScheduleEventsByClient: (clientId) => db.select().from(scheduleEvents).where(eq(scheduleEvents.clientId, clientId)).orderBy(asc(scheduleEvents.scheduledAt)).all(),

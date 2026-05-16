@@ -427,7 +427,7 @@ function SurveyModal({ caregiverId, clientId, caregiverName, onClose }: {
 // ── Main Badges Page ──────────────────────────────────────────────────────────
 
 export default function Badges() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, isPracticeClient } = useApp();
   const { toast } = useToast();
   const [surveyOpen, setSurveyOpen] = useState(false);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -561,6 +561,16 @@ export default function Badges() {
 
   return (
     <div className="p-4 md:p-6 max-w-2xl mx-auto space-y-6">
+
+      {/* Sample mode notice */}
+      {isPracticeClient && (
+        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex items-start gap-2">
+          <span className="text-base leading-none mt-0.5">🏆</span>
+          <div>
+            <strong>Sample Mode</strong> — scores here count toward your real badge, but are capped at 25. Exploring the portal in practice mode is a great start — your score will grow with a real client.
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="flex items-start justify-between">

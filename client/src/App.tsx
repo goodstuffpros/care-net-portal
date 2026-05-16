@@ -105,6 +105,8 @@ interface AppContextType {
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
   isRealSession: boolean; // always true — demo mode removed
   isPreConnection: boolean; // true when real CG session but no clientId yet
+  isPracticeClient: boolean; // true when CG is connected to a practice/sample client
+  isShowcaseMode: boolean; // true when CG has enabled showcase view for their sample client
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
@@ -155,6 +157,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
 
   const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
   const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
+  const [isPracticeClient, setIsPracticeClient] = useState(false);
+  const [isShowcaseMode, setIsShowcaseMode] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -189,6 +193,24 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
       setSelectedClientId(activeUser.clientId);
     }
   }, [activeUser]);
+
+  // Fetch client to detect isPractice / isShowcase flags
+  useEffect(() => {
+    if (!activeUser.clientId) {
+      setIsPracticeClient(false);
+      setIsShowcaseMode(false);
+      return;
+    }
+    fetch(`/api/clients/${activeUser.clientId}`, {
+      headers: { Authorization: `Bearer ${getAuthToken()}` },
+    })
+      .then(r => r.json())
+      .then((c: any) => {
+        setIsPracticeClient(!!c?.isPractice);
+        setIsShowcaseMode(!!c?.isShowcase);
+      })
+      .catch(() => {});
+  }, [activeUser.clientId]);
 
   const toggleTheme = () => setTheme(t => t === "light" ? "dark" : "light");
 
@@ -256,6 +278,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         triggerUpgradeTransition,
         isRealSession,
         isPreConnection,
+        isPracticeClient,
+        isShowcaseMode,
         navOverlayOpen,
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",

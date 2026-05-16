@@ -1387,6 +1387,58 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(client);
   });
 
+  // --- Practice (Sample) Client routes ---
+
+  // GET /api/clients/practice/:caregiverId — check if CG already has a practice client
+  app.get("/api/clients/practice/:caregiverId", requireAuth, (req: AuthRequest, res) => {
+    const caregiverId = Number(req.params.caregiverId);
+    const existing = storage.getPracticeClientByCaregiverId(caregiverId);
+    res.json(existing || null);
+  });
+
+  // POST /api/clients/practice — create a practice client for the logged-in CG
+  app.post("/api/clients/practice", requireAuth, (req: AuthRequest, res) => {
+    const caregiverId = req.user!.userId;
+    const { dateOfBirth, primaryCondition } = req.body;
+    if (!dateOfBirth || !primaryCondition) {
+      return res.status(400).json({ message: "dateOfBirth and primaryCondition are required" });
+    }
+    // Enforce one practice client per CG
+    const existing = storage.getPracticeClientByCaregiverId(caregiverId);
+    if (existing) {
+      return res.status(409).json({ message: "Practice client already exists", client: existing });
+    }
+    const client = storage.createPracticeClient(caregiverId, dateOfBirth, primaryCondition);
+    // Assign this practice client to the CG user so the app connects immediately
+    storage.updateUser(caregiverId, { clientId: client.id });
+    res.status(201).json(client);
+  });
+
+  // DELETE /api/clients/practice/:clientId — delete the practice client and all its data
+  app.delete("/api/clients/practice/:clientId", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    if (!client.isPractice) return res.status(403).json({ message: "Not a practice client" });
+    if (client.caregiverId !== req.user!.userId) return res.status(403).json({ message: "Not your practice client" });
+    storage.deletePracticeClient(clientId);
+    // Remove clientId from the CG user — returns them to pre-connection state
+    storage.updateUser(req.user!.userId, { clientId: null });
+    res.json({ success: true });
+  });
+
+  // PATCH /api/clients/practice/:clientId/showcase — toggle showcase flag
+  app.patch("/api/clients/practice/:clientId/showcase", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    if (!client.isPractice) return res.status(403).json({ message: "Not a practice client" });
+    if (client.caregiverId !== req.user!.userId) return res.status(403).json({ message: "Not your practice client" });
+    const { isShowcase } = req.body;
+    const updated = storage.setShowcase(clientId, !!isShowcase);
+    res.json(updated);
+  });
+
   // Schedule Events
   app.get("/api/clients/:clientId/schedule", (req, res) => {
     res.json(storage.getScheduleEventsByClient(Number(req.params.clientId)));
