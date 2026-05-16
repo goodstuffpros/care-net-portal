@@ -2589,8 +2589,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // POST create entry (MC only)
   app.post("/api/clients/:clientId/directory", requireAuth, (req: AuthRequest, res) => {
-    const user = req.user!;
-    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    if (req.authUserRole !== "primary_family") return res.status(403).json({ message: "MC only" });
     const clientId = Number(req.params.clientId);
     const { title, name, phone, email, address, notes } = req.body;
     if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
@@ -2624,8 +2623,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // PATCH update entry (MC only)
   app.patch("/api/clients/:clientId/directory/:entryId", requireAuth, (req: AuthRequest, res) => {
-    const user = req.user!;
-    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    if (req.authUserRole !== "primary_family") return res.status(403).json({ message: "MC only" });
     const entryId = Number(req.params.entryId);
     const { title, name, phone, email, address, notes } = req.body;
     const now = new Date().toISOString();
@@ -2643,8 +2641,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // DELETE entry (MC only)
   app.delete("/api/clients/:clientId/directory/:entryId", requireAuth, (req: AuthRequest, res) => {
-    const user = req.user!;
-    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    if (req.authUserRole !== "primary_family") return res.status(403).json({ message: "MC only" });
     const entryId = Number(req.params.entryId);
     db.delete(careDirectoryEntries).where(eq(careDirectoryEntries.id, entryId)).run();
     res.json({ success: true });
