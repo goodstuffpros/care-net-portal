@@ -2694,28 +2694,30 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       if (authAccount?.email) {
         db.delete(betaApplications).where(eq(betaApplications.email, authAccount.email)).run();
       }
-      // 4. Delete notifications
-      db.delete(notifications).where(eq(notifications.userId, userId)).run();
-      // 5. Delete badge surveys + scores
-      db.delete(badgeSurveys).where(eq(badgeSurveys.submittedByUserId, userId)).run();
-      db.delete(badgeScores).where(eq(badgeScores.userId, userId)).run();
-      // 6. Delete connection invites (sent or received) — use raw SQL to avoid missing-column errors
-      sqlite.prepare(`DELETE FROM connection_invites WHERE sender_user_id = ?`).run(userId);
-      try { sqlite.prepare(`DELETE FROM connection_invites WHERE accepted_by_user_id = ?`).run(userId); } catch { /* column may not exist on older DBs */ }
-      // 7. If MC, clear primaryContactId on the client so the portal isn't orphaned
+      // Use raw SQLite for all deletes to avoid Drizzle column-mapping issues on older DB schemas
+      const safeDelete = (table: string, col: string) => {
+        try { sqlite.prepare(`DELETE FROM ${table} WHERE ${col} = ?`).run(userId); } catch { /* column may not exist */ }
+      };
+      safeDelete('notifications', 'user_id');
+      safeDelete('badge_surveys', 'submitted_by_user_id');
+      safeDelete('badge_scores', 'user_id');
+      safeDelete('connection_invites', 'sender_user_id');
+      safeDelete('connection_invites', 'accepted_by_user_id');
+      safeDelete('university_progress', 'user_id');
+      safeDelete('wellbeing_check_ins', 'user_id');
+      safeDelete('shifts', 'caregiver_id');
+      safeDelete('caregiver_profiles', 'user_id');
+      // If MC, clean up orphaned client portal
       if (user.role === 'primary_family' && user.clientId) {
-        const remainingUsers = db.select().from(users)
-          .where(eq(users.clientId, user.clientId)).all()
-          .filter(u => u.id !== userId);
-        if (remainingUsers.length === 0) {
-          // No other users on this portal — delete the client row too
+        const remaining = sqlite.prepare(`SELECT id FROM users WHERE client_id = ? AND id != ?`).all(user.clientId, userId);
+        if (remaining.length === 0) {
           sqlite.prepare(`DELETE FROM clients WHERE id = ?`).run(user.clientId);
         } else {
           sqlite.prepare(`UPDATE clients SET primary_contact_id = NULL WHERE id = ? AND primary_contact_id = ?`).run(user.clientId, userId);
         }
       }
-      // 8. Finally delete the user row
-      db.delete(users).where(eq(users.id, userId)).run();
+      // Finally delete the user row itself
+      sqlite.prepare(`DELETE FROM users WHERE id = ?`).run(userId);
       res.json({ success: true, deletedUserId: userId, email: authAccount?.email ?? null });
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
