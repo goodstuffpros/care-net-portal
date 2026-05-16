@@ -262,7 +262,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         onLogout: () => {
           clearAuthToken();
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-            .finally(() => { window.location.href = "/"; });
+            .finally(() => { window.location.replace("/"); });
         },
       }}>
         <LangProvider>

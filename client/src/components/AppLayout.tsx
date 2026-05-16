@@ -1329,7 +1329,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => {
                     clearAuthToken();
                     fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                      .finally(() => { window.location.href = "/#/login"; });
+                      .finally(() => { window.location.replace("/"); });
                   }}
                   className="cursor-pointer text-red-500 dark:text-red-400"
                   data-testid="sign-out-mobile"
