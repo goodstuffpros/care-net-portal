@@ -2,7 +2,7 @@ import { useApp, isCaregiverRole } from "@/App";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { Client, User, CareFlag } from "@shared/schema";
+import type { Client, User, CareFlag, CareDirectoryEntry } from "@shared/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle } from "lucide-react";
+import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
@@ -37,6 +37,13 @@ export default function ClientPortalPage() {
   const { toast } = useToast();
   // ── Invite Family Member sheet (MC only) ──────────────────────────────────────
   const [familyInviteOpen, setFamilyInviteOpen] = useState(false);
+
+  // ── Care Directory state ─────────────────────────────────────────────────
+  const [directoryDetailEntry, setDirectoryDetailEntry] = useState<CareDirectoryEntry | null>(null);
+  const [directoryAddOpen, setDirectoryAddOpen] = useState(false);
+  const [directoryEditEntry, setDirectoryEditEntry] = useState<CareDirectoryEntry | null>(null);
+  const [dirForm, setDirForm] = useState({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+  const [dirDeleteConfirm, setDirDeleteConfirm] = useState<number | null>(null);
 
   const [editingClient, setEditingClient] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
@@ -69,6 +76,47 @@ export default function ClientPortalPage() {
   const { data: careFlags = [], isLoading: flagsLoading } = useQuery<CareFlag[]>({
     queryKey: ["/api/clients", selectedClientId, "flags"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/flags`).then(r => r.json()),
+  });
+
+  // ── Care Directory queries & mutations ─────────────────────────────────
+  const { data: directoryEntries = [], isLoading: directoryLoading } = useQuery<CareDirectoryEntry[]>({
+    queryKey: ["/api/clients", selectedClientId, "directory"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/directory`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
+  const addDirectoryMutation = useMutation({
+    mutationFn: (data: typeof dirForm) => apiRequest("POST", `/api/clients/${selectedClientId}/directory`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "directory"] });
+      setDirectoryAddOpen(false);
+      setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+      toast({ title: "Entry added", description: "Care Directory entry saved." });
+    },
+    onError: () => toast({ title: "Error", description: "Could not save entry.", variant: "destructive" }),
+  });
+
+  const editDirectoryMutation = useMutation({
+    mutationFn: ({ id, data }: { id: number; data: typeof dirForm }) =>
+      apiRequest("PATCH", `/api/clients/${selectedClientId}/directory/${id}`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "directory"] });
+      setDirectoryEditEntry(null);
+      setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" });
+      toast({ title: "Entry updated" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not update entry.", variant: "destructive" }),
+  });
+
+  const deleteDirectoryMutation = useMutation({
+    mutationFn: (entryId: number) => apiRequest("DELETE", `/api/clients/${selectedClientId}/directory/${entryId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "directory"] });
+      setDirDeleteConfirm(null);
+      setDirectoryDetailEntry(null);
+      toast({ title: "Entry removed" });
+    },
+    onError: () => toast({ title: "Error", description: "Could not delete entry.", variant: "destructive" }),
   });
 
   const excuseFlagMutation = useMutation({
@@ -193,6 +241,12 @@ export default function ClientPortalPage() {
         <CardContent className="space-y-5">
           {!editingClient ? (
             <div className="space-y-5">
+              {/* MC guidance note */}
+              {isMCViewer && (
+                <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg px-3 py-2 leading-relaxed">
+                  This page helps your caregiver do their job well. They can see everything here but cannot make changes.
+                </div>
+              )}
               {/* Basic info */}
               <div className="grid sm:grid-cols-2 gap-4">
                 <div>
@@ -331,6 +385,267 @@ export default function ClientPortalPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* ── CARE DIRECTORY ───────────────────────────────────────────────────── */}
+      <Card className="border-border" data-testid="care-directory-card">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2 justify-between" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+            <span className="flex items-center gap-2"><BookOpen size={16} className="text-teal-600 dark:text-teal-400" /> Care Directory</span>
+            {isMCViewer && !isShowcaseMode && (
+              <Button
+                size="sm"
+                className="h-8 px-3 gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white"
+                onClick={() => { setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); setDirectoryAddOpen(true); }}
+                data-testid="add-directory-entry-btn"
+              >
+                <Plus size={13} /> Add Entry
+              </Button>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {directoryLoading ? (
+            <div className="space-y-2">{Array(3).fill(0).map((_, i) => <div key={i} className="h-10 bg-muted/40 rounded-xl animate-pulse" />)}</div>
+          ) : directoryEntries.length === 0 ? (
+            <div className="text-center py-6 space-y-1.5">
+              <BookOpen size={22} className="text-muted-foreground/30 mx-auto" />
+              <div className="text-sm text-muted-foreground">
+                {isMCViewer ? "No contacts added yet. Tap \"Add Entry\" to build your care directory." : "No contacts in this care directory yet."}
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-2" data-testid="care-directory-list">
+              {directoryEntries.map(entry => (
+                <button
+                  key={entry.id}
+                  onClick={() => setDirectoryDetailEntry(entry)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-teal-50 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-900/60 text-teal-700 dark:text-teal-300 text-xs font-medium hover:bg-teal-100 dark:hover:bg-teal-950/50 transition-colors"
+                  data-testid={`directory-chip-${entry.id}`}
+                >
+                  {entry.title}
+                </button>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Directory Detail Sheet */}
+      {directoryDetailEntry && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4" onClick={() => setDirectoryDetailEntry(null)}>
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4" onClick={e => e.stopPropagation()} data-testid="directory-detail-sheet">
+            {/* Header */}
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-xs font-semibold text-teal-600 dark:text-teal-400 uppercase tracking-wide mb-0.5">{directoryDetailEntry.title}</div>
+                {directoryDetailEntry.name && <div className="font-semibold text-base">{directoryDetailEntry.name}</div>}
+              </div>
+              <button onClick={() => setDirectoryDetailEntry(null)} className="text-muted-foreground hover:text-foreground transition-colors mt-0.5">
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Tappable fields */}
+            <div className="space-y-2.5">
+              {directoryDetailEntry.phone && (
+                <a href={`tel:${directoryDetailEntry.phone}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group" data-testid="directory-phone-link">
+                  <Phone size={15} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                  <span className="text-sm flex-1">{directoryDetailEntry.phone}</span>
+                  <ExternalLink size={13} className="text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </a>
+              )}
+              {directoryDetailEntry.email && (
+                <a href={`mailto:${directoryDetailEntry.email}`} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group" data-testid="directory-email-link">
+                  <Mail size={15} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                  <span className="text-sm flex-1 break-all">{directoryDetailEntry.email}</span>
+                  <ExternalLink size={13} className="text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </a>
+              )}
+              {directoryDetailEntry.address && (
+                <a
+                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(directoryDetailEntry.address)}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 hover:bg-muted/70 transition-colors group"
+                  data-testid="directory-address-link"
+                >
+                  <MapPin size={15} className="text-teal-600 dark:text-teal-400 flex-shrink-0" />
+                  <span className="text-sm flex-1 leading-snug">{directoryDetailEntry.address}</span>
+                  <ExternalLink size={13} className="text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+                </a>
+              )}
+              {directoryDetailEntry.notes && (
+                <div className="p-2.5 rounded-xl bg-muted/40">
+                  <div className="text-xs text-muted-foreground mb-0.5">Notes</div>
+                  <div className="text-sm leading-relaxed">{directoryDetailEntry.notes}</div>
+                </div>
+              )}
+            </div>
+
+            {/* MC actions */}
+            {isMCViewer && !isShowcaseMode && (
+              <div className="flex gap-2 pt-1">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 gap-1.5"
+                  onClick={() => {
+                    setDirForm({
+                      title: directoryDetailEntry.title,
+                      name: directoryDetailEntry.name || "",
+                      phone: directoryDetailEntry.phone || "",
+                      email: directoryDetailEntry.email || "",
+                      address: directoryDetailEntry.address || "",
+                      notes: directoryDetailEntry.notes || "",
+                    });
+                    setDirectoryEditEntry(directoryDetailEntry);
+                    setDirectoryDetailEntry(null);
+                  }}
+                  data-testid="directory-edit-btn"
+                >
+                  <Edit2 size={13} /> Edit
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="flex-1 gap-1.5 text-red-600 border-red-200 hover:bg-red-50 dark:border-red-900 dark:hover:bg-red-950/20"
+                  onClick={() => setDirDeleteConfirm(directoryDetailEntry.id)}
+                  data-testid="directory-delete-btn"
+                >
+                  <Trash2 size={13} /> Remove
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Directory Add/Edit Form Sheet */}
+      {(directoryAddOpen || directoryEditEntry) && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 w-full max-w-sm shadow-2xl space-y-4" data-testid="directory-form-sheet">
+            <div className="flex items-center justify-between">
+              <div className="font-semibold">{directoryEditEntry ? "Edit Entry" : "Add to Care Directory"}</div>
+              <button
+                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); }}
+                className="text-muted-foreground hover:text-foreground transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Category / Title <span className="text-red-500">*</span></Label>
+                <Input
+                  placeholder="e.g. Eye Doctor, Hair Salon, Physical Therapist"
+                  value={dirForm.title}
+                  onChange={e => setDirForm(f => ({ ...f, title: e.target.value }))}
+                  data-testid="dir-input-title"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Name</Label>
+                <Input
+                  placeholder="Person or business name"
+                  value={dirForm.name}
+                  onChange={e => setDirForm(f => ({ ...f, name: e.target.value }))}
+                  data-testid="dir-input-name"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Phone</Label>
+                <Input
+                  placeholder="(555) 000-0000"
+                  type="tel"
+                  value={dirForm.phone}
+                  onChange={e => setDirForm(f => ({ ...f, phone: e.target.value }))}
+                  data-testid="dir-input-phone"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Email</Label>
+                <Input
+                  placeholder="example@email.com"
+                  type="email"
+                  value={dirForm.email}
+                  onChange={e => setDirForm(f => ({ ...f, email: e.target.value }))}
+                  data-testid="dir-input-email"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Address</Label>
+                <Input
+                  placeholder="Street address or city"
+                  value={dirForm.address}
+                  onChange={e => setDirForm(f => ({ ...f, address: e.target.value }))}
+                  data-testid="dir-input-address"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">Notes</Label>
+                <Textarea
+                  placeholder="Any extra context (optional)"
+                  value={dirForm.notes}
+                  onChange={e => setDirForm(f => ({ ...f, notes: e.target.value }))}
+                  rows={2}
+                  data-testid="dir-input-notes"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => { setDirectoryAddOpen(false); setDirectoryEditEntry(null); setDirForm({ title: "", name: "", phone: "", email: "", address: "", notes: "" }); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                className="flex-1 bg-teal-600 hover:bg-teal-700 text-white"
+                disabled={!dirForm.title.trim() || addDirectoryMutation.isPending || editDirectoryMutation.isPending}
+                onClick={() => {
+                  if (directoryEditEntry) {
+                    editDirectoryMutation.mutate({ id: directoryEditEntry.id, data: dirForm });
+                  } else {
+                    addDirectoryMutation.mutate(dirForm);
+                  }
+                }}
+                data-testid="dir-save-btn"
+              >
+                {(addDirectoryMutation.isPending || editDirectoryMutation.isPending) ? "Saving..." : "Save"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Directory Delete Confirm */}
+      {dirDeleteConfirm !== null && (
+        <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-zinc-900 rounded-2xl p-5 w-full max-w-xs shadow-2xl space-y-4" data-testid="directory-delete-confirm">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-red-100 dark:bg-red-950/40 flex items-center justify-center flex-shrink-0">
+                <Trash2 size={16} className="text-red-600" />
+              </div>
+              <div>
+                <div className="font-semibold">Remove Entry?</div>
+                <div className="text-xs text-muted-foreground">This cannot be undone.</div>
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setDirDeleteConfirm(null)}>Cancel</Button>
+              <Button
+                className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={deleteDirectoryMutation.isPending}
+                onClick={() => deleteDirectoryMutation.mutate(dirDeleteConfirm)}
+                data-testid="dir-confirm-delete-btn"
+              >
+                {deleteDirectoryMutation.isPending ? "Removing..." : "Remove"}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Family Participants */}
       <Card className="border-border">

@@ -1519,3 +1519,19 @@ try {
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT '{"careLog":true,"messages":true,"schedule":true,"vitals":false}'`); } catch { /* already exists */ }
 
 // seenModules migration moved to early migration block (line ~339) to avoid startup crash
+
+// ── Care Directory Migration ──────────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS care_directory_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    name TEXT,
+    phone TEXT,
+    email TEXT,
+    address TEXT,
+    notes TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }

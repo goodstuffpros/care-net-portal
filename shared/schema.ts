@@ -918,3 +918,22 @@ export const connectionInvites = sqliteTable("connection_invites", {
 export const insertConnectionInviteSchema = createInsertSchema(connectionInvites).omit({ id: true });
 export type InsertConnectionInvite = z.infer<typeof insertConnectionInviteSchema>;
 export type ConnectionInvite = typeof connectionInvites.$inferSelect;
+
+// ── Care Directory ────────────────────────────────────────────────────────────
+// MC-managed contacts for a client: doctors, therapists, services, etc.
+// CG can view, MC can add/edit/delete. No portal access implied.
+export const careDirectoryEntries = sqliteTable("care_directory_entries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  clientId: integer("client_id").notNull(),
+  title: text("title").notNull(),       // e.g. "Eye Doctor", "Hair Salon"
+  name: text("name"),                   // person or business name
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
+  notes: text("notes"),                 // any extra context
+  createdAt: text("created_at").notNull(),
+  updatedAt: text("updated_at").notNull(),
+});
+export const insertCareDirectoryEntrySchema = createInsertSchema(careDirectoryEntries).omit({ id: true });
+export type InsertCareDirectoryEntry = z.infer<typeof insertCareDirectoryEntrySchema>;
+export type CareDirectoryEntry = typeof careDirectoryEntries.$inferSelect;

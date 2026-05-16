@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
@@ -2575,6 +2575,64 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const shift = storage.clockOut(Number(req.params.shiftId));
     if (!shift) return res.status(404).json({ message: "Shift not found" });
     res.json(shift);
+  });
+
+  // ── Care Directory ─────────────────────────────────────────────────────────
+  // GET all entries for a client
+  app.get("/api/clients/:clientId/directory", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    const entries = db.select().from(careDirectoryEntries)
+      .where(eq(careDirectoryEntries.clientId, clientId))
+      .all();
+    res.json(entries);
+  });
+
+  // POST create entry (MC only)
+  app.post("/api/clients/:clientId/directory", requireAuth, (req: AuthRequest, res) => {
+    const user = req.user!;
+    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    const clientId = Number(req.params.clientId);
+    const { title, name, phone, email, address, notes } = req.body;
+    if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
+    const now = new Date().toISOString();
+    const entry = db.insert(careDirectoryEntries).values({
+      clientId, title: title.trim(),
+      name: name?.trim() || null,
+      phone: phone?.trim() || null,
+      email: email?.trim() || null,
+      address: address?.trim() || null,
+      notes: notes?.trim() || null,
+      createdAt: now, updatedAt: now,
+    }).returning().get();
+    res.json(entry);
+  });
+
+  // PATCH update entry (MC only)
+  app.patch("/api/clients/:clientId/directory/:entryId", requireAuth, (req: AuthRequest, res) => {
+    const user = req.user!;
+    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    const entryId = Number(req.params.entryId);
+    const { title, name, phone, email, address, notes } = req.body;
+    const now = new Date().toISOString();
+    const entry = db.update(careDirectoryEntries).set({
+      ...(title !== undefined && { title: title.trim() }),
+      ...(name !== undefined && { name: name?.trim() || null }),
+      ...(phone !== undefined && { phone: phone?.trim() || null }),
+      ...(email !== undefined && { email: email?.trim() || null }),
+      ...(address !== undefined && { address: address?.trim() || null }),
+      ...(notes !== undefined && { notes: notes?.trim() || null }),
+      updatedAt: now,
+    }).where(eq(careDirectoryEntries.id, entryId)).returning().get();
+    res.json(entry);
+  });
+
+  // DELETE entry (MC only)
+  app.delete("/api/clients/:clientId/directory/:entryId", requireAuth, (req: AuthRequest, res) => {
+    const user = req.user!;
+    if (user.role !== "primary_family") return res.status(403).json({ message: "MC only" });
+    const entryId = Number(req.params.entryId);
+    db.delete(careDirectoryEntries).where(eq(careDirectoryEntries.id, entryId)).run();
+    res.json({ success: true });
   });
 
   // Care Flags
