@@ -1415,29 +1415,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
-              <div className="flex items-center justify-between px-3 py-2">
-                <span className="text-sm font-semibold text-foreground">Notifications</span>
+            <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-700 shadow-[0_8px_30px_rgba(0,0,0,0.14)] dark:shadow-[0_8px_30px_rgba(0,0,0,0.5)] rounded-xl p-0 overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 bg-zinc-50 dark:bg-zinc-800/60 border-b border-zinc-200 dark:border-zinc-700">
+                <span className="text-sm font-semibold text-zinc-800 dark:text-zinc-100">Notifications</span>
                 {unreadCount > 0 && (
                   <button
                     onClick={() => apiRequest("PATCH", `/api/users/${activeUser.id}/notifications/read-all`).then(() => queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] }))}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs text-zinc-400 dark:text-zinc-500 hover:text-zinc-700 dark:hover:text-zinc-300 transition-colors"
                     data-testid="mark-all-read-btn"
                   >
                     Mark all read
                   </button>
                 )}
               </div>
-              <DropdownMenuSeparator />
               {notifications.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
+                <div className="px-4 py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">No notifications</div>
               ) : notifications.slice(0, 8).map(n => (
                 <DropdownMenuItem
                   key={n.id}
                   className={cn(
-                    "flex flex-col items-start gap-1 py-3 cursor-pointer",
-                    n.priority === 'emergency' && "bg-red-50 dark:bg-red-950/20 border-l-2 border-red-500",
-                    !n.isRead && n.priority !== 'emergency' && "bg-accent/30"
+                    "flex flex-col items-start gap-1.5 px-4 py-3 cursor-pointer rounded-none border-b border-zinc-100 dark:border-zinc-800 last:border-0 focus:bg-zinc-50 dark:focus:bg-zinc-800/50",
+                    n.priority === 'emergency' && "bg-red-50 dark:bg-red-950/20 border-l-[3px] border-l-red-500 pl-3.5",
+                    n.priority === 'urgent' && !n.isRead && "bg-amber-50/60 dark:bg-amber-950/10",
+                    !n.isRead && n.priority !== 'emergency' && n.priority !== 'urgent' && "bg-zinc-50/80 dark:bg-zinc-800/30"
                   )}
                   onClick={() => {
                     if (!n.isRead) apiRequest("PATCH", `/api/notifications/${n.id}/read`).then(() => queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] }));
@@ -1448,8 +1448,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     <PriorityBadge priority={n.priority || "normal"} />
                     {!n.isRead && <span className="ml-auto w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
                   </div>
-                  <span className={cn("text-sm font-medium", n.priority === 'emergency' && "text-red-700 dark:text-red-300")}>{n.title}</span>
-                  <span className="text-xs text-muted-foreground">{n.body}</span>
+                  <span className={cn("text-sm font-medium text-zinc-800 dark:text-zinc-100", n.priority === 'emergency' && "text-red-700 dark:text-red-300")}>{n.title}</span>
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400 leading-relaxed">{n.body}</span>
                 </DropdownMenuItem>
               ))}
             </DropdownMenuContent>
