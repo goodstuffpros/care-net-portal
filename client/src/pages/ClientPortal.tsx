@@ -99,6 +99,7 @@ export default function ClientPortalPage() {
 
   const isPrimaryFC = activeUser.role === "primary_family";
   const canManageFlags = isPrimaryFC;
+  const isMCViewer = activeUser.role === "primary_family";
 
   const updateClientMutation = useMutation({
     mutationFn: (data: Partial<Client>) => apiRequest("PATCH", `/api/clients/${selectedClientId}`, data),
@@ -381,9 +382,9 @@ export default function ClientPortalPage() {
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{member.email}</div>
                     <div className="flex flex-wrap gap-2 mt-2">
-                      <NotifToggle label="All updates" userId={member.id} field="all" prefs={member.notificationPrefs} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
-                      <NotifToggle label="Medications" userId={member.id} field="medications" prefs={member.notificationPrefs} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
-                      <NotifToggle label="Urgent alerts" userId={member.id} field="alerts" prefs={member.notificationPrefs} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                      <NotifToggle label="All updates" userId={member.id} field="all" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                      <NotifToggle label="Medications" userId={member.id} field="medications" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                      <NotifToggle label="Urgent alerts" userId={member.id} field="alerts" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
                     </div>
                   </div>
                   <span className={cn("text-xs px-2 py-0.5 rounded-full flex-shrink-0", ROLE_COLORS[member.role])}>
@@ -1052,21 +1053,23 @@ function ClientPortalAccessSection({ clientId, clientName, clientDateOfBirth, re
   );
 }
 
-function NotifToggle({ label, userId, field, prefs, onToggle }: {
+function NotifToggle({ label, userId, field, prefs, onToggle, readOnly = false }: {
   label: string; userId: number; field: string; prefs: string | null;
   onToggle: (newPrefs: string) => void;
+  readOnly?: boolean;
 }) {
   const parsed = prefs ? JSON.parse(prefs) : {};
   const checked = parsed[field] === true;
 
   const handleChange = () => {
+    if (readOnly) return;
     const newPrefs = { ...parsed, [field]: !checked };
     onToggle(JSON.stringify(newPrefs));
   };
 
   return (
-    <label className="flex items-center gap-1.5 cursor-pointer select-none">
-      <Switch checked={checked} onCheckedChange={handleChange} className="scale-75" />
+    <label className={cn("flex items-center gap-1.5 select-none", readOnly ? "opacity-50 cursor-not-allowed" : "cursor-pointer")}>
+      <Switch checked={checked} onCheckedChange={handleChange} disabled={readOnly} className="scale-75" />
       <span className="text-xs text-muted-foreground">{label}</span>
     </label>
   );
