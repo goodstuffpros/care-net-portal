@@ -232,23 +232,23 @@ export default function CaregiversPage() {
         {(canManage || isFamily) && (
           <>
           <LessonLauncher pageKey="caregivers" />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            {/* Offline contact form — MC only. CGs cannot add anyone to the care team. */}
+            {/* Emergency contact form — MC only. CGs cannot add anyone to the care team. */}
             {activeUser.role === "primary_family" && (
             <DialogTrigger asChild>
-              <Button size="sm" variant="outline" className="gap-2 flex-1" data-testid="add-caregiver-btn">
-                <UserPlus size={15} /> Add Offline Contact
+              <Button size="sm" variant="outline" className="gap-2" data-testid="add-caregiver-btn">
+                <UserPlus size={15} /> Add Emergency Contact
               </Button>
             </DialogTrigger>
             )}
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Offline Contact</DialogTitle>
+                <DialogTitle>Add Emergency Contact</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
-                  <strong>Offline record only.</strong> This person will NOT receive an invitation, will NOT be able to log in, and will NOT have access to the portal. To give someone real portal access, use the <strong>Invite a Caregiver</strong> button instead.
+                  <strong>Emergency contact only.</strong> This person will NOT receive an invitation and will NOT have portal access. Their contact info is stored here for quick reference in urgent situations. To give someone real portal access, use the <strong>Invite a Caregiver</strong> button instead.
                 </div>
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
@@ -313,7 +313,7 @@ export default function CaregiversPage() {
                 )}
 
                 <Button className="w-full" onClick={() => addMutation.mutate()} disabled={!form.name || !form.email || (isTemp && !form.tempAccessEnd) || addMutation.isPending} data-testid="save-caregiver-btn">
-                  {addMutation.isPending ? "Saving..." : "Save Offline Contact"}
+                  {addMutation.isPending ? "Saving..." : "Save Emergency Contact"}
                 </Button>
               </div>
             </DialogContent>
@@ -329,17 +329,17 @@ export default function CaregiversPage() {
           {/* Invite buttons — MC only */}
           {isFamily && (
             <>
-              <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+              <Button size="sm" className="gap-2 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
                 <Link2 size={15} /> Invite a Caregiver
               </Button>
               {activeUser.role === "primary_family" && (
                 <>
-                  <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
+                  <Button size="sm" className="gap-2 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
                     <UserPlus size={15} /> Add Family Member
                   </Button>
                   <Button
                     size="sm"
-                    className="gap-2 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white"
                     onClick={() => {
                       setSelfCgEmail("");
                       setSelfCgLink("");

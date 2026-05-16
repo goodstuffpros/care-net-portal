@@ -367,8 +367,8 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           </div>
         )}
 
-        {/* Family member invites */}
-        <div className="rounded-2xl border border-border bg-card p-5 mb-6">
+        {/* Family member invites — only show if CG not already auto-connected */}
+        {!cgLinked && <div className="rounded-2xl border border-border bg-card p-5 mb-6">
           <div className="flex items-center gap-2 mb-3">
             <Users className="w-4 h-4 text-rose-500" />
             <p className="text-sm font-semibold text-foreground">Invite family members</p>
@@ -431,7 +431,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
               </div>
             </>
           )}
-        </div>
+        </div>}
 
         {/* Actions */}
         <Button
