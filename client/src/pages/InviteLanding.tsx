@@ -111,6 +111,8 @@ export default function InviteLanding({ token }: { token: string }) {
     if (inviteType === "mc_to_caregiver") return { you: "caregiver", them: "family" };
     if (inviteType === "caregiver_to_mc") return { you: "family contact", them: "caregiver" };
     if (inviteType === "mc_to_family") return { you: "family member", them: "family contact" };
+    if (inviteType === "mc_to_self_cg") return { you: "Self-Caregiver", them: "Main Contact" };
+    if (inviteType === "self_care_to_mc") return { you: "Main Contact", them: "the portal owner" };
     return { you: "contact", them: "user" };
   }
 

@@ -880,7 +880,7 @@ export const betaApplications = sqliteTable("beta_applications", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   email: text("email").notNull().unique(),
   name: text("name").notNull(),
-  role: text("role").notNull(), // 'caregiver' | 'family' | 'both' | 'other'
+  role: text("role").notNull(), // 'caregiver' | 'family' | 'both' | 'other' | 'self_managed'
   currentlyInCare: text("currently_in_care").notNull(), // 'yes' | 'no' | 'soon'
   intent: text("intent").notNull(), // free-text: why they want access
   agreedToConfidentiality: integer("agreed_to_confidentiality", { mode: "boolean" }).notNull(),
@@ -908,7 +908,7 @@ export const connectionInvites = sqliteTable("connection_invites", {
   clientName: text("client_name"),                  // display name for the landing page
   senderName: text("sender_name").notNull(),        // display name for the landing page
   invitedEmail: text("invited_email"),              // optional: pre-filled recipient email
-  inviteType: text("invite_type").notNull(),        // 'caregiver_to_mc' | 'mc_to_caregiver' | 'mc_to_family'
+  inviteType: text("invite_type").notNull(),        // 'caregiver_to_mc' | 'mc_to_caregiver' | 'mc_to_family' | 'mc_to_self_cg'
   status: text("status").notNull().default("pending"), // 'pending' | 'accepted' | 'expired'
   acceptedByUserId: integer("accepted_by_user_id"),
   acceptedAt: text("accepted_at"),

@@ -28,14 +28,16 @@ interface InviteContext {
   inviteType: string;
 }
 
-function inviteRoleLabel(inviteType: string): { role: "caregiver" | "family"; display: string } {
+function inviteRoleLabel(inviteType: string): { role: "caregiver" | "family" | "self_managed"; display: string } {
   if (inviteType === "mc_to_caregiver") return { role: "caregiver", display: "Caregiver" };
   if (inviteType === "caregiver_to_mc") return { role: "family", display: "Main Contact (Family)" };
   if (inviteType === "mc_to_family")    return { role: "family", display: "Family Member" };
+  if (inviteType === "mc_to_self_cg")  return { role: "self_managed", display: "Self-Caregiver" };
+  if (inviteType === "self_care_to_mc") return { role: "family", display: "Main Contact" };
   return { role: "family", display: "Family Member" };
 }
 
-type SignupRole = "caregiver" | "family";
+type SignupRole = "caregiver" | "family" | "self_managed";
 
 const SIGNUP_ROLES: {
   value: SignupRole;
@@ -63,6 +65,15 @@ const SIGNUP_ROLES: {
     icon: <Heart className="w-6 h-6" />,
     color: "border-border bg-card hover:border-rose-400/50",
     checkedColor: "border-rose-500 bg-rose-50 dark:bg-rose-950/30 ring-1 ring-rose-500/30",
+  },
+  {
+    value: "self_managed",
+    label: "Self-Managed Care",
+    subtitle: "I manage my own care",
+    description: "I am the care recipient and I manage my own record. I'll create my own care profile and optionally invite a family member to stay informed in the background.",
+    icon: <UserCog className="w-6 h-6" />,
+    color: "border-border bg-card hover:border-emerald-400/50",
+    checkedColor: "border-emerald-600 bg-emerald-50 dark:bg-emerald-950/30 ring-1 ring-emerald-600/30",
   },
 ];
 
@@ -102,7 +113,7 @@ export default function ApplyPage() {
     name: "",
     email: "",
     password: "",
-    role: "" as "" | "caregiver" | "family",
+    role: "" as "" | "caregiver" | "family" | "self_managed",
     currentlyInCare: "yes" as "yes" | "no" | "soon",
     intent: "",
     agreedToConfidentiality: false,
@@ -124,9 +135,12 @@ export default function ApplyPage() {
     setStage("form");
   }
 
+  const isSelfManaged = selectedRole === "self_managed";
   const valid = isInvited
     ? form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality
-    : form.name.trim() && form.email.trim() && form.password.length >= 8 && form.role && form.intent.trim() && form.agreedToConfidentiality;
+    : isSelfManaged
+      ? form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality
+      : form.name.trim() && form.email.trim() && form.password.length >= 8 && form.role && form.intent.trim() && form.agreedToConfidentiality;
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -243,7 +257,9 @@ export default function ApplyPage() {
                       "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
                       r.value === "caregiver"
                         ? isSelected ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"
-                        : isSelected ? "bg-rose-500 text-white" : "bg-muted text-muted-foreground"
+                        : r.value === "self_managed"
+                          ? isSelected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
+                          : isSelected ? "bg-rose-500 text-white" : "bg-muted text-muted-foreground"
                     )}>
                       {r.icon}
                     </div>
@@ -255,13 +271,15 @@ export default function ApplyPage() {
                             "text-xs font-medium mt-0.5",
                             r.value === "caregiver"
                               ? isSelected ? "text-teal-600" : "text-muted-foreground"
-                              : isSelected ? "text-rose-500" : "text-muted-foreground"
+                              : r.value === "self_managed"
+                                ? isSelected ? "text-emerald-600" : "text-muted-foreground"
+                                : isSelected ? "text-rose-500" : "text-muted-foreground"
                           )}>{r.subtitle}</p>
                         </div>
                         {isSelected && (
                           <CheckCircle2 className={cn(
                             "w-5 h-5 flex-shrink-0 mt-0.5",
-                            r.value === "caregiver" ? "text-teal-600" : "text-rose-500"
+                            r.value === "caregiver" ? "text-teal-600" : r.value === "self_managed" ? "text-emerald-600" : "text-rose-500"
                           )} />
                         )}
                       </div>
@@ -304,11 +322,13 @@ export default function ApplyPage() {
         <div className="text-center mb-8">
           <div className={cn(
             "inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4",
-            isMC ? "bg-rose-500/10" : "bg-teal-600/10"
+            isSelfManaged ? "bg-emerald-600/10" : isMC ? "bg-rose-500/10" : "bg-teal-600/10"
           )}>
-            {isMC
-              ? <Heart className="w-6 h-6 text-rose-500" />
-              : <Briefcase className="w-6 h-6 text-teal-600" />
+            {isSelfManaged
+              ? <UserCog className="w-6 h-6 text-emerald-600" />
+              : isMC
+                ? <Heart className="w-6 h-6 text-rose-500" />
+                : <Briefcase className="w-6 h-6 text-teal-600" />
             }
           </div>
           {isInvited ? (
@@ -321,12 +341,18 @@ export default function ApplyPage() {
           ) : (
             <>
               <h1 className="text-xl font-semibold text-foreground">
-                {isMC ? "Create your Main Contact account" : "Create your Caregiver account"}
+                {isSelfManaged
+                  ? "Create your Self-Managed Care account"
+                  : isMC
+                    ? "Create your Main Contact account"
+                    : "Create your Caregiver account"}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                {isMC
-                  ? "You'll set up your loved one's profile right after this. A professional caregiver is optional."
-                  : "You'll connect with your client's family once they invite you."}
+                {isSelfManaged
+                  ? "You'll set up your own care profile right after this."
+                  : isMC
+                    ? "You'll set up your loved one's profile right after this. A professional caregiver is optional."
+                    : "You'll connect with your client's family once they invite you."}
               </p>
             </>
           )}
@@ -362,16 +388,23 @@ export default function ApplyPage() {
         {!isInvited && roleInfo && (
           <div className={cn(
             "mb-5 rounded-xl border px-4 py-3 flex items-center gap-3",
-            isMC ? "border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900" : "border-teal-200 bg-teal-50 dark:bg-teal-950/20 dark:border-teal-900"
+            isSelfManaged
+              ? "border-emerald-200 bg-emerald-50 dark:bg-emerald-950/20 dark:border-emerald-900"
+              : isMC
+                ? "border-rose-200 bg-rose-50 dark:bg-rose-950/20 dark:border-rose-900"
+                : "border-teal-200 bg-teal-50 dark:bg-teal-950/20 dark:border-teal-900"
           )}>
             <div className={cn(
               "w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0",
-              isMC ? "bg-rose-500 text-white" : "bg-teal-600 text-white"
+              isSelfManaged ? "bg-emerald-600 text-white" : isMC ? "bg-rose-500 text-white" : "bg-teal-600 text-white"
             )}>
               {roleInfo.icon}
             </div>
             <div className="flex-1">
-              <p className={cn("text-sm font-semibold", isMC ? "text-rose-700 dark:text-rose-400" : "text-teal-700 dark:text-teal-400")}>{roleInfo.label}</p>
+              <p className={cn(
+                "text-sm font-semibold",
+                isSelfManaged ? "text-emerald-700 dark:text-emerald-400" : isMC ? "text-rose-700 dark:text-rose-400" : "text-teal-700 dark:text-teal-400"
+              )}>{roleInfo.label}</p>
               <p className="text-xs text-muted-foreground">{roleInfo.subtitle}</p>
             </div>
             <button
@@ -413,8 +446,8 @@ export default function ApplyPage() {
               )}
             </div>
 
-            {/* Why do you want access — only for non-invited, normal signup */}
-            {!isInvited && (
+            {/* Why do you want access — only for non-invited, non-self-managed signup */}
+            {!isInvited && !isSelfManaged && (
               <div className="space-y-1.5">
                 <Label htmlFor="apply-intent">
                   {isMC
@@ -443,7 +476,12 @@ export default function ApplyPage() {
               </label>
             </div>
 
-            <Button type="button" className={cn("w-full", isMC ? "bg-rose-600 hover:bg-rose-700 text-white" : "bg-teal-600 hover:bg-teal-700 text-white")} disabled={loading || !valid} onClick={() => handleSubmit()} data-testid="button-submit-apply">
+            <Button type="button" className={cn(
+              "w-full",
+              isSelfManaged ? "bg-emerald-600 hover:bg-emerald-700 text-white"
+              : isMC ? "bg-rose-600 hover:bg-rose-700 text-white"
+              : "bg-teal-600 hover:bg-teal-700 text-white"
+            )} disabled={loading || !valid} onClick={() => handleSubmit()} data-testid="button-submit-apply">
               {loading
                 ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Creating account…</>
                 : isInvited

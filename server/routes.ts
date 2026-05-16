@@ -27,7 +27,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // POST /api/auth/apply — submit beta application + create account + send verification email
   app.post("/api/auth/apply", async (req: AuthRequest, res) => {
     const { email, name, role, currentlyInCare, intent, agreedToConfidentiality, password, inviteToken: connectionInviteToken } = req.body;
-    if (!email || !name || !role || !currentlyInCare || !intent || !agreedToConfidentiality || !password) {
+    // self_managed path may omit currentlyInCare/intent — we auto-fill them
+    const resolvedCurrentlyInCare = currentlyInCare || (role === "self_managed" ? "yes" : null);
+    const resolvedIntent = intent || (role === "self_managed" ? "Self-Managed Care signup" : null);
+    if (!email || !name || !role || !resolvedCurrentlyInCare || !resolvedIntent || !agreedToConfidentiality || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
     if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });
@@ -49,8 +52,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
       email: normalizedEmail,
       name: name.trim(),
       role,
-      currentlyInCare,
-      intent: intent.trim(),
+      currentlyInCare: resolvedCurrentlyInCare,
+      intent: resolvedIntent.trim(),
       agreedToConfidentiality: !!agreedToConfidentiality,
       status: "pending",
       createdAt: new Date().toISOString(),
@@ -480,6 +483,85 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true });
   });
 
+  // POST /api/onboarding/self-care-setup — Self-Managed Care path
+  // After profile is saved, user creates their own client record and optionally invites MC.
+  // Creates client, sets role: self_care, permissionLevel: self_care_mc, links clientUserId.
+  app.post("/api/onboarding/self-care-setup", requireAuthAccount, async (req: AuthRequest, res) => {
+    const { clientName, clientDob, clientCondition, inviteMcEmail } = req.body;
+    if (!clientName) return res.status(400).json({ message: "Your name is required for the client record" });
+
+    try {
+      const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+      if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
+
+      const user = db.select().from(users).where(eq(users.id, account.userId)).get();
+      if (!user) return res.status(401).json({ message: "User not found" });
+
+      // Create the client record, self-linking this user as both caregiver and clientUser
+      const newClient = storage.createSelfCareClient(
+        user.id,
+        clientName.trim(),
+        clientDob || null,
+        clientCondition || null,
+      );
+
+      // Mark onboarding complete
+      db.update(users).set({ onboardingCompletedAt: new Date().toISOString() })
+        .where(eq(users.id, user.id)).run();
+
+      let mcInviteToken: string | null = null;
+
+      // Optionally create an MC invite right away
+      if (inviteMcEmail && inviteMcEmail.trim()) {
+        const token = generateToken(32);
+        const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+        const now = new Date().toISOString();
+        db.insert(connectionInvites).values({
+          token,
+          senderUserId: user.id,
+          senderRole: user.role,
+          clientId: newClient.id,
+          clientName: newClient.name,
+          senderName: user.name || account.email || "Care Net Portal",
+          invitedEmail: inviteMcEmail.trim(),
+          inviteType: "self_care_to_mc",
+          status: "pending",
+          expiresAt,
+          createdAt: now,
+        }).run();
+        mcInviteToken = token;
+
+        const appUrl = process.env.APP_URL || "https://care-net-portal-production.up.railway.app";
+        const inviteUrl = `${appUrl}/#/invite/${token}`;
+        await sendEmail({
+          to: inviteMcEmail.trim(),
+          subject: `${user.name || "Someone"} invited you to be their Main Contact on Care Net Portal`,
+          html: `
+            <div style="font-family: sans-serif; max-width: 520px; margin: 0 auto; padding: 32px 24px; color: #28251D;">
+              <div style="background: #01696F; color: white; padding: 24px; border-radius: 12px 12px 0 0; text-align: center;">
+                <h1 style="margin: 0; font-size: 22px;">Care Net Portal</h1>
+                <p style="margin: 8px 0 0; opacity: 0.85;">You've been invited</p>
+              </div>
+              <div style="background: #F7F6F2; padding: 24px; border-radius: 0 0 12px 12px; border: 1px solid #D4D1CA;">
+                <p style="font-size: 16px;"><strong>${user.name || "Someone you know"}</strong> has invited you to be their <strong>Main Contact</strong> on Care Net Portal.</p>
+                <p style="color: #5A5957; font-size: 14px;">As their Main Contact, you’ll have visibility into their care record and can support them from the background. They remain in full control of their portal.</p>
+                <div style="text-align: center; margin: 28px 0;">
+                  <a href="${inviteUrl}" style="background: #01696F; color: white; padding: 14px 32px; border-radius: 8px; text-decoration: none; font-size: 16px; font-weight: 600;">Accept Invitation</a>
+                </div>
+                <p style="color: #BAB9B4; font-size: 12px; text-align: center;">This invitation expires in 7 days.</p>
+              </div>
+            </div>
+          `,
+        }).catch(err => console.error("[self-care-setup] invite email failed:", err));
+      }
+
+      res.json({ success: true, clientId: newClient.id, mcInviteToken });
+    } catch (err: any) {
+      console.error("[onboarding/self-care-setup] ERROR:", err?.message || err);
+      res.status(500).json({ message: err?.message || "Setup failed" });
+    }
+  });
+
   // POST /api/mc/setup — MC wizard completion
   // Creates the client (loved one) row, saves care path choice, marks setup done
   app.post("/api/mc/setup", requireAuthAccount, async (req: AuthRequest, res) => {
@@ -545,8 +627,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
       if (!user) return res.status(404).json({ message: "User not found" });
 
       const { invitedEmail, inviteType } = req.body;
-      // inviteType: 'mc_to_caregiver' | 'caregiver_to_mc' | 'mc_to_family'
-      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client"];
+      // inviteType: 'mc_to_caregiver' | 'caregiver_to_mc' | 'mc_to_family' | 'mc_to_self_cg' | 'self_care_to_mc'
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client", "mc_to_self_cg", "self_care_to_mc"];
       if (!inviteType || !validTypes.includes(inviteType)) {
         return res.status(400).json({ message: "Invalid invite type" });
       }
@@ -584,7 +666,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // Optionally send invite email if email provided
       if (invitedEmail) {
         const roleLabel = inviteType === "mc_to_caregiver" ? "caregiver" :
-                          inviteType === "caregiver_to_mc" ? "family contact" : "family member";
+                          inviteType === "caregiver_to_mc" ? "family contact" :
+                          inviteType === "mc_to_self_cg" ? "Self-Caregiver" :
+                          inviteType === "self_care_to_mc" ? "Main Contact" : "family member";
         await sendEmail({
           to: invitedEmail,
           subject: `${senderName} invited you to Care Net Portal`,
@@ -716,7 +800,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const { targetEmail, targetUserId, inviteType: rawInviteType } = req.body;
       if (!targetEmail || !targetUserId) return res.status(400).json({ message: "targetEmail and targetUserId required" });
-      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client"];
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client", "mc_to_self_cg", "self_care_to_mc"];
       const resolvedInviteType = validTypes.includes(rawInviteType) ? rawInviteType : "mc_to_caregiver";
 
       // Verify target is a real active user
@@ -847,6 +931,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
             .where(eq(users.id, acceptingUser.id)).run();
           // Link the client record back to this user account
           storage.linkClientUser(clientId, acceptingUser.id);
+        }
+      } else if (invite.inviteType === "mc_to_self_cg") {
+        // Path B: MC invites an adult to be their own self-caregiver.
+        // Acceptor becomes self_care / self_care_mc and IS the client.
+        // MC stays as primary_family (monitoring role). Ability ≠ authority.
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          db.update(users).set({ clientId, role: "self_care", permissionLevel: "self_care_mc" })
+            .where(eq(users.id, acceptingUser.id)).run();
+          // Self-link: this user is now the client
+          storage.linkClientUser(clientId, acceptingUser.id);
+        }
+      } else if (invite.inviteType === "self_care_to_mc") {
+        // Path A MC half: self-care user invited mom/family as Main Contact.
+        // Acceptor gets primary_family role on the sender's client.
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          // If acceptor already has a different client, only link if they don't
+          db.update(users).set({ clientId, role: "primary_family" })
+            .where(eq(users.id, acceptingUser.id)).run();
         }
       }
 

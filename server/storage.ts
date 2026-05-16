@@ -725,6 +725,7 @@ export interface IStorage {
   createPracticeClient(caregiverId: number, dateOfBirth: string, primaryCondition: string): Client;
   deletePracticeClient(clientId: number): void;
   setShowcase(clientId: number, isShowcase: boolean): Client | undefined;
+  createSelfCareClient(userId: number, clientName: string, dateOfBirth: string | null, primaryCondition: string | null): Client;
 
   // Client Empowerment
   linkClientUser(clientId: number, userId: number): Client | undefined;
@@ -923,6 +924,29 @@ export const storage: IStorage = {
   },
   setShowcase: (clientId, isShowcase) =>
     db.update(clients).set({ isShowcase }).where(eq(clients.id, clientId)).returning().get(),
+
+  // Self-Managed Care — create a real client record owned by the self-care user themselves
+  createSelfCareClient: (userId, clientName, dateOfBirth, primaryCondition) => {
+    const client = db.insert(clients).values({
+      name: clientName,
+      caregiverId: userId,
+      primaryContactId: userId,
+      dateOfBirth: dateOfBirth || null,
+      primaryCondition: primaryCondition || null,
+      isPractice: false,
+      isShowcase: false,
+      isActive: true,
+      appMode: "caregiver",
+      clientUserId: userId, // self-linked: this user IS the client
+    }).returning().get();
+    // Link user row → client, set role + permissionLevel, record clientUserId
+    db.update(users).set({
+      clientId: client.id,
+      role: "self_care",
+      permissionLevel: "self_care_mc",
+    }).where(eq(users.id, userId)).run();
+    return client;
+  },
 
   // Client Empowerment
   linkClientUser: (clientId, userId) =>

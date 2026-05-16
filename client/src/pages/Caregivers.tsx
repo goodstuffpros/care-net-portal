@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Link2, Mail, Search, UserCheck, Send } from "lucide-react";
+import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Link2, Mail, Search, UserCheck, Send, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { LessonLauncher } from "@/components/LessonLauncher";
@@ -47,6 +47,11 @@ export default function CaregiversPage() {
   const [addOpen, setAddOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
   const [familyInviteOpen, setFamilyInviteOpen] = useState(false);
+  const [selfCgInviteOpen, setSelfCgInviteOpen] = useState(false);
+  const [selfCgEmail, setSelfCgEmail] = useState("");
+  const [selfCgLink, setSelfCgLink] = useState("");
+  const [selfCgTab, setSelfCgTab] = useState<"new" | "existing">("new");
+  const [selfCgSent, setSelfCgSent] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteLink, setInviteLink] = useState("");
   const [copied, setCopied] = useState(false);
@@ -62,6 +67,24 @@ export default function CaregiversPage() {
     ? "mc_to_caregiver"
     : "caregiver_to_mc";
   const inviteLabel = inviteType === "caregiver_to_mc" ? "Family Contact (MC)" : "Caregiver";
+
+  const createSelfCgInviteMutation = useMutation({
+    mutationFn: (email?: string) => apiRequest("POST", "/api/invite/create", {
+      inviteType: "mc_to_self_cg",
+      invitedEmail: email || undefined,
+    }).then(r => r.json()),
+    onSuccess: (data) => {
+      if (data?.token) {
+        const link = `${window.location.origin}/#/invite/${data.token}`;
+        setSelfCgLink(link);
+      }
+      if (selfCgEmail) {
+        setSelfCgSent(true);
+        toast({ title: "Invite sent!", description: `An email was sent to ${selfCgEmail}.` });
+      }
+    },
+    onError: () => toast({ title: "Could not create invite", description: "Please try again.", variant: "destructive" }),
+  });
 
   const createInviteMutation = useMutation({
     mutationFn: (email?: string) => apiRequest("POST", "/api/invite/create", {
@@ -301,9 +324,26 @@ export default function CaregiversPage() {
                 <Link2 size={15} /> Invite a Caregiver
               </Button>
               {activeUser.role === "primary_family" && (
-                <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
-                  <UserPlus size={15} /> Add Family Member
-                </Button>
+                <>
+                  <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
+                    <UserPlus size={15} /> Add Family Member
+                  </Button>
+                  <Button
+                    size="sm"
+                    className="gap-2 flex-1 bg-emerald-600 hover:bg-emerald-700 text-white"
+                    onClick={() => {
+                      setSelfCgEmail("");
+                      setSelfCgLink("");
+                      setSelfCgSent(false);
+                      setSelfCgTab("new");
+                      setSelfCgInviteOpen(true);
+                      createSelfCgInviteMutation.mutate(undefined);
+                    }}
+                    data-testid="invite-self-cg-btn"
+                  >
+                    <UserCog size={15} /> Invite as Self-Caregiver
+                  </Button>
+                </>
               )}
             </>
           )}
@@ -581,6 +621,111 @@ export default function CaregiversPage() {
 
       {/* Family Member invite sheet — MC only */}
       <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
+
+      {/* Invite as Self-Caregiver sheet — MC only (Path B) */}
+      <Sheet open={selfCgInviteOpen} onOpenChange={setSelfCgInviteOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl pb-10">
+          <SheetHeader className="mb-4">
+            <SheetTitle className="flex items-center gap-2">
+              <UserCog size={16} className="text-emerald-600" />
+              Invite as Self-Caregiver
+            </SheetTitle>
+          </SheetHeader>
+
+          <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+            Use this when someone manages their own care and you want to give them a portal. They'll create their own account and be linked to their own record. You'll stay connected as their Main Contact in the background.
+          </p>
+
+          {selfCgSent ? (
+            <div className="text-center py-8 space-y-3">
+              <div className="w-12 h-12 rounded-full bg-emerald-100 dark:bg-emerald-950/30 flex items-center justify-center mx-auto">
+                <UserCheck size={22} className="text-emerald-600" />
+              </div>
+              <p className="font-semibold text-sm">Invite sent to {selfCgEmail}</p>
+              <p className="text-xs text-muted-foreground max-w-xs mx-auto">
+                Once they create their account and accept, they'll be the primary manager of their own care record.
+              </p>
+              <Button variant="outline" size="sm" onClick={() => setSelfCgInviteOpen(false)}>Done</Button>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* Tab switcher */}
+              <div className="flex gap-1 p-1 bg-muted rounded-lg">
+                <button
+                  type="button"
+                  onClick={() => setSelfCgTab("new")}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    selfCgTab === "new" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  data-testid="self-cg-tab-new"
+                >
+                  Send invite link
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelfCgTab("existing")}
+                  className={cn(
+                    "flex-1 py-1.5 rounded-md text-xs font-medium transition-all",
+                    selfCgTab === "existing" ? "bg-background shadow-sm text-foreground" : "text-muted-foreground hover:text-foreground"
+                  )}
+                  data-testid="self-cg-tab-email"
+                >
+                  Send via email
+                </button>
+              </div>
+
+              {selfCgTab === "new" && selfCgLink && (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">Share this link. When they open it and create an account, they'll be set up as a Self-Caregiver on your portal.</p>
+                  <div className="flex gap-2">
+                    <Input value={selfCgLink} readOnly className="flex-1 text-xs font-mono" data-testid="self-cg-invite-link" />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-shrink-0"
+                      onClick={() => {
+                        navigator.clipboard.writeText(selfCgLink);
+                        toast({ title: "Link copied!" });
+                      }}
+                      data-testid="copy-self-cg-link-btn"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {selfCgTab === "existing" && (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted-foreground">Enter their email and we'll send them the invite directly.</p>
+                  <div className="flex gap-2">
+                    <Input
+                      type="email"
+                      placeholder="name@example.com"
+                      value={selfCgEmail}
+                      onChange={e => setSelfCgEmail(e.target.value)}
+                      onKeyDown={e => e.key === "Enter" && selfCgEmail && createSelfCgInviteMutation.mutate(selfCgEmail)}
+                      className="flex-1"
+                      data-testid="self-cg-email-input"
+                    />
+                    <Button
+                      size="sm"
+                      className="flex-shrink-0 gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white"
+                      onClick={() => createSelfCgInviteMutation.mutate(selfCgEmail)}
+                      disabled={!selfCgEmail || createSelfCgInviteMutation.isPending}
+                      data-testid="send-self-cg-invite-btn"
+                    >
+                      <Mail size={14} /> {createSelfCgInviteMutation.isPending ? "Sending…" : "Send"}
+                    </Button>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">Invite link expires in 7 days.</p>
+                </div>
+              )}
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
