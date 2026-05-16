@@ -170,7 +170,7 @@ export default function CaregiversPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/users"] });
       setAddOpen(false);
       setForm({ name: "", email: "", phone: "", role: "multi_caregiver", tempAccessStart: "", tempAccessEnd: "", tempAccessReason: "vacation" });
-      toast({ title: "Caregiver added", description: `${form.name} now has access to this client's portal.` });
+      toast({ title: "Offline contact saved", description: `${form.name} has been added as an offline contact. They do not have portal access.` });
     },
   });
 
@@ -211,16 +211,19 @@ export default function CaregiversPage() {
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             {!isFamily && (
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-2 flex-1" data-testid="add-caregiver-btn">
-                <UserPlus size={15} /> Add Caregiver
+              <Button size="sm" variant="outline" className="gap-2 flex-1" data-testid="add-caregiver-btn">
+                <UserPlus size={15} /> Add Offline Contact
               </Button>
             </DialogTrigger>
             )}
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Add Caregiver Profile</DialogTitle>
+                <DialogTitle>Add Offline Contact</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
+                <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300">
+                  <strong>Offline record only.</strong> This person will NOT receive an invitation, will NOT be able to log in, and will NOT have access to the portal. To give someone real portal access, use the <strong>Invite a Caregiver</strong> button instead.
+                </div>
                 <div className="space-y-1.5">
                   <Label>Full Name</Label>
                   <Input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Jane Smith" data-testid="caregiver-name-input" />
@@ -284,7 +287,7 @@ export default function CaregiversPage() {
                 )}
 
                 <Button className="w-full" onClick={() => addMutation.mutate()} disabled={!form.name || !form.email || (isTemp && !form.tempAccessEnd) || addMutation.isPending} data-testid="save-caregiver-btn">
-                  {addMutation.isPending ? "Adding..." : "Add to Care Team"}
+                  {addMutation.isPending ? "Saving..." : "Save Offline Contact"}
                 </Button>
               </div>
             </DialogContent>

@@ -900,7 +900,7 @@ export const storage: IStorage = {
   getCaregiversByClientId: (clientId) => db.select().from(users)
     .where(eq(users.clientId, clientId))
     .all()
-    .filter(u => ['caregiver','temp_caregiver','multi_caregiver'].includes(u.role)),
+    .filter(u => ['caregiver','temp_caregiver','multi_caregiver'].includes(u.role) && u.isActive !== false),
 
   // Misc Notes
   getMiscNotesByClient: (clientId) => db.select().from(miscNotes).where(eq(miscNotes.clientId, clientId)).orderBy(desc(miscNotes.createdAt)).all(),
