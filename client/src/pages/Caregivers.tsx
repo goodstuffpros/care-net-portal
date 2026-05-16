@@ -41,7 +41,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function CaregiversPage() {
-  const { activeUser, selectedClientId, appMode, isPracticeClient } = useApp();
+  const { activeUser, selectedClientId, appMode, isPracticeClient, sampleClientId } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
@@ -61,6 +61,8 @@ export default function CaregiversPage() {
   const [findStatus, setFindStatus] = useState<"idle" | "searching" | "invalid_email" | "not_found" | "not_caregiver" | "found" | "sent">("idle");
   const canManage = activeUser.role === "caregiver" || activeUser.role === "facilitator";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
+  // CG has no real client when clientId is null, or still pointing at their practice client
+  const cgHasNoRealClient = canManage && (!activeUser.clientId || isPracticeClient || activeUser.clientId === sampleClientId);
 
   // Invite type: CG invites MC, MC invites CG or family
   const inviteType = (activeUser.role === "primary_family" || activeUser.role === "secondary_family")
@@ -318,7 +320,7 @@ export default function CaregiversPage() {
           </Dialog>
 
           {/* Invite a Family Contact — CG only, shown when not yet connected to a real client */}
-          {canManage && isPracticeClient && (
+          {cgHasNoRealClient && (
             <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="cg-invite-family-btn">
               <Link2 size={15} /> Invite a Family Contact
             </Button>
