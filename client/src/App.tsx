@@ -65,7 +65,7 @@ import MCSetupWizard from "@/pages/MCSetupWizard";
 import AppLayout from "@/components/AppLayout";
 
 // Role types
-export type UserRole = "caregiver" | "temp_caregiver" | "multi_caregiver" | "primary_family" | "secondary_family";
+export type UserRole = "caregiver" | "temp_caregiver" | "multi_caregiver" | "primary_family" | "secondary_family" | "self_care";
 
 export interface ActiveUser {
   id: number;
@@ -85,7 +85,7 @@ export function isCaregiverRole(role: UserRole) {
 
 
 export type ColorTheme = "teal" | "sand" | "navy" | "lavender";
-export type PortalMode = "dedicated" | "family";
+export type PortalMode = "dedicated" | "family" | "client";
 
 interface AppContextType {
   activeUser: ActiveUser;
@@ -109,6 +109,8 @@ interface AppContextType {
   isInSampleMode: boolean; // true when active clientId === sampleClientId
   isPracticeClient: boolean; // alias for isInSampleMode — kept for backward compat
   isShowcaseMode: boolean; // true when CG has enabled showcase view for their sample client
+  isClientPortal: boolean; // true when user is self_care role (client viewing their own record)
+  clientPermissionLevel: 'observer' | 'contributor' | 'self_care_mc' | null; // self_care users only
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
@@ -125,6 +127,7 @@ interface RealUser {
   email: string;
   clientId?: number | null;
   sampleClientId?: number | null;
+  permissionLevel?: string | null;
   onboardingCompletedAt?: string | null;
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
@@ -136,7 +139,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
 
   // Real MC who just completed setup — start in family portal mode
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
-  const startPortalMode: PortalMode = isMCReal ? "family" : "dedicated";
+  const isClientRole = realUser?.role === "self_care";
+  const startPortalMode: PortalMode = isClientRole ? "client" : isMCReal ? "family" : "dedicated";
 
   // Admin email list — temporary until isAdmin DB column is wired pre-launch
   const ADMIN_EMAILS = ["goodstuffpros@gmail.com", "becky@carenetportal.com"];
@@ -156,13 +160,17 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   };
   const initialActiveUser = buildRealActiveUser() ?? { id: 0, name: "Guest", role: "caregiver" as UserRole, avatarInitials: "G", clientId: null };
   const isRealSession = true; // demo mode removed
-  const isPreConnection = !realUser?.clientId;
+  const isPreConnection = !realUser?.clientId && realUser?.role !== 'self_care';
 
   const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
   const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
   const [sampleClientId, setSampleClientId] = useState<number | null>(realUser?.sampleClientId ?? null);
   const [isPracticeClient, setIsPracticeClient] = useState(false);
   const [isShowcaseMode, setIsShowcaseMode] = useState(false);
+  const isClientPortal = realUser?.role === "self_care";
+  const [clientPermissionLevel, setClientPermissionLevel] = useState<'observer' | 'contributor' | 'self_care_mc' | null>(
+    (realUser?.permissionLevel as 'observer' | 'contributor' | 'self_care_mc' | null) ?? null
+  );
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -176,7 +184,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   }, [theme]);
 
   useEffect(() => {
-    const attr = portalMode === "family" ? "rose" : colorTheme;
+    const attr = portalMode === "client" ? "client" : portalMode === "family" ? "rose" : colorTheme;
     document.documentElement.setAttribute("data-color-theme", attr);
     document.documentElement.setAttribute("data-portal-mode", portalMode);
   }, [colorTheme, portalMode]);
@@ -308,6 +316,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         isInSampleMode: isPracticeClient,
         isPracticeClient,
         isShowcaseMode,
+        isClientPortal,
+        clientPermissionLevel,
         navOverlayOpen,
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",
@@ -571,6 +581,8 @@ function RealAuthGate() {
             role: data.role,
             email: data.email,
             clientId: data.clientId ?? null,
+            sampleClientId: data.sampleClientId ?? null,
+            permissionLevel: data.permissionLevel ?? null,
             onboardingCompletedAt: data.onboardingCompletedAt ?? null,
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,
@@ -597,7 +609,8 @@ function RealAuthGate() {
   if (checking) return null; // brief flicker prevention
 
   // Real user who hasn't completed onboarding wizard yet
-  if (realUser && !onboardingDone) {
+  // self_care users skip ALL onboarding — they go straight to MainApp
+  if (realUser && !onboardingDone && realUser.role !== "self_care") {
     return (
       <QueryClientProvider client={queryClient}>
         <OnboardingWizard
@@ -611,6 +624,7 @@ function RealAuthGate() {
 
   // MC user who hasn't completed the setup wizard yet
   // secondary_family arrives via invite (already connected) — they skip MC setup
+  // self_care arrives via mc_to_client invite — they also skip MC setup (role !== primary_family)
   const isMCRole = realUser?.role === "primary_family";
   if (realUser && onboardingDone && isMCRole && !realUser.mcSetupCompletedAt) {
     return (

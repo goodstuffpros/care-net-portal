@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus } from "lucide-react";
+import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
@@ -615,6 +615,11 @@ export default function ClientPortalPage() {
       {/* Invite Family Member Sheet (MC only) — shared component */}
       <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
 
+      {/* ── CLIENT PORTAL ACCESS (MC side) ───────────────────────────────── */}
+      {isPrimaryFC && (
+        <ClientPortalAccessSection clientId={selectedClientId} clientName={client?.name ?? "Client"} allUsers={allUsers} />
+      )}
+
       {/* Access Level Info */}
       <Card className="border-border">
         <CardHeader className="pb-3">
@@ -643,6 +648,154 @@ export default function ClientPortalPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+// ── Client Portal Access Section (MC side) ──────────────────────────────────
+function ClientPortalAccessSection({ clientId, clientName, allUsers }: {
+  clientId: number;
+  clientName: string;
+  allUsers: any[];
+}) {
+  const { toast } = useToast();
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [showInviteForm, setShowInviteForm] = useState(false);
+
+  // Check if client already has a portal user linked
+  const { data: portalStatus, refetch: refetchStatus } = useQuery<{
+    hasPortalAccess: boolean;
+    permissionLevel: string | null;
+    userId: number | null;
+  }>({
+    queryKey: ["/api/clients", clientId, "client-portal-status"],
+    queryFn: () => apiRequest("GET", `/api/clients/${clientId}/client-portal-status`).then(r => r.json()),
+  });
+
+  const inviteMutation = useMutation({
+    mutationFn: (email: string) =>
+      apiRequest("POST", "/api/invite/create", { inviteType: "mc_to_client", recipientEmail: email, clientId }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Invite sent", description: `An invitation was sent to ${inviteEmail}. They will sign in as a read-only observer.` });
+      setInviteEmail("");
+      setShowInviteForm(false);
+      refetchStatus();
+    },
+    onError: () => toast({ title: "Could not send invite", description: "Please check the email and try again.", variant: "destructive" }),
+  });
+
+  const upgradeMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", `/api/clients/${clientId}/client-permission`, { permissionLevel: "contributor" }),
+    onSuccess: () => {
+      toast({ title: "Access upgraded", description: `${clientName} can now contribute to their own record.` });
+      refetchStatus();
+    },
+    onError: () => toast({ title: "Upgrade failed", description: "Please try again.", variant: "destructive" }),
+  });
+
+  const statusLabel = !portalStatus?.hasPortalAccess
+    ? "No portal access"
+    : portalStatus.permissionLevel === "contributor"
+    ? "Contributor"
+    : portalStatus.permissionLevel === "self_care_mc"
+    ? "Self-Care MC"
+    : "Observer (read-only)";
+
+  const statusColor = !portalStatus?.hasPortalAccess
+    ? "bg-muted/50 text-muted-foreground border-border"
+    : portalStatus.permissionLevel === "contributor"
+    ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-400 border-emerald-200 dark:border-emerald-900"
+    : portalStatus.permissionLevel === "self_care_mc"
+    ? "bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200 dark:border-blue-900"
+    : "bg-teal-50 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border-teal-200 dark:border-teal-900";
+
+  return (
+    <Card className="border-border" data-testid="client-portal-access-card">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+          <UserPlus size={16} className="text-emerald-600 dark:text-emerald-400" /> Client Portal Access
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="text-xs text-muted-foreground leading-relaxed">
+          Invite {clientName} to view their own care record. They will receive a private login and see their schedule, vitals, medications, activity, and documents in a simplified read-only view.
+        </div>
+
+        {/* Status row */}
+        <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 border border-border">
+          <div className="flex-1 min-w-0">
+            <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-0.5">Current Access</div>
+            <div className="flex items-center gap-2">
+              <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", statusColor)} data-testid="portal-access-status">
+                {statusLabel}
+              </span>
+            </div>
+          </div>
+          {!portalStatus?.hasPortalAccess && !showInviteForm && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/30"
+              onClick={() => setShowInviteForm(true)}
+              data-testid="invite-client-portal-btn"
+            >
+              <Mail size={13} /> Invite {clientName}
+            </Button>
+          )}
+          {portalStatus?.hasPortalAccess && portalStatus.permissionLevel === "observer" && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="gap-1.5 h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/30"
+              onClick={() => upgradeMutation.mutate()}
+              disabled={upgradeMutation.isPending}
+              data-testid="upgrade-to-contributor-btn"
+            >
+              <ArrowUpCircle size={13} /> Upgrade to Contributor
+            </Button>
+          )}
+        </div>
+
+        {/* Invite form */}
+        {showInviteForm && (
+          <div className="space-y-3 p-3 rounded-lg bg-muted/20 border border-border">
+            <div className="text-xs font-medium text-foreground">{clientName}'s email address</div>
+            <div className="flex gap-2">
+              <input
+                type="email"
+                value={inviteEmail}
+                onChange={e => setInviteEmail(e.target.value)}
+                placeholder="client@example.com"
+                className="flex-1 text-sm px-3 py-2 rounded-lg border border-border bg-background focus:outline-none focus:ring-1 focus:ring-ring"
+                data-testid="client-invite-email-input"
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => { setShowInviteForm(false); setInviteEmail(""); }}
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                className="flex-1 gap-1.5"
+                disabled={!inviteEmail.trim() || inviteMutation.isPending}
+                onClick={() => inviteMutation.mutate(inviteEmail.trim())}
+                data-testid="send-client-invite-btn"
+              >
+                <Mail size={13} />
+                {inviteMutation.isPending ? "Sending..." : "Send Invite"}
+              </Button>
+            </div>
+            <div className="text-xs text-muted-foreground">
+              They will receive an email with a private link to create their portal login. Access starts as read-only (Observer).
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 

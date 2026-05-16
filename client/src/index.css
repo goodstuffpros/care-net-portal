@@ -204,6 +204,25 @@
   --accent: 345 30% 18%;
   --accent-foreground: 345 52% 72%;
 }
+/* Emerald theme — Client Portal (self_care observer/contributor) */
+[data-color-theme="client"] {
+  --primary: 160 60% 28%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 160 40% 90%;
+  --accent-foreground: 160 60% 22%;
+  --ring: 160 60% 28%;
+  --sidebar: 160 30% 10%;
+  --sidebar-background: 160 30% 10%;
+  --sidebar-primary: 160 60% 50%;
+  --sidebar-accent: 160 25% 16%;
+  --sidebar-border: 160 20% 18%;
+  --sidebar-ring: 160 60% 50%;
+}
+[data-color-theme="client"].dark {
+  --primary: 160 55% 45%;
+  --accent: 160 35% 18%;
+  --accent-foreground: 160 60% 70%;
+}
 /* ========== END COLOR THEMES ========== */
 
 /* Upgrade transition pulse dots */

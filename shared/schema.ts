@@ -2,11 +2,11 @@ import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 
-// User roles: caregiver | temp_caregiver | multi_caregiver | primary_family | secondary_family | facilitator
+// User roles: caregiver | temp_caregiver | multi_caregiver | primary_family | secondary_family | self_care | facilitator
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
-  role: text("role").notNull(), // 'caregiver' | 'temp_caregiver' | 'multi_caregiver' | 'primary_family' | 'secondary_family' | 'facilitator'
+  role: text("role").notNull(), // 'caregiver' | 'temp_caregiver' | 'multi_caregiver' | 'primary_family' | 'secondary_family' | 'self_care' | 'facilitator'
   email: text("email").notNull(),
   phone: text("phone"),
   avatarInitials: text("avatar_initials"),
@@ -24,6 +24,7 @@ export const users = sqliteTable("users", {
   navOrder: text("nav_order").default("[]"), // JSON array of module keys user has already seen intro for
   timezone: text("timezone"),               // IANA timezone string, e.g. "America/Chicago"
   sampleClientId: integer("sample_client_id"), // permanent reference to CG's showcase/sample client — never nulled on real connection
+  permissionLevel: text("permission_level"), // self_care users only: 'observer' | 'contributor' | 'self_care_mc' | null
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
@@ -46,6 +47,9 @@ export const clients = sqliteTable("clients", {
   appMode: text("app_mode").default("caregiver"), // 'caregiver' | 'precare'
   isPractice: integer("is_practice", { mode: "boolean" }).default(false), // CG sample/practice client
   isShowcase: integer("is_showcase", { mode: "boolean" }).default(false), // CG has opted to show to potential families
+  clientUserId: integer("client_user_id"), // user.id of the client if they have a portal account (self_care role)
+  ownershipTransferInitiatedAt: text("ownership_transfer_initiated_at"), // ISO timestamp when Pass the Portal / This Is My Story was started
+  ownershipTransferConfirmedAt: text("ownership_transfer_confirmed_at"), // ISO timestamp when transfer was completed
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });

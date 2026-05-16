@@ -393,6 +393,12 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_practice INTEGER DEFAULT 0`
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_showcase INTEGER DEFAULT 0`); } catch {}
 // users — sample client permanent anchor
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN sample_client_id INTEGER`); } catch {}
+// users — client empowerment permission level
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN permission_level TEXT`); } catch {}
+// clients — client empowerment: who is the client account + ownership transfer tracking
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN client_user_id INTEGER`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN ownership_transfer_initiated_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN ownership_transfer_confirmed_at TEXT`); } catch {}
 
 // shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
 try {
@@ -704,6 +710,12 @@ export interface IStorage {
   deletePracticeClient(clientId: number): void;
   setShowcase(clientId: number, isShowcase: boolean): Client | undefined;
 
+  // Client Empowerment
+  linkClientUser(clientId: number, userId: number): Client | undefined;
+  unlinkClientUser(clientId: number): Client | undefined;
+  setClientPermissionLevel(userId: number, level: 'observer' | 'contributor' | 'self_care_mc'): User | undefined;
+  getClientByClientUserId(userId: number): Client | undefined;
+
   // Schedule Events
   getScheduleEventsByClient(clientId: number): ScheduleEvent[];
   getScheduleEventById(id: number): ScheduleEvent | undefined;
@@ -884,6 +896,16 @@ export const storage: IStorage = {
   },
   setShowcase: (clientId, isShowcase) =>
     db.update(clients).set({ isShowcase }).where(eq(clients.id, clientId)).returning().get(),
+
+  // Client Empowerment
+  linkClientUser: (clientId, userId) =>
+    db.update(clients).set({ clientUserId: userId }).where(eq(clients.id, clientId)).returning().get(),
+  unlinkClientUser: (clientId) =>
+    db.update(clients).set({ clientUserId: null }).where(eq(clients.id, clientId)).returning().get(),
+  setClientPermissionLevel: (userId, level) =>
+    db.update(users).set({ permissionLevel: level }).where(eq(users.id, userId)).returning().get(),
+  getClientByClientUserId: (userId) =>
+    db.select().from(clients).where(eq(clients.clientUserId, userId)).get(),
 
   // Schedule Events
   getScheduleEventsByClient: (clientId) => db.select().from(scheduleEvents).where(eq(scheduleEvents.clientId, clientId)).orderBy(asc(scheduleEvents.scheduledAt)).all(),

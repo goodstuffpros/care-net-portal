@@ -175,7 +175,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, phone: user.phone, avatarInitials: user.avatarInitials });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -546,7 +546,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const { invitedEmail, inviteType } = req.body;
       // inviteType: 'mc_to_caregiver' | 'caregiver_to_mc' | 'mc_to_family'
-      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family"];
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client"];
       if (!inviteType || !validTypes.includes(inviteType)) {
         return res.status(400).json({ message: "Invalid invite type" });
       }
@@ -716,7 +716,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       const { targetEmail, targetUserId, inviteType: rawInviteType } = req.body;
       if (!targetEmail || !targetUserId) return res.status(400).json({ message: "targetEmail and targetUserId required" });
-      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family"];
+      const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client"];
       const resolvedInviteType = validTypes.includes(rawInviteType) ? rawInviteType : "mc_to_caregiver";
 
       // Verify target is a real active user
@@ -837,6 +837,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
         if (clientId) {
           db.update(users).set({ clientId, role: "secondary_family" })
             .where(eq(users.id, acceptingUser.id)).run();
+        }
+      } else if (invite.inviteType === "mc_to_client") {
+        // Sender is MC, acceptor is the care recipient — give them read-only access to their own record
+        // as a self_care Observer. This is Client Empowerment Phase 1.
+        clientId = invite.clientId ?? sender?.clientId ?? null;
+        if (clientId) {
+          db.update(users).set({ clientId, role: "self_care", permissionLevel: "observer" })
+            .where(eq(users.id, acceptingUser.id)).run();
+          // Link the client record back to this user account
+          storage.linkClientUser(clientId, acceptingUser.id);
         }
       }
 
@@ -1473,6 +1483,47 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const { isShowcase } = req.body;
     const updated = storage.setShowcase(clientId, !!isShowcase);
     res.json(updated);
+  });
+
+  // ── Client Empowerment Routes ──────────────────────────────────────────────
+
+  // GET /api/clients/:id/client-portal-status — MC checks if client has a portal account
+  app.get("/api/clients/:id/client-portal-status", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    if (!client.clientUserId) {
+      return res.json({ hasPortalAccess: false, permissionLevel: null, userId: null });
+    }
+    const clientUser = storage.getUserById(client.clientUserId);
+    return res.json({
+      hasPortalAccess: true,
+      permissionLevel: clientUser?.permissionLevel ?? "observer",
+      userId: client.clientUserId,
+      name: clientUser?.name ?? null,
+    });
+  });
+
+  // PATCH /api/clients/:id/client-permission — MC upgrades client permission level
+  app.patch("/api/clients/:id/client-permission", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    // Only MC (primary_family) for this client can upgrade permissions
+    const requestingUser = storage.getUserById(req.user!.userId);
+    if (requestingUser?.role !== "primary_family" || requestingUser?.clientId !== clientId) {
+      return res.status(403).json({ message: "Only the Main Contact can manage client portal access" });
+    }
+    if (!client.clientUserId) {
+      return res.status(400).json({ message: "Client does not have a portal account yet" });
+    }
+    const { level } = req.body;
+    const validLevels = ["observer", "contributor", "self_care_mc"];
+    if (!validLevels.includes(level)) {
+      return res.status(400).json({ message: "Invalid permission level" });
+    }
+    const updated = storage.setClientPermissionLevel(client.clientUserId, level);
+    res.json({ success: true, permissionLevel: updated?.permissionLevel });
   });
 
   // Schedule Events

@@ -183,9 +183,10 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
+  const isClientMode = portalMode === "client" || isClientPortal;
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
   const [showTzPicker, setShowTzPicker] = useState(false);   // timezone sub-panel
@@ -644,7 +645,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const rawNavItems = isPreCare ? NAV_ITEMS_PRECARE : NAV_ITEMS_CAREGIVER;
   // Family never sees Thoughts or My Profile in nav
   // Family portal hides Badges and CareScope (scoring-only features)
+  // Client portal nav — simplified view of their own record
+  const CLIENT_NAV_ITEMS = [
+    { path: "/", labelKey: "nav.dashboard" as TranslationKey, icon: LayoutDashboard },
+    { path: "/schedule", labelKey: "nav.schedule" as TranslationKey, icon: CalendarDays },
+    { path: "/vitals", labelKey: "nav.vitals" as TranslationKey, icon: Activity },
+    { path: "/medications", labelKey: "nav.medications" as TranslationKey, icon: Pill },
+    { path: "/activity", labelKey: "nav.activity" as TranslationKey, icon: NotebookPen },
+    { path: "/documents", labelKey: "nav.documents" as TranslationKey, icon: FolderOpen },
+  ];
+
   const NAV_ITEMS = (() => {
+    if (isClientMode) return CLIENT_NAV_ITEMS;
     let items = rawNavItems;
     if (isFamily) items = items.filter(n => n.path !== "/thoughts" && n.path !== "/my-profile");
     if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/patterns" && n.path !== "/archive");
@@ -672,6 +684,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <div className="w-8 h-8 rounded-lg bg-teal-500/30 flex items-center justify-center">
               <Heart size={16} className="text-teal-300" />
             </div>
+          ) : isClientMode ? (
+            // Emerald logo for client portal
+            <svg aria-label="My Care Portal" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <rect width="32" height="32" rx="8" fill="hsl(160, 60%, 28%)"/>
+              <circle cx="16" cy="13" r="5" stroke="white" strokeWidth="2" fill="none"/>
+              <path d="M16 20v4M13 23h6" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
           ) : isFamilyPortal ? (
             // Rose/mauve logo for family portal
             <svg aria-label="Family Care Portal" width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -688,16 +707,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
         <div>
           <div className="font-bold text-sm text-sidebar-foreground leading-tight" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            {isFamilyPortal ? "Family Care" : "Care Net"}
+            {isClientMode ? "My Care" : isFamilyPortal ? "Family Care" : "Care Net"}
           </div>
           <div className={cn("text-xs", isPreCare ? "text-teal-400" : "text-sidebar-foreground/50")}>
-            {isPreCare ? "Pre-Care Mode" : isFamilyPortal ? "Portal" : "Portal"}
+            {isPreCare ? "Pre-Care Mode" : isClientMode ? "Record" : isFamilyPortal ? "Portal" : "Portal"}
           </div>
         </div>
         {isPreCare && (
           <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 font-medium">PRE-CARE</span>
         )}
-        {isFamilyPortal && (
+        {isClientMode && (
+          <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "hsl(160 60% 28% / 0.2)", color: "hsl(160 60% 65%)", border: "1px solid hsl(160 60% 28% / 0.3)" }}>
+            {clientPermissionLevel === "contributor" ? "CONTRIBUTOR" : clientPermissionLevel === "self_care_mc" ? "SELF-CARE" : "OBSERVER"}
+          </span>
+        )}
+        {!isClientMode && isFamilyPortal && (
           <span className="ml-auto text-[10px] px-2 py-0.5 rounded-full font-medium" style={{ background: "hsl(345 52% 36% / 0.2)", color: "hsl(345 52% 72%)", border: "1px solid hsl(345 52% 36% / 0.3)" }}>FAMILY</span>
         )}
       </div>
@@ -1019,6 +1043,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <div className="w-full bg-amber-500 text-white text-xs font-medium px-4 py-1.5 flex items-center justify-center gap-2 text-center">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-white opacity-80 flex-shrink-0" />
             Sample Mode — this is a practice portal. No real data.
+          </div>
+        )}
+
+        {/* Observer Banner — client portal users in read-only observer mode */}
+        {isClientMode && clientPermissionLevel === "observer" && !SCREENSHOT_MODE && (
+          <div
+            className="w-full text-xs font-medium px-4 py-2 flex items-center justify-center gap-2 text-center"
+            style={{ background: "hsl(160 60% 28% / 0.12)", color: "hsl(160 60% 28%)", borderBottom: "1px solid hsl(160 60% 28% / 0.2)" }}
+          >
+            <Eye size={12} className="flex-shrink-0" />
+            You are viewing your own care record in read-only mode. Contact your Main Contact to request contributor access.
           </div>
         )}
 
