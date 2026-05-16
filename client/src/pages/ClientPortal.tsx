@@ -186,7 +186,7 @@ export default function ClientPortalPage() {
       setDirForm(BLANK_DIR_FORM);
       toast({ title: "Entry added", description: "Care Directory entry saved." });
     },
-    onError: () => toast({ title: "Error", description: "Could not save entry.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Error", description: err?.message || "Could not save entry.", variant: "destructive" }),
   });
 
   const editDirectoryMutation = useMutation({
@@ -198,7 +198,7 @@ export default function ClientPortalPage() {
       setDirForm(BLANK_DIR_FORM);
       toast({ title: "Entry updated" });
     },
-    onError: () => toast({ title: "Error", description: "Could not update entry.", variant: "destructive" }),
+    onError: (err: any) => toast({ title: "Error", description: err?.message || "Could not update entry.", variant: "destructive" }),
   });
 
   const deleteDirectoryMutation = useMutation({
