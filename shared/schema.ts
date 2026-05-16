@@ -49,8 +49,16 @@ export const clients = sqliteTable("clients", {
   isPractice: integer("is_practice", { mode: "boolean" }).default(false), // CG sample/practice client
   isShowcase: integer("is_showcase", { mode: "boolean" }).default(false), // CG has opted to show to potential families
   clientUserId: integer("client_user_id"), // user.id of the client if they have a portal account (self_care role)
-  ownershipTransferInitiatedAt: text("ownership_transfer_initiated_at"), // ISO timestamp when Pass the Portal / This Is My Story was started
-  ownershipTransferConfirmedAt: text("ownership_transfer_confirmed_at"), // ISO timestamp when transfer was completed
+  ownershipTransferInitiatedAt: text("ownership_transfer_initiated_at"), // ISO timestamp when transfer was first initiated (either side)
+  ownershipTransferConfirmedAt: text("ownership_transfer_confirmed_at"), // ISO timestamp when transfer fully completed
+  // Phase 3 — Transfer of Care
+  transferInitiatedBy: text("transfer_initiated_by"), // 'mc' | 'client' — who started it
+  transferStep: integer("transfer_step").default(0), // 0=none, 1=offered/step1, 2=step2 (client-initiated 24hr gate), 3=final
+  transferMCCoConfirmed: integer("transfer_mc_co_confirmed", { mode: "boolean" }).default(false), // MC co-signed to waive 48hr wait
+  transferOfferedAt: text("transfer_offered_at"), // ISO — when MC sent 'You Are Ready' offer (for 72hr expiry)
+  transferStep2At: text("transfer_step2_at"), // ISO — when client completed step 2 (client-initiated path)
+  transferCancelledAt: text("transfer_cancelled_at"), // ISO — if cancelled before completion
+  mcPostTransferRole: text("mc_post_transfer_role"), // 'monitor' | 'step_back' | 'remove' — client's choice after transfer
   // Phase 2 — minor contributor approval gate
   requiresMinorApproval: integer("requires_minor_approval", { mode: "boolean" }).default(false), // MC toggle: true = pending entries held for review (minor clients only)
 });

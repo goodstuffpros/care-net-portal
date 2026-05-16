@@ -402,6 +402,14 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN ownership_transfer_confirmed_a
 // Phase 2 — Contributor mode
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN contributor_welcome_seen INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN requires_minor_approval INTEGER DEFAULT 0`); } catch {}
+// Phase 3 — Transfer of Care
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_initiated_by TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_step INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_mc_co_confirmed INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_offered_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_step2_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN transfer_cancelled_at TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN mc_post_transfer_role TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN approved_by_user_id INTEGER`); } catch {}
 try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
@@ -724,6 +732,14 @@ export interface IStorage {
   setClientPermissionLevel(userId: number, level: 'observer' | 'contributor' | 'self_care_mc'): User | undefined;
   getClientByClientUserId(userId: number): Client | undefined;
 
+  // Phase 3 — Transfer of Care
+  initiateTransfer(clientId: number, initiatedBy: 'mc' | 'client'): Client | undefined;
+  advanceTransferStep(clientId: number, step: number): Client | undefined;
+  mcCoConfirmTransfer(clientId: number): Client | undefined;
+  cancelTransfer(clientId: number): Client | undefined;
+  executeTransfer(clientId: number, mcPostTransferRole: 'monitor' | 'step_back' | 'remove'): { client: Client; oldMcUser: User | undefined; clientUser: User | undefined } | undefined;
+  getTransferStatus(clientId: number): { step: number; initiatedBy: string | null; offeredAt: string | null; step2At: string | null; mcCoConfirmed: boolean; cancelledAt: string | null; confirmedAt: string | null } | undefined;
+
   // Schedule Events
   getScheduleEventsByClient(clientId: number): ScheduleEvent[];
   getScheduleEventById(id: number): ScheduleEvent | undefined;
@@ -917,6 +933,83 @@ export const storage: IStorage = {
     db.update(users).set({ permissionLevel: level }).where(eq(users.id, userId)).returning().get(),
   getClientByClientUserId: (userId) =>
     db.select().from(clients).where(eq(clients.clientUserId, userId)).get(),
+
+  // Phase 3 — Transfer of Care
+  initiateTransfer: (clientId, initiatedBy) => {
+    const now = new Date().toISOString();
+    const patch: Partial<Client> = {
+      transferInitiatedBy: initiatedBy,
+      transferStep: 1,
+      transferMCCoConfirmed: false,
+      transferCancelledAt: null,
+      transferOfferedAt: initiatedBy === 'mc' ? now : null,
+      ownershipTransferInitiatedAt: now,
+    };
+    return db.update(clients).set(patch).where(eq(clients.id, clientId)).returning().get();
+  },
+
+  advanceTransferStep: (clientId, step) =>
+    db.update(clients).set({
+      transferStep: step,
+      ...(step === 2 ? { transferStep2At: new Date().toISOString() } : {}),
+    }).where(eq(clients.id, clientId)).returning().get(),
+
+  mcCoConfirmTransfer: (clientId) =>
+    db.update(clients).set({ transferMCCoConfirmed: true }).where(eq(clients.id, clientId)).returning().get(),
+
+  cancelTransfer: (clientId) =>
+    db.update(clients).set({
+      transferStep: 0,
+      transferInitiatedBy: null,
+      transferMCCoConfirmed: false,
+      transferOfferedAt: null,
+      transferStep2At: null,
+      transferCancelledAt: new Date().toISOString(),
+      ownershipTransferInitiatedAt: null,
+    }).where(eq(clients.id, clientId)).returning().get(),
+
+  executeTransfer: (clientId, mcPostTransferRole) => {
+    const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (!client || !client.clientUserId) return undefined;
+    // Promote the self_care user to self_care_mc
+    const clientUser = db.update(users)
+      .set({ permissionLevel: 'self_care_mc', contributorWelcomeSeen: true })
+      .where(eq(users.id, client.clientUserId))
+      .returning().get();
+    // Demote the original MC (primary_contact) to secondary_family
+    let oldMcUser: User | undefined;
+    if (client.primaryContactId) {
+      oldMcUser = db.update(users)
+        .set({ role: 'secondary_family' })
+        .where(eq(users.id, client.primaryContactId))
+        .returning().get();
+    }
+    // Stamp the client record
+    const now = new Date().toISOString();
+    const updatedClient = db.update(clients).set({
+      transferStep: 0,
+      ownershipTransferConfirmedAt: now,
+      mcPostTransferRole,
+      transferMCCoConfirmed: false,
+      transferOfferedAt: null,
+      transferStep2At: null,
+    }).where(eq(clients.id, clientId)).returning().get();
+    return { client: updatedClient!, oldMcUser, clientUser };
+  },
+
+  getTransferStatus: (clientId) => {
+    const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (!client) return undefined;
+    return {
+      step: client.transferStep ?? 0,
+      initiatedBy: client.transferInitiatedBy ?? null,
+      offeredAt: client.transferOfferedAt ?? null,
+      step2At: client.transferStep2At ?? null,
+      mcCoConfirmed: client.transferMCCoConfirmed ?? false,
+      cancelledAt: client.transferCancelledAt ?? null,
+      confirmedAt: client.ownershipTransferConfirmedAt ?? null,
+    };
+  },
 
   // Schedule Events
   getScheduleEventsByClient: (clientId) => db.select().from(scheduleEvents).where(eq(scheduleEvents.clientId, clientId)).orderBy(asc(scheduleEvents.scheduledAt)).all(),

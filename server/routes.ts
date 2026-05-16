@@ -1573,6 +1573,365 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true, contributorWelcomeSeen: updated?.contributorWelcomeSeen });
   });
 
+  // ── Phase 3: Transfer of Care ────────────────────────────────────────────────
+
+  // GET /api/clients/:id/transfer-status
+  app.get("/api/clients/:id/transfer-status", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const status = storage.getTransferStatus(clientId);
+    if (!status) return res.status(404).json({ message: "Client not found" });
+    // Auto-expire MC-initiated offer after 72 hours
+    if (status.step === 1 && status.initiatedBy === 'mc' && status.offeredAt) {
+      const offeredMs = new Date(status.offeredAt).getTime();
+      const expiredMs = offeredMs + 72 * 60 * 60 * 1000;
+      if (Date.now() > expiredMs) {
+        storage.cancelTransfer(clientId);
+        return res.json({ ...status, step: 0, expired: true });
+      }
+    }
+    res.json(status);
+  });
+
+  // POST /api/clients/:id/transfer/initiate — MC sends "You Are Ready" OR client starts "I Am Ready"
+  app.post("/api/clients/:id/transfer/initiate", requireAuth, async (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    if (!requestingUser) return res.status(401).json({ message: "Not authenticated" });
+
+    const isMC = requestingUser.role === 'primary_family' && requestingUser.clientId === clientId;
+    const isClient = requestingUser.role === 'self_care' && requestingUser.clientId === clientId
+      && requestingUser.permissionLevel === 'contributor';
+
+    if (!isMC && !isClient) {
+      return res.status(403).json({ message: "Only the Main Contact or the client may initiate a Transfer of Care" });
+    }
+    if (!client.clientUserId) {
+      return res.status(400).json({ message: "Client does not have a portal account" });
+    }
+    // Guard: client-initiated requires 18+
+    if (isClient && client.dateOfBirth) {
+      const dob = new Date(client.dateOfBirth);
+      const ageDiff = Date.now() - dob.getTime();
+      const ageYears = new Date(ageDiff).getUTCFullYear() - 1970;
+      if (ageYears < 18) {
+        return res.status(403).json({ message: "Client must be 18 or older to initiate a Transfer of Care" });
+      }
+    }
+    if ((client.transferStep ?? 0) > 0 && !client.transferCancelledAt) {
+      return res.status(400).json({ message: "A transfer is already in progress" });
+    }
+
+    const initiatedBy: 'mc' | 'client' = isMC ? 'mc' : 'client';
+    const updated = storage.initiateTransfer(clientId, initiatedBy);
+
+    // Notify the other party
+    if (isMC && client.clientUserId) {
+      const clientUser = storage.getUserById(client.clientUserId);
+      const clientAccount = clientUser
+        ? db.select().from(authAccounts).where(eq(authAccounts.userId, clientUser.id)).get()
+        : null;
+      // In-app notification
+      storage.createNotification({
+        userId: client.clientUserId,
+        clientId,
+        title: `${requestingUser.name} says you are ready`,
+        body: `${requestingUser.name} has offered to transfer full ownership of your care portal to you. Open your portal to review and accept.`,
+        type: 'alert',
+        priority: 'red',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: '/dashboard',
+      });
+      // Email
+      if (clientAccount?.email) {
+        sendEmail({
+          to: clientAccount.email,
+          subject: `${requestingUser.name} says you are ready — Transfer of Care`,
+          html: `<p>Hi ${clientUser?.name ?? 'there'},</p>
+<p><strong>${requestingUser.name}</strong> has offered to transfer full ownership of your care record to you through Care Net Portal.</p>
+<p>This means you would become the primary authority on your own care portal. ${requestingUser.name} would step into a supportive role.</p>
+<p>To review and respond to this offer, sign in to your portal:</p>
+<p><a href="${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}">${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}</a></p>
+<p>This offer expires in 72 hours. If you're not ready, it will simply remain status quo — no pressure.</p>
+<p style="color:#6b7280;font-size:12px;">Care Net Portal &mdash; <a href="https://carenetportal.com">carenetportal.com</a></p>`,
+        }).catch(err => console.error('[transfer initiate email]', err));
+      }
+    } else if (isClient && client.primaryContactId) {
+      // Notify MC that client started "I Am Ready"
+      const mcUser = storage.getUserById(client.primaryContactId);
+      const mcAccount = mcUser
+        ? db.select().from(authAccounts).where(eq(authAccounts.userId, mcUser.id)).get()
+        : null;
+      storage.createNotification({
+        userId: client.primaryContactId,
+        clientId,
+        title: `${requestingUser.name} has started a Transfer of Care`,
+        body: `${requestingUser.name} has indicated they are ready to take ownership of their care portal. This is step 1 of 3. No action is required from you yet.`,
+        type: 'alert',
+        priority: 'red',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: '/client-portal',
+      });
+      if (mcAccount?.email) {
+        sendEmail({
+          to: mcAccount.email,
+          subject: `${requestingUser.name} has started a Transfer of Care`,
+          html: `<p>Hi ${mcUser?.name ?? 'there'},</p>
+<p><strong>${requestingUser.name}</strong> has indicated they are ready to take ownership of their own care portal.</p>
+<p>This is step 1 of 3. They will have a chance to confirm their decision over the next 48 hours before anything changes.</p>
+<p>No action is required from you at this time. You will be notified at each step.</p>
+<p>If you would like to co-confirm and allow the transfer to proceed immediately without the 48-hour wait, you can do so from the Client Profile page in your portal.</p>
+<p><a href="${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}">${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}</a></p>
+<p style="color:#6b7280;font-size:12px;">Care Net Portal &mdash; <a href="https://carenetportal.com">carenetportal.com</a></p>`,
+        }).catch(err => console.error('[transfer initiate client email]', err));
+      }
+    }
+
+    res.json({ success: true, client: updated });
+  });
+
+  // POST /api/clients/:id/transfer/advance — client advances to step 2 or 3 (client-initiated path)
+  app.post("/api/clients/:id/transfer/advance", requireAuth, async (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    if (!requestingUser) return res.status(401).json({ message: "Not authenticated" });
+
+    const isClient = requestingUser.role === 'self_care' && requestingUser.clientId === clientId;
+    const isMCAccepting = requestingUser.role === 'primary_family' && requestingUser.clientId === clientId
+      && client.transferInitiatedBy === 'mc' && (client.transferStep ?? 0) === 1;
+
+    if (!isClient && !isMCAccepting) {
+      return res.status(403).json({ message: "Not authorized to advance this transfer" });
+    }
+    if ((client.transferStep ?? 0) === 0) {
+      return res.status(400).json({ message: "No transfer in progress" });
+    }
+
+    const currentStep = client.transferStep ?? 0;
+
+    // MC-initiated path: client accepts at step 1 → check if MC co-confirmed (waive wait) or proceed directly
+    if (isMCAccepting || (isClient && client.transferInitiatedBy === 'mc' && currentStep === 1)) {
+      // Client is accepting the MC's offer — execute immediately
+      const { mcPostTransferRole } = req.body;
+      const validRoles = ['monitor', 'step_back', 'remove'];
+      if (!validRoles.includes(mcPostTransferRole)) {
+        return res.status(400).json({ message: "Please choose how the Main Contact should continue" });
+      }
+      const result = storage.executeTransfer(clientId, mcPostTransferRole);
+      if (!result) return res.status(500).json({ message: "Transfer execution failed" });
+      await sendTransferCompletionEmails(clientId, result.oldMcUser, result.clientUser, requestingUser, mcPostTransferRole);
+      return res.json({ success: true, completed: true, mcPostTransferRole });
+    }
+
+    // Client-initiated path: advance step with time gates
+    if (isClient && client.transferInitiatedBy === 'client') {
+      if (currentStep === 1) {
+        // Step 1 → 2: enforce 24-hour gate unless MC co-confirmed
+        if (!client.transferMCCoConfirmed) {
+          const initiated = client.ownershipTransferInitiatedAt
+            ? new Date(client.ownershipTransferInitiatedAt).getTime()
+            : 0;
+          const hoursElapsed = (Date.now() - initiated) / (1000 * 60 * 60);
+          if (hoursElapsed < 24) {
+            return res.status(400).json({
+              message: "Please take a day to reflect. You can confirm again in 24 hours.",
+              hoursRemaining: Math.ceil(24 - hoursElapsed),
+            });
+          }
+        }
+        storage.advanceTransferStep(clientId, 2);
+        // Notify MC of step 2
+        if (client.primaryContactId) {
+          const mcUser = storage.getUserById(client.primaryContactId);
+          const mcAccount = mcUser
+            ? db.select().from(authAccounts).where(eq(authAccounts.userId, mcUser.id)).get()
+            : null;
+          storage.createNotification({
+            userId: client.primaryContactId,
+            clientId,
+            title: `${requestingUser.name} confirmed — step 2 of 3`,
+            body: `${requestingUser.name} has reaffirmed their decision to take ownership of their care portal. One more confirmation step remains.`,
+            type: 'alert',
+            priority: 'red',
+            isRead: false,
+            createdAt: new Date().toISOString(),
+            linkTo: '/client-portal',
+          });
+          if (mcAccount?.email) {
+            sendEmail({
+              to: mcAccount.email,
+              subject: `${requestingUser.name} confirmed — step 2 of their Transfer of Care`,
+              html: `<p>Hi ${mcUser?.name ?? 'there'},</p><p><strong>${requestingUser.name}</strong> has confirmed their intent to take ownership of their care portal (step 2 of 3). One final confirmation step remains, which they can complete tomorrow.</p><p>If you want to allow the transfer to proceed without the remaining wait, you can co-confirm from the Client Profile page in your portal.</p><p style="color:#6b7280;font-size:12px;">Care Net Portal</p>`,
+            }).catch(err => console.error('[transfer step2 email]', err));
+          }
+        }
+        return res.json({ success: true, step: 2 });
+      }
+
+      if (currentStep === 2) {
+        // Step 2 → execute: enforce 24-hour gate from step2At unless MC co-confirmed
+        if (!client.transferMCCoConfirmed) {
+          const step2Ms = client.transferStep2At
+            ? new Date(client.transferStep2At).getTime()
+            : 0;
+          const hoursElapsed = (Date.now() - step2Ms) / (1000 * 60 * 60);
+          if (hoursElapsed < 24) {
+            return res.status(400).json({
+              message: "Almost there. You can complete your Transfer of Care tomorrow.",
+              hoursRemaining: Math.ceil(24 - hoursElapsed),
+            });
+          }
+        }
+        // Execute
+        const { mcPostTransferRole } = req.body;
+        const validRoles = ['monitor', 'step_back', 'remove'];
+        if (!validRoles.includes(mcPostTransferRole)) {
+          return res.status(400).json({ message: "Please choose how the Main Contact should continue" });
+        }
+        const result = storage.executeTransfer(clientId, mcPostTransferRole);
+        if (!result) return res.status(500).json({ message: "Transfer execution failed" });
+        await sendTransferCompletionEmails(clientId, result.oldMcUser, result.clientUser, requestingUser, mcPostTransferRole);
+        return res.json({ success: true, completed: true, mcPostTransferRole });
+      }
+    }
+
+    return res.status(400).json({ message: "Unexpected transfer state" });
+  });
+
+  // POST /api/clients/:id/transfer/co-confirm — MC co-confirms to waive 48-hour wait (client-initiated path)
+  app.post("/api/clients/:id/transfer/co-confirm", requireAuth, async (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    const isMC = requestingUser?.role === 'primary_family' && requestingUser?.clientId === clientId;
+    if (!isMC) return res.status(403).json({ message: "Only the Main Contact can co-confirm a transfer" });
+    if ((client.transferStep ?? 0) === 0) return res.status(400).json({ message: "No transfer in progress" });
+    storage.mcCoConfirmTransfer(clientId);
+    // Notify client that MC waived the wait
+    if (client.clientUserId) {
+      const clientUser = storage.getUserById(client.clientUserId);
+      storage.createNotification({
+        userId: client.clientUserId,
+        clientId,
+        title: `${requestingUser!.name} agrees — you can complete your transfer now`,
+        body: `${requestingUser!.name} has co-confirmed your Transfer of Care. You may now complete the final step at any time.`,
+        type: 'alert',
+        priority: 'red',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: '/dashboard',
+      });
+    }
+    res.json({ success: true });
+  });
+
+  // POST /api/clients/:id/transfer/cancel — either party cancels
+  app.post("/api/clients/:id/transfer/cancel", requireAuth, async (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    const isMC = requestingUser?.role === 'primary_family' && requestingUser?.clientId === clientId;
+    const isClientUser = requestingUser?.role === 'self_care' && requestingUser?.clientId === clientId;
+    if (!isMC && !isClientUser) return res.status(403).json({ message: "Not authorized" });
+    if ((client.transferStep ?? 0) === 0) return res.status(400).json({ message: "No transfer in progress" });
+    storage.cancelTransfer(clientId);
+    // Notify the other party
+    const otherUserId = isMC ? client.clientUserId : client.primaryContactId;
+    if (otherUserId) {
+      storage.createNotification({
+        userId: otherUserId,
+        clientId,
+        title: "Transfer of Care cancelled",
+        body: `${requestingUser!.name} has cancelled the Transfer of Care. Everything remains as it is.`,
+        type: 'info',
+        priority: 'green',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: isMC ? '/dashboard' : '/client-portal',
+      });
+    }
+    res.json({ success: true });
+  });
+
+  // ── Phase 3 helper: send completion emails to both parties ───────────────────
+  async function sendTransferCompletionEmails(
+    clientId: number,
+    oldMcUser: { id: number; name: string } | undefined,
+    clientUser: { id: number; name: string } | undefined,
+    requestingUser: { name: string },
+    mcPostTransferRole: string
+  ) {
+    const roleLabel = mcPostTransferRole === 'monitor'
+      ? 'will continue to monitor the portal'
+      : mcPostTransferRole === 'step_back'
+      ? 'will step back to a secondary family member role'
+      : 'has been removed from the portal';
+
+    // Email to new portal owner (client)
+    if (clientUser) {
+      const clientAccount = db.select().from(authAccounts).where(eq(authAccounts.userId, clientUser.id)).get();
+      if (clientAccount?.email) {
+        sendEmail({
+          to: clientAccount.email,
+          subject: "Your Transfer of Care is complete — you own your portal",
+          html: `<p>Hi ${clientUser.name},</p>
+<p>Your Transfer of Care is complete. You are now the primary authority on your own care portal.</p>
+<p>${oldMcUser?.name ?? 'Your Main Contact'} ${roleLabel}.</p>
+<p>Sign in to your portal to see your full record:</p>
+<p><a href="${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}">${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}</a></p>
+<p style="color:#6b7280;font-size:12px;">Care Net Portal &mdash; <a href="https://carenetportal.com">carenetportal.com</a></p>`,
+        }).catch(err => console.error('[transfer complete client email]', err));
+      }
+      // In-app
+      storage.createNotification({
+        userId: clientUser.id,
+        clientId,
+        title: "Your Transfer of Care is complete",
+        body: "You are now the primary authority on your own care portal.",
+        type: 'alert',
+        priority: 'red',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: '/dashboard',
+      });
+    }
+    // Email to demoted MC
+    if (oldMcUser) {
+      const mcAccount = db.select().from(authAccounts).where(eq(authAccounts.userId, oldMcUser.id)).get();
+      if (mcAccount?.email) {
+        sendEmail({
+          to: mcAccount.email,
+          subject: "Transfer of Care complete — your role has changed",
+          html: `<p>Hi ${oldMcUser.name},</p>
+<p>The Transfer of Care for ${clientUser?.name ?? 'your care recipient'} is complete. They are now the primary authority on their own care portal.</p>
+<p>Your new role: ${roleLabel}.</p>
+<p>Sign in to your portal:</p>
+<p><a href="${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}">${process.env.APP_URL || 'https://care-net-portal-production.up.railway.app'}</a></p>
+<p style="color:#6b7280;font-size:12px;">Care Net Portal &mdash; <a href="https://carenetportal.com">carenetportal.com</a></p>`,
+        }).catch(err => console.error('[transfer complete mc email]', err));
+      }
+      // In-app
+      storage.createNotification({
+        userId: oldMcUser.id,
+        clientId,
+        title: `${clientUser?.name ?? 'Your care recipient'} now owns their portal`,
+        body: `The Transfer of Care is complete. Your new role: ${roleLabel}.`,
+        type: 'info',
+        priority: 'green',
+        isRead: false,
+        createdAt: new Date().toISOString(),
+        linkTo: '/client-portal',
+      });
+    }
+  }
+
   // Schedule Events
   app.get("/api/clients/:clientId/schedule", (req, res) => {
     res.json(storage.getScheduleEventsByClient(Number(req.params.clientId)));

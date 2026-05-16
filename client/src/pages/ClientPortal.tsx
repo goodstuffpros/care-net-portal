@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX } from "lucide-react";
+import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
@@ -679,6 +679,9 @@ function ClientPortalAccessSection({ clientId, clientName, clientDateOfBirth, re
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [showInviteForm, setShowInviteForm] = useState(false);
+  const [showTransferModal, setShowTransferModal] = useState(false);
+  const [transferModalStep, setTransferModalStep] = useState(1); // 1=intro, 2=choose MC role, 3=confirm
+  const [transferRole, setTransferRole] = useState<'monitor' | 'step_back' | 'remove' | null>(null);
 
   // Age computation for minor approval toggle
   const clientAge = computeAge(clientDateOfBirth);
@@ -714,6 +717,48 @@ function ClientPortalAccessSection({ clientId, clientName, clientDateOfBirth, re
     },
     onError: () => toast({ title: "Upgrade failed", description: "Please try again.", variant: "destructive" }),
   });
+
+  // Phase 3 — Transfer of Care
+  const { data: transferStatus, refetch: refetchTransfer } = useQuery<{
+    step: number; initiatedBy: string | null; offeredAt: string | null;
+    step2At: string | null; mcCoConfirmed: boolean; cancelledAt: string | null; confirmedAt: string | null; expired?: boolean;
+  }>({
+    queryKey: ["/api/clients", clientId, "transfer-status"],
+    queryFn: () => apiRequest("GET", `/api/clients/${clientId}/transfer-status`).then(r => r.json()),
+    enabled: portalStatus?.permissionLevel === "contributor",
+  });
+
+  const initiateMCTransferMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${clientId}/transfer/initiate`, {}),
+    onSuccess: () => {
+      setTransferModalStep(2);
+      refetchTransfer();
+    },
+    onError: () => toast({ title: "Could not initiate transfer", description: "Please try again.", variant: "destructive" }),
+  });
+
+  const cancelTransferMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${clientId}/transfer/cancel`, {}),
+    onSuccess: () => {
+      toast({ title: "Transfer cancelled", description: "Everything remains as it is." });
+      setShowTransferModal(false);
+      setTransferModalStep(1);
+      setTransferRole(null);
+      refetchTransfer();
+    },
+    onError: () => toast({ title: "Could not cancel transfer", variant: "destructive" }),
+  });
+
+  const coConfirmTransferMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${clientId}/transfer/co-confirm`, {}),
+    onSuccess: () => {
+      toast({ title: "You\'ve co-confirmed", description: `${clientName} can now complete their transfer at any time.` });
+      refetchTransfer();
+    },
+    onError: () => toast({ title: "Could not co-confirm", variant: "destructive" }),
+  });
+
+  const isTransferInProgress = (transferStatus?.step ?? 0) > 0 && !transferStatus?.confirmedAt;
 
   // Phase 2: minor approval toggle
   const [approvalToggle, setApprovalToggle] = useState(requiresMinorApproval);
@@ -854,6 +899,154 @@ function ClientPortalAccessSection({ clientId, clientName, clientDateOfBirth, re
             </div>
           </div>
         )}
+
+        {/* Phase 3: Transfer of Care — MC side — only when client is Contributor */}
+        {portalStatus?.permissionLevel === "contributor" && !transferStatus?.confirmedAt && (
+          <div className="space-y-2" data-testid="transfer-of-care-mc-section">
+            <div className="border-t border-border pt-3">
+              <div className="text-xs font-semibold text-foreground uppercase tracking-wider mb-1">Transfer of Care</div>
+              <div className="text-xs text-muted-foreground leading-relaxed mb-3">
+                When {clientName} is ready to own their care record, you can transfer primary authority to them. You choose your continued role.
+              </div>
+
+              {/* Client-initiated in progress: MC sees status + co-confirm option */}
+              {isTransferInProgress && transferStatus?.initiatedBy === 'client' && (
+                <div className="p-3 rounded-lg border border-emerald-200 dark:border-emerald-800 bg-emerald-50/40 dark:bg-emerald-950/20 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={14} className="text-emerald-700 dark:text-emerald-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+                      <strong>{clientName} has started a Transfer of Care</strong> (step {transferStatus.step} of 3).
+                      {!transferStatus.mcCoConfirmed && " They are working through the confirmation period."}
+                      {transferStatus.mcCoConfirmed && " You have co-confirmed. They can complete the final step at any time."}
+                    </div>
+                  </div>
+                  {!transferStatus.mcCoConfirmed && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-700 dark:hover:bg-emerald-950/30 text-xs"
+                      onClick={() => coConfirmTransferMutation.mutate()}
+                      disabled={coConfirmTransferMutation.isPending}
+                      data-testid="mc-co-confirm-transfer-btn"
+                    >
+                      <CheckCircle2 size={12} /> I agree — skip the wait
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 h-7 text-muted-foreground hover:text-destructive text-xs px-2"
+                    onClick={() => cancelTransferMutation.mutate()}
+                    disabled={cancelTransferMutation.isPending}
+                    data-testid="mc-cancel-transfer-btn"
+                  >
+                    <X size={11} /> Cancel transfer
+                  </Button>
+                </div>
+              )}
+
+              {/* MC-initiated: offer pending client response */}
+              {isTransferInProgress && transferStatus?.initiatedBy === 'mc' && (
+                <div className="p-3 rounded-lg border border-blue-200 dark:border-blue-800 bg-blue-50/40 dark:bg-blue-950/20 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <AlertCircle size={14} className="text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                    <div className="text-xs text-blue-800 dark:text-blue-300 leading-relaxed">
+                      <strong>Your offer is pending.</strong> {clientName} has been notified and can accept within 72 hours. If they don’t respond, everything stays as is.
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="gap-1.5 h-7 text-muted-foreground hover:text-destructive text-xs px-2"
+                    onClick={() => cancelTransferMutation.mutate()}
+                    disabled={cancelTransferMutation.isPending}
+                    data-testid="mc-withdraw-offer-btn"
+                  >
+                    <X size={11} /> Withdraw offer
+                  </Button>
+                </div>
+              )}
+
+              {/* No transfer in progress: show You Are Ready button */}
+              {!isTransferInProgress && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 h-8 text-emerald-700 border-emerald-300 hover:bg-emerald-50 dark:text-emerald-400 dark:border-emerald-800 dark:hover:bg-emerald-950/30"
+                  onClick={() => { setShowTransferModal(true); setTransferModalStep(1); setTransferRole(null); }}
+                  data-testid="you-are-ready-btn"
+                >
+                  <ArrowRightCircle size={13} /> You Are Ready
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* You Are Ready modal — 3-step */}
+        {showTransferModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="transfer-modal-overlay">
+            <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
+
+              {/* Step 1: Intro */}
+              {transferModalStep === 1 && (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Transfer of Care</div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      You’re telling <strong>{clientName}</strong> they are ready to own their care record. This will transfer primary authority to them and change your role on the portal.
+                    </div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      {clientName} will receive your offer and have 72 hours to accept. You choose your continued role when they accept.
+                    </div>
+                    <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mt-2">
+                      This is a significant moment. Take a breath before continuing.
+                    </div>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowTransferModal(false)}>Not yet</Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      onClick={() => initiateMCTransferMutation.mutate()}
+                      disabled={initiateMCTransferMutation.isPending}
+                      data-testid="transfer-modal-send-offer-btn"
+                    >
+                      <ChevronRight size={14} /> Send the offer
+                    </Button>
+                  </div>
+                </>
+              )}
+
+              {/* Step 2: Offer sent — choose MC post-transfer role (shown after offer accepted by client via their portal) */}
+              {/* Note: step 2 here just confirms the offer was sent */}
+              {transferModalStep === 2 && (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Offer sent</div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      {clientName} has been notified. When they accept, you’ll choose how you’d like to stay involved.
+                    </div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      The offer expires in 72 hours. You can withdraw it at any time from the Client Profile page.
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full"
+                    variant="outline"
+                    onClick={() => setShowTransferModal(false)}
+                    data-testid="transfer-modal-close-btn"
+                  >
+                    Close
+                  </Button>
+                </>
+              )}
+
+            </div>
+          </div>
+        )}
+
       </CardContent>
     </Card>
   );

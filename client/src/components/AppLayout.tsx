@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings, Globe, ChevronRight, Search
+  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -1086,6 +1086,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         )}
 
+        {/* Phase 3: I Am Ready — client-initiated Transfer of Care */}
+        {isClientMode && clientPermissionLevel === "contributor" && !SCREENSHOT_MODE && activeUser.clientId && (
+          <IAmReadySection clientId={activeUser.clientId} clientName={activeUser.name} />
+        )}
+
         {/* Demo floating CTA — nudges visitors to apply for real access */}
         {isDemo && !SCREENSHOT_MODE && <DemoApplyCTA />}
 
@@ -1748,3 +1753,309 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
+
+// ── Phase 3: I Am Ready — client-initiated Transfer of Care ──────────────────
+function IAmReadySection({ clientId, clientName }: { clientId: number; clientName: string }) {
+  const { toast } = useToast();
+  const [showDialog, setShowDialog] = useState(false);
+  const [dialogStep, setDialogStep] = useState<1 | 2 | 3>(1);
+  const [chosenRole, setChosenRole] = useState<'monitor' | 'step_back' | 'remove' | null>(null);
+
+  const { data: transferStatus, refetch: refetchTransfer } = useQuery<{
+    step: number; initiatedBy: string | null; offeredAt: string | null;
+    step2At: string | null; mcCoConfirmed: boolean; cancelledAt: string | null; confirmedAt: string | null;
+  }>({
+    queryKey: ["/api/clients", clientId, "transfer-status"],
+    queryFn: () => apiRequest("GET", `/api/clients/${clientId}/transfer-status`).then(r => r.json()),
+  });
+
+  const initiateClientTransfer = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${clientId}/transfer/initiate`, {}),
+    onSuccess: () => {
+      refetchTransfer();
+      setShowDialog(false);
+      toast({ title: "Step 1 complete", description: "Your care team has been notified. Come back tomorrow to continue." });
+    },
+    onError: (err: any) => {
+      toast({ title: "Could not start transfer", description: err?.message || "Please try again.", variant: "destructive" });
+    },
+  });
+
+  const advanceTransfer = useMutation({
+    mutationFn: (mcPostTransferRole: string) =>
+      apiRequest("POST", `/api/clients/${clientId}/transfer/advance`, { mcPostTransferRole }).then(r => r.json()),
+    onSuccess: (data: any) => {
+      refetchTransfer();
+      if (data?.completed) {
+        setShowDialog(false);
+        toast({ title: "Transfer of Care complete", description: "You are now the primary authority on your care portal." });
+      } else if (data?.step === 2) {
+        setShowDialog(false);
+        toast({ title: "Step 2 complete", description: "One final confirmation tomorrow and the transfer is done." });
+      }
+    },
+    onError: (err: any) => {
+      const hoursRemaining = err?.hoursRemaining;
+      const msg = hoursRemaining
+        ? `Come back in ${hoursRemaining} hour${hoursRemaining === 1 ? '' : 's'} to continue.`
+        : err?.message || "Please try again.";
+      toast({ title: "Not yet", description: msg, variant: "destructive" });
+    },
+  });
+
+  const cancelTransfer = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/clients/${clientId}/transfer/cancel`, {}),
+    onSuccess: () => {
+      refetchTransfer();
+      setShowDialog(false);
+      toast({ title: "Transfer cancelled", description: "Everything remains as it is. No pressure." });
+    },
+  });
+
+  const step = transferStatus?.step ?? 0;
+  const isMyTransfer = step > 0 && transferStatus?.initiatedBy === 'client';
+  const isMCOffer = step > 0 && transferStatus?.initiatedBy === 'mc';
+  const mcCoConfirmed = transferStatus?.mcCoConfirmed ?? false;
+
+  const roleOptions = [
+    { value: 'monitor' as const, label: 'Continue monitoring', desc: 'They can see your record but cannot make changes.' },
+    { value: 'step_back' as const, label: 'Step back to family member', desc: 'They stay on the portal with a limited role.' },
+    { value: 'remove' as const, label: 'Remove from portal', desc: 'They will no longer have access.' },
+  ];
+
+  // MC-initiated offer: show accept banner + dialog
+  if (isMCOffer) {
+    return (
+      <>
+        <div
+          className="w-full px-4 py-2.5 flex items-center justify-between gap-3"
+          style={{ background: "hsl(160 60% 28% / 0.1)", borderBottom: "1px solid hsl(160 60% 28% / 0.2)" }}
+          data-testid="mc-offer-banner"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <AlertCircle size={13} className="flex-shrink-0" style={{ color: "hsl(160 60% 32%)" }} />
+            <span className="text-xs font-medium" style={{ color: "hsl(160 60% 28%)" }}>
+              Your Main Contact says you are ready to own your care portal.
+            </span>
+          </div>
+          <button
+            className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors"
+            style={{ color: "hsl(160 60% 28%)", background: "hsl(160 60% 28% / 0.15)", border: "1px solid hsl(160 60% 28% / 0.3)" }}
+            onClick={() => { setShowDialog(true); setDialogStep(2); setChosenRole(null); }}
+            data-testid="review-mc-offer-btn"
+          >
+            Review offer
+          </button>
+        </div>
+
+        {showDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="iam-ready-dialog">
+            <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
+              <div className="space-y-2">
+                <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>You Are Invited</div>
+                <div className="text-sm text-muted-foreground leading-relaxed">
+                  Your Main Contact believes you are ready to take full ownership of your care portal. This is your choice.
+                </div>
+                <div className="text-sm text-muted-foreground leading-relaxed">
+                  Choose how your Main Contact stays involved going forward:
+                </div>
+              </div>
+              <div className="space-y-2">
+                {roleOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    className={`w-full text-left p-3 rounded-lg border text-sm transition-colors ${
+                      chosenRole === opt.value
+                        ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                        : 'border-border hover:bg-muted/40'
+                    }`}
+                    onClick={() => setChosenRole(opt.value)}
+                    data-testid={`role-option-${opt.value}`}
+                  >
+                    <div className="font-medium">{opt.label}</div>
+                    <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
+                  </button>
+                ))}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowDialog(false)}>Not now</Button>
+                <Button
+                  size="sm"
+                  className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                  disabled={!chosenRole || advanceTransfer.isPending}
+                  onClick={() => chosenRole && advanceTransfer.mutate(chosenRole)}
+                  data-testid="accept-mc-offer-btn"
+                >
+                  <ArrowRightCircle size={14} /> Accept
+                </Button>
+              </div>
+              <button
+                className="text-xs text-muted-foreground w-full text-center hover:text-destructive transition-colors"
+                onClick={() => cancelTransfer.mutate()}
+                data-testid="decline-mc-offer-btn"
+              >
+                Decline this offer
+              </button>
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // Client-initiated in progress
+  if (isMyTransfer) {
+    const canContinue = mcCoConfirmed || (() => {
+      const base = step === 1
+        ? (transferStatus?.step2At ? 0 : (new Date(transferStatus?.offeredAt ?? 0).getTime()))
+        : new Date(transferStatus?.step2At ?? 0).getTime();
+      return (Date.now() - base) >= 24 * 60 * 60 * 1000;
+    })();
+
+    return (
+      <>
+        <div
+          className="w-full px-4 py-2.5 flex items-center justify-between gap-3"
+          style={{ background: "hsl(160 60% 28% / 0.1)", borderBottom: "1px solid hsl(160 60% 28% / 0.2)" }}
+          data-testid="iam-ready-in-progress-banner"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <ArrowRightCircle size={13} className="flex-shrink-0" style={{ color: "hsl(160 60% 32%)" }} />
+            <span className="text-xs font-medium" style={{ color: "hsl(160 60% 28%)" }}>
+              Transfer of Care in progress — step {step} of 3
+              {mcCoConfirmed ? " — your Main Contact agrees. You can complete now." : step < 3 ? " — come back tomorrow to continue." : ""}
+            </span>
+          </div>
+          <button
+            className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors"
+            style={{ color: "hsl(160 60% 28%)", background: "hsl(160 60% 28% / 0.15)", border: "1px solid hsl(160 60% 28% / 0.3)" }}
+            onClick={() => { setShowDialog(true); setDialogStep(step === 1 ? 2 : 3); setChosenRole(null); }}
+            data-testid="continue-transfer-btn"
+          >
+            {canContinue ? "Continue" : "View"}
+          </button>
+        </div>
+
+        {showDialog && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="iam-ready-dialog">
+            <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
+
+              {dialogStep === 2 && (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Still sure?</div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      This is your second confirmation. A day has passed. Taking ownership of your care record means your Main Contact steps into a new role.
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowDialog(false)}>Not yet</Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      disabled={advanceTransfer.isPending}
+                      onClick={() => advanceTransfer.mutate('monitor')}
+                      data-testid="client-transfer-step2-btn"
+                    >
+                      <ChevronRight size={14} /> Yes, continue
+                    </Button>
+                  </div>
+                  <button
+                    className="text-xs text-muted-foreground w-full text-center hover:text-destructive transition-colors pt-1"
+                    onClick={() => cancelTransfer.mutate()}
+                  >
+                    Cancel the transfer
+                  </button>
+                </>
+              )}
+
+              {dialogStep === 3 && (
+                <>
+                  <div className="space-y-2">
+                    <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Final step</div>
+                    <div className="text-sm text-muted-foreground leading-relaxed">
+                      This is your last confirmation. Choose how your Main Contact stays involved after the transfer:
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    {roleOptions.map(opt => (
+                      <button
+                        key={opt.value}
+                        className={`w-full text-left p-3 rounded-lg border text-sm transition-colors ${
+                          chosenRole === opt.value
+                            ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-950/30'
+                            : 'border-border hover:bg-muted/40'
+                        }`}
+                        onClick={() => setChosenRole(opt.value)}
+                        data-testid={`final-role-option-${opt.value}`}
+                      >
+                        <div className="font-medium">{opt.label}</div>
+                        <div className="text-xs text-muted-foreground mt-0.5">{opt.desc}</div>
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowDialog(false)}>Not yet</Button>
+                    <Button
+                      size="sm"
+                      className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                      disabled={!chosenRole || advanceTransfer.isPending}
+                      onClick={() => chosenRole && advanceTransfer.mutate(chosenRole)}
+                      data-testid="client-transfer-final-btn"
+                    >
+                      <ArrowRightCircle size={14} /> Complete transfer
+                    </Button>
+                  </div>
+                  <button
+                    className="text-xs text-muted-foreground w-full text-center hover:text-destructive transition-colors pt-1"
+                    onClick={() => cancelTransfer.mutate()}
+                  >
+                    Cancel the transfer
+                  </button>
+                </>
+              )}
+
+            </div>
+          </div>
+        )}
+      </>
+    );
+  }
+
+  // No transfer in progress: just the dialog trigger (no persistent banner — not intrusive)
+  return (
+    <>
+      {showDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" data-testid="iam-ready-dialog">
+          <div className="bg-background border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-5">
+            <div className="space-y-2">
+              <div className="text-base font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>I Am Ready</div>
+              <div className="text-sm text-muted-foreground leading-relaxed">
+                This begins your Transfer of Care — the process of taking full ownership of your care portal.
+              </div>
+              <div className="text-sm text-muted-foreground leading-relaxed">
+                It is a three-step journey over two days. This gives you time to be certain. Your care team will be notified at each step and can cancel at any point before you finalize.
+              </div>
+              <div className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mt-1">
+                You can cancel at any time before the final step. No judgment, no explanation required.
+              </div>
+            </div>
+            <div className="flex gap-2 pt-1">
+              <Button variant="outline" size="sm" className="flex-1" onClick={() => setShowDialog(false)}>Not yet</Button>
+              <Button
+                size="sm"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white gap-1.5"
+                disabled={initiateClientTransfer.isPending}
+                onClick={() => initiateClientTransfer.mutate()}
+                data-testid="iam-ready-confirm-btn"
+              >
+                <ArrowRightCircle size={14} /> Begin
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
+
