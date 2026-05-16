@@ -83,7 +83,7 @@ export default function InviteLanding({ token }: { token: string }) {
     if (!isLoggedIn) {
       // Store token in session and redirect to login/signup
       sessionStorage.setItem("pending_invite_token", token);
-      setLocation("/#/apply?invite=" + token);
+      setLocation("/apply?invite=" + token);
       return;
     }
     setAccepting(true);
