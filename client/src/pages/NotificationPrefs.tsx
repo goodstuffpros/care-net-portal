@@ -35,8 +35,8 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
   const { toast } = useToast();
   const isFcp = portalMode === "family" || activeUser.role === "primary_family";
   const isSfm = activeUser.role === "secondary_family";
-  const accentColor = isFcp ? "#9B3A5C" : "#01696F";
   const bgLight = isFcp ? "#F9EEF3" : "#E6F2F2";
+  const headerAccent = isFcp ? "#9B3A5C" : "#01696F";
 
   const { data, isLoading } = useQuery({
     queryKey: ["/api/notifications/prefs"],
@@ -79,7 +79,7 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: bgLight }}>
-          <Bell className="w-5 h-5" style={{ color: accentColor }} />
+          <Bell className="w-5 h-5" style={{ color: headerAccent }} />
         </div>
         <div>
           <h1 className="text-lg font-semibold text-foreground">Notification Preferences</h1>
@@ -116,7 +116,6 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
             description: "Send an email when an Urgent alert fires",
             onToggle: () => toggle("urgentEmail"),
             disabled: mutation.isPending,
-            accentColor,
           },
         ]}
       />
@@ -138,7 +137,6 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
               : "Always on for caregivers and Main Contact",
             onToggle: isSfm ? () => toggle("importantBell") : undefined,
             disabled: mutation.isPending,
-            accentColor,
           },
           {
             label: "Email",
@@ -147,7 +145,6 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
             description: "Send an email for Important alerts",
             onToggle: () => toggle("importantEmail"),
             disabled: mutation.isPending,
-            accentColor,
           },
         ]}
       />
@@ -158,17 +155,9 @@ export default function NotificationPrefs({ portalMode }: { portalMode?: string 
         iconBg="bg-emerald-50 dark:bg-emerald-950/30"
         label="Normal"
         labelColor="text-emerald-700 dark:text-emerald-500"
-        description="Routine care log entries, vitals in normal range, media added, and outings."
+        description="Routine care log entries, vitals in normal range, media added, and outings. You'll see these when you open the app."
         rows={[
-          {
-            label: "In-app alert",
-            locked: false,
-            value: prefs.normalBell,
-            description: "Show Normal activity in your notification bell",
-            onToggle: () => toggle("normalBell"),
-            disabled: mutation.isPending,
-            accentColor,
-          },
+          { label: "In-app alert", locked: true, value: false, description: "No bell — review at your own pace" },
           { label: "Email", locked: true, value: false, description: "No email for Normal activity" },
         ]}
       />
@@ -188,7 +177,6 @@ interface ToggleRow {
   description: string;
   onToggle?: () => void;
   disabled?: boolean;
-  accentColor?: string;
 }
 
 function TierCard({
@@ -240,7 +228,7 @@ function TierCard({
                   "relative w-11 h-6 rounded-full transition-colors flex-shrink-0 disabled:opacity-50",
                   row.value ? "bg-teal-600" : "bg-zinc-300 dark:bg-zinc-600"
                 )}
-                style={row.value && row.accentColor ? { backgroundColor: row.accentColor } : {}}
+                style={row.value ? { backgroundColor: "#01696F" } : {}}
                 data-testid={`notif-toggle-${row.label.toLowerCase().replace(/\s+/g, "-")}`}
               >
                 <span className={cn(
