@@ -9,7 +9,7 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useLocation } from "wouter";
-import { X, Sun, Moon, BookHeart } from "lucide-react";
+import { X, Sun, Moon, BookHeart, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/lib/useLang";
@@ -488,6 +488,16 @@ export default function NavOverlay({
             </div>
           </div>
           )}
+          {/* Notification Preferences link */}
+          <button
+            onClick={() => { onClose(); navigate("/notification-prefs"); }}
+            data-testid="nav-overlay-notif-prefs"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Bell size={14} className="flex-shrink-0" />
+            <span>Notification preferences</span>
+          </button>
+
           {/* User identity pill */}
           <div
             className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl border border-border bg-muted/30"
