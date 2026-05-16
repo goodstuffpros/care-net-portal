@@ -489,7 +489,33 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
     if (!account?.userId) return res.status(401).json({ message: "Not authenticated" });
     db.update(users).set({ onboardingCompletedAt: new Date().toISOString() }).where(eq(users.id, account.userId)).run();
-    res.json({ success: true });
+
+    // If this user is a CG who arrived via an mc_to_caregiver invite, the connection
+    // already happened at verify-email. Return the client name so the done screen
+    // can show "You're already connected to [Name]'s portal" instead of the generic
+    // "wait for an MC to invite you" message.
+    let connectedClient: { clientName: string } | null = null;
+    try {
+      const cgUser = db.select().from(users).where(eq(users.id, account.userId)).get();
+      if (cgUser?.role === "caregiver" && cgUser.clientId) {
+        const invite = db.select().from(connectionInvites)
+          .where(
+            and(
+              eq(connectionInvites.acceptedByUserId, cgUser.id),
+              eq(connectionInvites.inviteType, "mc_to_caregiver"),
+              eq(connectionInvites.status, "accepted")
+            )
+          ).get();
+        if (invite) {
+          const client = db.select().from(clients).where(eq(clients.id, cgUser.clientId)).get();
+          if (client && !client.isPractice) {
+            connectedClient = { clientName: client.name };
+          }
+        }
+      }
+    } catch (e) { /* non-fatal */ }
+
+    res.json({ success: true, ...(connectedClient ? { connectedClient } : {}) });
   });
 
   // POST /api/onboarding/self-care-setup — Self-Managed Care path

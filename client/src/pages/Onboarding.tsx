@@ -49,6 +49,9 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   type Step = "profile" | "client_setup" | "done";
   const [step, setStep] = useState<Step>("profile");
 
+  // CG invite follow-through — set when CG arrived via mc_to_caregiver invite
+  const [connectedClientName, setConnectedClientName] = useState<string | null>(null);
+
   // ── Save profile ────────────────────────────────────────────────────────────
   async function saveProfile() {
     if (!name.trim()) return;
@@ -66,7 +69,11 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
         setClientName(name.trim());
         setStep("client_setup");
       } else {
-        await apiRequest("POST", "/api/onboarding/complete", {});
+        const completeRes = await apiRequest("POST", "/api/onboarding/complete", {});
+        const completeData = await completeRes.json();
+        if (completeData.connectedClient?.clientName) {
+          setConnectedClientName(completeData.connectedClient.clientName);
+        }
         setStep("done");
       }
     } catch (e: any) {
@@ -335,7 +342,9 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
                 {isSelfManaged
                   ? "Your care record is ready. You're in full control of your portal. Head to Care Net University to get familiar with the tools."
                   : isCG
-                    ? "Your profile is set up. When a Main Contact invites you, your portals will connect automatically. Head to Care Net University to get familiar with the tools."
+                    ? connectedClientName
+                      ? `You're already connected to ${connectedClientName}'s portal. Head to Care Net University to get familiar with the tools.`
+                      : "Your profile is set up. When a Main Contact invites you, your portals will connect automatically. Head to Care Net University to get familiar with the tools."
                     : "Your profile is ready. Next, you'll set up your loved one's profile — that's the heart of everything in Care Net Portal."}
               </p>
 
