@@ -1418,7 +1418,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // POST /api/clients/practice — create a sample client for the logged-in CG (once only)
   app.post("/api/clients/practice", requireAuth, (req: AuthRequest, res) => {
-    const caregiverId = req.user!.userId;
+    const caregiverId = req.authUserId!;
     const { dateOfBirth, primaryCondition } = req.body;
     if (!dateOfBirth || !primaryCondition) {
       return res.status(400).json({ message: "dateOfBirth and primaryCondition are required" });
@@ -1439,7 +1439,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // POST /api/clients/practice/switch-to-sample — CG switches active portal to sample client
   app.post("/api/clients/practice/switch-to-sample", requireAuth, (req: AuthRequest, res) => {
-    const caregiverId = req.user!.userId;
+    const caregiverId = req.authUserId!;
     const cgUser = storage.getUserById(caregiverId);
     if (!cgUser?.sampleClientId) return res.status(404).json({ message: "No sample client found" });
     // Store the real clientId so we can switch back
@@ -1450,7 +1450,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // POST /api/clients/practice/switch-to-real — CG switches back to real client
   app.post("/api/clients/practice/switch-to-real", requireAuth, (req: AuthRequest, res) => {
-    const caregiverId = req.user!.userId;
+    const caregiverId = req.authUserId!;
     const { realClientId } = req.body;
     if (!realClientId) return res.status(400).json({ message: "realClientId required" });
     storage.updateUser(caregiverId, { clientId: realClientId });
@@ -1463,11 +1463,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const client = storage.getClientById(clientId);
     if (!client) return res.status(404).json({ message: "Client not found" });
     if (!client.isPractice) return res.status(403).json({ message: "Not a practice client" });
-    if (client.caregiverId !== req.user!.userId) return res.status(403).json({ message: "Not your practice client" });
-    const cgUser = storage.getUserById(req.user!.userId);
+    if (client.caregiverId !== req.authUserId!) return res.status(403).json({ message: "Not your practice client" });
+    const cgUser = storage.getUserById(req.authUserId!);
     // If CG is currently in sample mode, move them back to pre-connection
     if (cgUser?.clientId === clientId) {
-      storage.updateUser(req.user!.userId, { clientId: null });
+      storage.updateUser(req.authUserId!, { clientId: null });
     }
     storage.deletePracticeClient(clientId);
     res.json({ success: true });
@@ -1479,7 +1479,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const client = storage.getClientById(clientId);
     if (!client) return res.status(404).json({ message: "Client not found" });
     if (!client.isPractice) return res.status(403).json({ message: "Not a practice client" });
-    if (client.caregiverId !== req.user!.userId) return res.status(403).json({ message: "Not your practice client" });
+    if (client.caregiverId !== req.authUserId!) return res.status(403).json({ message: "Not your practice client" });
     const { isShowcase } = req.body;
     const updated = storage.setShowcase(clientId, !!isShowcase);
     res.json(updated);
@@ -1510,7 +1510,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const client = storage.getClientById(clientId);
     if (!client) return res.status(404).json({ message: "Client not found" });
     // Only MC (primary_family) for this client can upgrade permissions
-    const requestingUser = storage.getUserById(req.user!.userId);
+    const requestingUser = storage.getUserById(req.authUserId!);
     if (requestingUser?.role !== "primary_family" || requestingUser?.clientId !== clientId) {
       return res.status(403).json({ message: "Only the Main Contact can manage client portal access" });
     }
