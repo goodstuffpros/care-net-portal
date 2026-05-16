@@ -49,9 +49,10 @@ function formatTime(iso: string) {
 }
 
 export default function ActivityPage() {
-  const { activeUser, selectedClientId, isRealSession } = useApp();
+  const { activeUser, selectedClientId, isRealSession, clientPermissionLevel, isClientPortal } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
+  const isContributor = isClientPortal && clientPermissionLevel === "contributor";
   const [addOpen, setAddOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
@@ -94,7 +95,7 @@ export default function ActivityPage() {
     const match = text.match(/^[^.!?]*[.!?]/);
     return match ? match[0].trim() : text.slice(0, 80).trim() + (text.length > 80 ? "…" : "");
   };
-  const canEdit = activeUser.role === "caregiver";
+  const canEdit = activeUser.role === "caregiver" || isContributor;
   const isFamilyPrimary = activeUser.role === "primary_family";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
@@ -177,12 +178,14 @@ export default function ActivityPage() {
       loggedByUserId: activeUser.id,
       loggedAt: new Date().toISOString(),
       isChecked: false,
+      // Phase 2: tag self_care contributor entries
+      ...(isContributor ? { loggedByRole: "self_care" } : {}),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
       setAddOpen(false);
       setForm({ title: "", description: "", priority: "green", category: "general" });
-      toast({ title: "Activity logged", description: "Entry added to activity log." });
+      toast({ title: isContributor ? "Added to your record" : "Activity logged", description: isContributor ? "Your entry was saved." : "Entry added to activity log." });
     },
   });
 
@@ -200,6 +203,16 @@ export default function ActivityPage() {
       setExcuseNote("");
       toast({ title: "Flag excused", description: "This late entry has been marked as excused and will not affect the caregiver rating." });
     },
+  });
+
+  // Phase 2: MC approves a pending-review entry from a minor contributor
+  const approveMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/activity/${id}/approve`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
+      toast({ title: "Entry approved", description: "The entry is now visible to the care team." });
+    },
+    onError: () => toast({ title: "Approval failed", variant: "destructive" }),
   });
 
   const discussMutation = useMutation({
@@ -440,13 +453,17 @@ export default function ActivityPage() {
         {canEdit && (
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             <DialogTrigger asChild>
-              <Button size="sm" className="gap-1.5 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-activity-btn">
-                <Plus size={16} /> {t("activity.addEntry")}
+              <Button
+                size="sm"
+                className={`gap-1.5 w-full text-white ${isContributor ? "bg-emerald-600 hover:bg-emerald-700" : "bg-teal-600 hover:bg-teal-700"}`}
+                data-testid="add-activity-btn"
+              >
+                <Plus size={16} /> {isContributor ? "Add to My Record" : t("activity.addEntry")}
               </Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-md">
               <DialogHeader>
-                <DialogTitle>Log Activity</DialogTitle>
+                <DialogTitle>{isContributor ? "Add to My Care Record" : "Log Activity"}</DialogTitle>
               </DialogHeader>
               <div className="space-y-4 py-2">
                 <div className="space-y-1.5">
@@ -650,7 +667,9 @@ export default function ActivityPage() {
                       ? "border-l-4 border-l-amber-400 dark:border-l-amber-600"
                       : (log as any).loggedByRole === "primary_family" || (log as any).loggedByRole === "secondary_family"
                         ? "border-l-4 border-l-violet-400 dark:border-l-violet-600"
-                        : ""
+                        : (log as any).loggedByRole === "self_care"
+                          ? "border-l-4 border-l-emerald-400 dark:border-l-emerald-600"
+                          : ""
                 )}
                 data-testid={`activity-card-${log.id}`}
               >
@@ -697,6 +716,18 @@ export default function ActivityPage() {
                       {((log as any).loggedByRole === "primary_family" || (log as any).loggedByRole === "secondary_family") && !((log as any).isEmergency) && (
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-violet-100 text-violet-700 border border-violet-300 dark:bg-violet-950/40 dark:text-violet-400 dark:border-violet-800">
                           <UserRound size={9} /> Family Log
+                        </span>
+                      )}
+                      {/* Self-reported badge (self_care contributor entries) */}
+                      {(log as any).loggedByRole === "self_care" && !(log as any).pendingReview && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-800">
+                          <UserRound size={9} /> Self-reported
+                        </span>
+                      )}
+                      {/* Pending review badge (minor contributor, MC approval on) */}
+                      {(log as any).pendingReview && (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                          <Clock size={9} /> Pending review
                         </span>
                       )}
                       {/* Emergency type label */}
@@ -782,8 +813,17 @@ export default function ActivityPage() {
                 {/* Bottom action row — family only */}
                 {isFamily && (
                   <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
-                    {/* Excuse flag — primary family only, only on unexcused late entries */}
-                    {activeUser.role === "primary_family" && log.isLateEntry && !log.isExcused ? (
+                    {/* Approve pending-review entry (minor contributor) — MC only */}
+                    {isFamilyPrimary && (log as any).pendingReview ? (
+                      <button
+                        onClick={() => approveMutation.mutate(log.id)}
+                        disabled={approveMutation.isPending}
+                        className="text-xs text-emerald-700 dark:text-emerald-400 hover:underline flex items-center gap-1.5 font-medium disabled:opacity-60"
+                        data-testid={`approve-activity-${log.id}`}
+                      >
+                        <CheckCircle2 size={11} /> Approve entry
+                      </button>
+                    ) : activeUser.role === "primary_family" && log.isLateEntry && !log.isExcused ? (
                       <button
                         onClick={() => { setExcuseDialogId(log.id); setExcuseNote(""); }}
                         className="text-xs text-yellow-600 dark:text-yellow-400 hover:underline flex items-center gap-1.5"

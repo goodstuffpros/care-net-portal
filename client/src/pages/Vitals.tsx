@@ -398,7 +398,19 @@ function HistoryRow({ v, expanded, onToggle }: { v: Vitals; expanded: boolean; o
       >
         {hasAlert && <AlertTriangle size={14} className="text-amber-500 flex-shrink-0" />}
         <div className="flex-1 min-w-0">
-          <div className="text-xs font-medium text-foreground">{formatTime(v.recordedAt)}</div>
+          <div className="flex items-center gap-2">
+            <div className="text-xs font-medium text-foreground">{formatTime(v.recordedAt)}</div>
+            {(v as any).loggedByRole === "self_care" && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
+                Self-reported
+              </span>
+            )}
+            {(v as any).pendingReview && (
+              <span className="text-xs px-1.5 py-0.5 rounded-full bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                Pending review
+              </span>
+            )}
+          </div>
           <div className="flex items-center flex-wrap gap-2 mt-0.5">
             {v.bloodPressureSystolic && (
               <span className={cn("text-xs", bpStatus ? STATUS_COLORS[bpStatus] : "")}>
@@ -436,10 +448,11 @@ function HistoryRow({ v, expanded, onToggle }: { v: Vitals; expanded: boolean; o
 
 // ─── Main Page ─────────────────────────────────────────────────────────────────
 export default function VitalsPage() {
-  const { activeUser, selectedClientId } = useApp();
+  const { activeUser, selectedClientId, clientPermissionLevel, isClientPortal } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
-  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family";
+  const isContributor = isClientPortal && clientPermissionLevel === "contributor";
+  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family" || isContributor;
   const [addOpen, setAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
@@ -453,11 +466,13 @@ export default function VitalsPage() {
     mutationFn: (data: any) => apiRequest("POST", `/api/clients/${selectedClientId}/vitals`, {
       ...data,
       caregiverId: activeUser.id,
+      // Phase 2: tag self_care entries so the server can set pendingReview if needed
+      ...(isContributor ? { loggedByRole: "self_care", recordedByUserId: activeUser.id } : {}),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "vitals"] });
       setAddOpen(false);
-      toast({ title: "Vitals recorded", description: "Entry saved to history." });
+      toast({ title: "Vitals recorded", description: "Entry saved to your record." });
     },
     onError: () => toast({ title: "Error saving vitals", variant: "destructive" }),
   });
@@ -495,10 +510,15 @@ export default function VitalsPage() {
         </div>
         {canEdit && (
           <>
-          <LessonLauncher pageKey="vitals" />
-          <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="vitals-add-btn">
+          {!isContributor && <LessonLauncher pageKey="vitals" />}
+          <Button
+            onClick={() => setAddOpen(true)}
+            size="sm"
+            className={`gap-2 w-full text-white ${isContributor ? "bg-emerald-600 hover:bg-emerald-700" : "bg-teal-600 hover:bg-teal-700"}`}
+            data-testid="vitals-add-btn"
+          >
             <Plus size={14} />
-            Log Vitals
+            {isContributor ? "Add My Vitals" : "Log Vitals"}
           </Button>
           </>
         )}

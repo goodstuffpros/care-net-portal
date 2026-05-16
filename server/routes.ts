@@ -175,7 +175,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, phone: user.phone, avatarInitials: user.avatarInitials });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -1526,6 +1526,53 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true, permissionLevel: updated?.permissionLevel });
   });
 
+  // ── Phase 2: Minor approval toggle (MC sets requiresMinorApproval on client) ─────────────────
+  app.patch("/api/clients/:id/minor-approval-toggle", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const client = storage.getClientById(clientId);
+    if (!client) return res.status(404).json({ message: "Client not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    if (requestingUser?.role !== "primary_family" || requestingUser?.clientId !== clientId) {
+      return res.status(403).json({ message: "Only the Main Contact can manage this setting" });
+    }
+    const { requiresMinorApproval } = req.body;
+    const updated = storage.updateClient(clientId, { requiresMinorApproval: !!requiresMinorApproval });
+    res.json({ success: true, requiresMinorApproval: updated?.requiresMinorApproval });
+  });
+
+  // ── Phase 2: Approve a pending-review activity log entry ────────────────────
+  app.patch("/api/activity/:id/approve", requireAuth, (req: AuthRequest, res) => {
+    const logId = Number(req.params.id);
+    const log = storage.getActivityLogById(logId);
+    if (!log) return res.status(404).json({ message: "Log not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    // Only MC for this client can approve
+    if (requestingUser?.role !== "primary_family" || requestingUser?.clientId !== log.clientId) {
+      return res.status(403).json({ message: "Only the Main Contact can approve entries" });
+    }
+    const updated = storage.updateActivityLog(logId, { pendingReview: false, approvedByUserId: req.authUserId! });
+    res.json(updated);
+  });
+
+  // ── Phase 2: Approve a pending-review vitals entry ──────────────────────────
+  app.patch("/api/vitals/:id/approve", requireAuth, (req: AuthRequest, res) => {
+    const vitalId = Number(req.params.id);
+    const record = storage.getVitalById(vitalId);
+    if (!record) return res.status(404).json({ message: "Vital record not found" });
+    const requestingUser = storage.getUserById(req.authUserId!);
+    if (requestingUser?.role !== "primary_family" || requestingUser?.clientId !== record.clientId) {
+      return res.status(403).json({ message: "Only the Main Contact can approve entries" });
+    }
+    const updated = storage.updateVital(vitalId, { pendingReview: false, approvedByUserId: req.authUserId! });
+    res.json(updated);
+  });
+
+  // ── Phase 2: Dismiss contributor welcome banner ───────────────────────────
+  app.patch("/api/users/me/contributor-welcome-seen", requireAuth, (req: AuthRequest, res) => {
+    const updated = storage.updateUser(req.authUserId!, { contributorWelcomeSeen: true });
+    res.json({ success: true, contributorWelcomeSeen: updated?.contributorWelcomeSeen });
+  });
+
   // Schedule Events
   app.get("/api/clients/:clientId/schedule", (req, res) => {
     res.json(storage.getScheduleEventsByClient(Number(req.params.clientId)));
@@ -1618,6 +1665,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       const caregivers = storage.getCaregiversByClientId(clientId);
       const anyOnShift = caregivers.some(cg => !!storage.getActiveShift(cg.id, clientId));
       if (!anyOnShift) data.isOffShiftEntry = true;
+    }
+
+    // ── Phase 2: self_care contributor — set pendingReview if client is minor w/ approval on ──
+    if (data.loggedByRole === "self_care") {
+      const clientRecord = storage.getClientById(clientId);
+      if (clientRecord?.requiresMinorApproval) {
+        data.pendingReview = true;
+      }
     }
 
     const log = storage.createActivityLog(data);
@@ -2108,7 +2163,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(v ?? null);
   });
   app.post("/api/clients/:clientId/vitals", (req, res) => {
-    const data = { ...req.body, clientId: Number(req.params.clientId) };
+    const clientId = Number(req.params.clientId);
+    const data = { ...req.body, clientId };
+    // Phase 2: self_care contributor — set pendingReview if minor client has approval on
+    if (data.loggedByRole === "self_care") {
+      const clientRecord = storage.getClientById(clientId);
+      if (clientRecord?.requiresMinorApproval) {
+        data.pendingReview = true;
+      }
+    }
     const record = storage.createVitals(data);
     res.status(201).json(record);
   });

@@ -617,7 +617,13 @@ export default function ClientPortalPage() {
 
       {/* ── CLIENT PORTAL ACCESS (MC side) ───────────────────────────────── */}
       {isPrimaryFC && (
-        <ClientPortalAccessSection clientId={selectedClientId} clientName={client?.name ?? "Client"} allUsers={allUsers} />
+        <ClientPortalAccessSection
+          clientId={selectedClientId}
+          clientName={client?.name ?? "Client"}
+          clientDateOfBirth={client?.dateOfBirth ?? null}
+          requiresMinorApproval={!!(client as any)?.requiresMinorApproval}
+          allUsers={allUsers}
+        />
       )}
 
       {/* Access Level Info */}
@@ -652,14 +658,31 @@ export default function ClientPortalPage() {
 }
 
 // ── Client Portal Access Section (MC side) ──────────────────────────────────
-function ClientPortalAccessSection({ clientId, clientName, allUsers }: {
+// Helper: compute age in full years from ISO date string
+function computeAge(dob: string | null): number | null {
+  if (!dob) return null;
+  const birth = new Date(dob);
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age;
+}
+
+function ClientPortalAccessSection({ clientId, clientName, clientDateOfBirth, requiresMinorApproval, allUsers }: {
   clientId: number;
   clientName: string;
+  clientDateOfBirth: string | null;
+  requiresMinorApproval: boolean;
   allUsers: any[];
 }) {
   const { toast } = useToast();
   const [inviteEmail, setInviteEmail] = useState("");
   const [showInviteForm, setShowInviteForm] = useState(false);
+
+  // Age computation for minor approval toggle
+  const clientAge = computeAge(clientDateOfBirth);
+  const isMinor = clientAge !== null && clientAge < 18;
 
   // Check if client already has a portal user linked
   const { data: portalStatus, refetch: refetchStatus } = useQuery<{
@@ -690,6 +713,17 @@ function ClientPortalAccessSection({ clientId, clientName, allUsers }: {
       refetchStatus();
     },
     onError: () => toast({ title: "Upgrade failed", description: "Please try again.", variant: "destructive" }),
+  });
+
+  // Phase 2: minor approval toggle
+  const [approvalToggle, setApprovalToggle] = useState(requiresMinorApproval);
+  const approvalToggleMutation = useMutation({
+    mutationFn: (val: boolean) => apiRequest("PATCH", `/api/clients/${clientId}/minor-approval-toggle`, { requiresMinorApproval: val }),
+    onSuccess: (_data, val) => {
+      setApprovalToggle(val);
+      toast({ title: val ? "Review mode on" : "Review mode off", description: val ? `You will review ${clientName}'s entries before they are posted.` : `${clientName}'s entries will post directly.` });
+    },
+    onError: () => toast({ title: "Could not update setting", variant: "destructive" }),
   });
 
   const statusLabel = !portalStatus?.hasPortalAccess
@@ -791,6 +825,32 @@ function ClientPortalAccessSection({ clientId, clientName, allUsers }: {
             </div>
             <div className="text-xs text-muted-foreground">
               They will receive an email with a private link to create their portal login. Access starts as read-only (Observer).
+            </div>
+          </div>
+        )}
+
+        {/* Phase 2: Minor approval toggle — only shown when client is a contributor and under 18 */}
+        {isMinor && portalStatus?.permissionLevel === "contributor" && (
+          <div className="p-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50/60 dark:bg-amber-950/20 space-y-2" data-testid="minor-approval-toggle-section">
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-amber-800 dark:text-amber-300 mb-0.5">Entry Review</div>
+                <div className="text-xs text-amber-700 dark:text-amber-400 leading-relaxed">
+                  This client is a minor. You can review their entries before they are posted.
+                </div>
+              </div>
+              <Switch
+                checked={approvalToggle}
+                onCheckedChange={(val) => approvalToggleMutation.mutate(val)}
+                disabled={approvalToggleMutation.isPending}
+                data-testid="minor-approval-switch"
+              />
+            </div>
+            <div className="text-xs text-amber-600 dark:text-amber-500">
+              {approvalToggle
+                ? `${clientName}'s entries will be held for your review before posting.`
+                : `${clientName}'s entries post directly. You will see all entries.`
+              }
             </div>
           </div>
         )}

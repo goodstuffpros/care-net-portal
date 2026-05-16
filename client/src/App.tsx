@@ -111,6 +111,8 @@ interface AppContextType {
   isShowcaseMode: boolean; // true when CG has enabled showcase view for their sample client
   isClientPortal: boolean; // true when user is self_care role (client viewing their own record)
   clientPermissionLevel: 'observer' | 'contributor' | 'self_care_mc' | null; // self_care users only
+  contributorWelcomeSeen: boolean; // Phase 2: whether graduation banner has been dismissed
+  setContributorWelcomeSeen: (seen: boolean) => void; // called after banner dismissal
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
@@ -128,6 +130,7 @@ interface RealUser {
   clientId?: number | null;
   sampleClientId?: number | null;
   permissionLevel?: string | null;
+  contributorWelcomeSeen?: boolean;
   onboardingCompletedAt?: string | null;
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
@@ -171,6 +174,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const [clientPermissionLevel, setClientPermissionLevel] = useState<'observer' | 'contributor' | 'self_care_mc' | null>(
     (realUser?.permissionLevel as 'observer' | 'contributor' | 'self_care_mc' | null) ?? null
   );
+  const [contributorWelcomeSeen, setContributorWelcomeSeen] = useState<boolean>(realUser?.contributorWelcomeSeen ?? false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -318,6 +322,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         isShowcaseMode,
         isClientPortal,
         clientPermissionLevel,
+        contributorWelcomeSeen,
+        setContributorWelcomeSeen,
         navOverlayOpen,
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",
@@ -583,6 +589,7 @@ function RealAuthGate() {
             clientId: data.clientId ?? null,
             sampleClientId: data.sampleClientId ?? null,
             permissionLevel: data.permissionLevel ?? null,
+            contributorWelcomeSeen: data.contributorWelcomeSeen ?? false,
             onboardingCompletedAt: data.onboardingCompletedAt ?? null,
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,

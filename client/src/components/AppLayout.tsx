@@ -183,7 +183,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
@@ -357,6 +357,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [wellbeingOpen, setWellbeingOpen] = useState(false);
   const [proactiveNudgeDismissed, setProactiveNudgeDismissed] = useState(false);
   const [wellbeingTriggerType, setWellbeingTriggerType] = useState<"manual" | "proactive_shift_end" | "proactive_trend">("manual");
+
+  // Phase 2 — Graduation banner dismiss mutation
+  const dismissGraduationMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/users/me/contributor-welcome-seen"),
+    onSuccess: () => setContributorWelcomeSeen(true),
+  });
 
   // Check for proactive nudge (high urgency in last 72h) — caregiver roles only
   const { data: nudgeData } = useQuery<{ shouldNudge: boolean; urgentCount: number }>({
@@ -1054,6 +1060,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <Eye size={12} className="flex-shrink-0" />
             You are viewing your own care record in read-only mode. Contact your Main Contact to request contributor access.
+          </div>
+        )}
+
+        {/* Graduation Banner — first contributor login, one-time, dismissable */}
+        {isClientMode && clientPermissionLevel === "contributor" && !contributorWelcomeSeen && !SCREENSHOT_MODE && (
+          <div
+            className="w-full px-4 py-2.5 flex items-center justify-between gap-3"
+            style={{ background: "hsl(160 60% 28% / 0.14)", borderBottom: "1px solid hsl(160 60% 28% / 0.25)" }}
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <Sparkles size={14} className="flex-shrink-0" style={{ color: "hsl(160 60% 32%)" }} />
+              <span className="text-xs font-medium" style={{ color: "hsl(160 60% 28%)" }}>
+                You can now add to your own care record.
+              </span>
+            </div>
+            <button
+              onClick={() => dismissGraduationMutation.mutate()}
+              className="flex-shrink-0 text-xs px-2.5 py-1 rounded-full font-medium transition-colors"
+              style={{ color: "hsl(160 60% 28%)", background: "hsl(160 60% 28% / 0.15)", border: "1px solid hsl(160 60% 28% / 0.3)" }}
+              data-testid="dismiss-graduation-banner"
+            >
+              Got it
+            </button>
           </div>
         )}
 

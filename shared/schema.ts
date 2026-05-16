@@ -25,6 +25,7 @@ export const users = sqliteTable("users", {
   timezone: text("timezone"),               // IANA timezone string, e.g. "America/Chicago"
   sampleClientId: integer("sample_client_id"), // permanent reference to CG's showcase/sample client — never nulled on real connection
   permissionLevel: text("permission_level"), // self_care users only: 'observer' | 'contributor' | 'self_care_mc' | null
+  contributorWelcomeSeen: integer("contributor_welcome_seen", { mode: "boolean" }).default(false), // Phase 2: tracks if graduation banner has been dismissed
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });
@@ -50,6 +51,8 @@ export const clients = sqliteTable("clients", {
   clientUserId: integer("client_user_id"), // user.id of the client if they have a portal account (self_care role)
   ownershipTransferInitiatedAt: text("ownership_transfer_initiated_at"), // ISO timestamp when Pass the Portal / This Is My Story was started
   ownershipTransferConfirmedAt: text("ownership_transfer_confirmed_at"), // ISO timestamp when transfer was completed
+  // Phase 2 — minor contributor approval gate
+  requiresMinorApproval: integer("requires_minor_approval", { mode: "boolean" }).default(false), // MC toggle: true = pending entries held for review (minor clients only)
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });
@@ -105,6 +108,9 @@ export const activityLogs = sqliteTable("activity_logs", {
   isEmergency: integer("is_emergency", { mode: "boolean" }).default(false),
   emergencyType: text("emergency_type"),  // 'fall' | 'er_visit' | 'hospital_admission' | 'medical_event' | 'other'
   notes: text("notes"),                  // additional notes from MC
+  // Phase 2 — Contributor (self_care) entries
+  pendingReview: integer("pending_review", { mode: "boolean" }).default(false), // true when minor contributor's entry awaits MC approval
+  approvedByUserId: integer("approved_by_user_id"), // MC who approved this entry
 });
 
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true });
@@ -324,6 +330,10 @@ export const vitals = sqliteTable("vitals", {
   cognitionLevel: text("cognition_level"),    // 'oriented' | 'mild_confusion' | 'moderate_confusion' | 'unresponsive'
 
   notes: text("notes"),
+  // Phase 2 — Contributor (self_care) entries
+  pendingReview: integer("pending_review", { mode: "boolean" }).default(false), // true when minor contributor's entry awaits MC approval
+  approvedByUserId: integer("approved_by_user_id"), // MC who approved this entry
+  recordedByUserId: integer("recorded_by_user_id"), // if self_care, the user who entered the vitals
 });
 export const insertVitalsSchema = createInsertSchema(vitals).omit({ id: true });
 export type InsertVitals = z.infer<typeof insertVitalsSchema>;

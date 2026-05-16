@@ -399,6 +399,14 @@ try { sqlite.exec(`ALTER TABLE users ADD COLUMN permission_level TEXT`); } catch
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN client_user_id INTEGER`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN ownership_transfer_initiated_at TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN ownership_transfer_confirmed_at TEXT`); } catch {}
+// Phase 2 — Contributor mode
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN contributor_welcome_seen INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN requires_minor_approval INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN approved_by_user_id INTEGER`); } catch {}
+try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
+try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN approved_by_user_id INTEGER`); } catch {}
+try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN recorded_by_user_id INTEGER`); } catch {}
 
 // shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
 try {
@@ -725,6 +733,7 @@ export interface IStorage {
 
   // Activity Logs
   getActivityLogsByClient(clientId: number): ActivityLog[];
+  getActivityLogById(id: number): ActivityLog | undefined;
   createActivityLog(data: InsertActivityLog): ActivityLog;
   updateActivityLog(id: number, data: Partial<InsertActivityLog>): ActivityLog | undefined;
   deleteActivityLog(id: number): void;
@@ -796,7 +805,9 @@ export interface IStorage {
   // Vitals
   getVitalsByClient(clientId: number, limit?: number): Vitals[];
   getLatestVitals(clientId: number): Vitals | undefined;
+  getVitalById(id: number): Vitals | undefined;
   createVitals(data: InsertVitals): Vitals;
+  updateVital(id: number, data: Partial<InsertVitals>): Vitals | undefined;
 
   // Medications
   getMedicationsByClient(clientId: number, status?: string): Medication[];
@@ -916,6 +927,7 @@ export const storage: IStorage = {
 
   // Activity Logs
   getActivityLogsByClient: (clientId) => db.select().from(activityLogs).where(eq(activityLogs.clientId, clientId)).orderBy(desc(activityLogs.loggedAt)).all(),
+  getActivityLogById: (id) => db.select().from(activityLogs).where(eq(activityLogs.id, id)).get(),
   createActivityLog: (data) => db.insert(activityLogs).values(data).returning().get(),
   updateActivityLog: (id, data) => db.update(activityLogs).set(data).where(eq(activityLogs.id, id)).returning().get(),
   deleteActivityLog: (id) => { db.delete(activityLogs).where(eq(activityLogs.id, id)).run(); },
@@ -1018,7 +1030,9 @@ export const storage: IStorage = {
   getLatestVitals: (clientId) =>
     db.select().from(vitals).where(eq(vitals.clientId, clientId))
       .orderBy(desc(vitals.recordedAt)).limit(1).all()[0],
+  getVitalById: (id) => db.select().from(vitals).where(eq(vitals.id, id)).get(),
   createVitals: (data) => db.insert(vitals).values(data).returning().get(),
+  updateVital: (id, data) => db.update(vitals).set(data).where(eq(vitals.id, id)).returning().get(),
 
   // Medications
   getMedicationsByClient: (clientId, status) => {
