@@ -381,10 +381,15 @@ export default function ClientPortalPage() {
                       )}
                     </div>
                     <div className="text-xs text-muted-foreground mt-0.5">{member.email}</div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      <NotifToggle label="All updates" userId={member.id} field="all" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
-                      <NotifToggle label="Medications" userId={member.id} field="medications" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
-                      <NotifToggle label="Urgent alerts" userId={member.id} field="alerts" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                    <div className="mt-2">
+                      {!isMCViewer && (
+                        <p className="text-xs text-muted-foreground/70 italic mb-1.5">{member.name}'s notification preferences — view only</p>
+                      )}
+                      <div className="flex flex-wrap gap-2">
+                        <NotifToggle label="All updates" userId={member.id} field="all" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                        <NotifToggle label="Medications" userId={member.id} field="medications" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                        <NotifToggle label="Urgent alerts" userId={member.id} field="alerts" prefs={member.notificationPrefs} readOnly={!isMCViewer} onToggle={(prefs) => updateUserMutation.mutate({ id: member.id, data: { notificationPrefs: prefs } })} />
+                      </div>
                     </div>
                   </div>
                   <span className={cn("text-xs px-2 py-0.5 rounded-full flex-shrink-0", ROLE_COLORS[member.role])}>
