@@ -3,7 +3,7 @@ import type { Server } from "http";
 import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
-import { db } from "./db";
+import { db, sqlite } from "./db";
 import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
@@ -2594,17 +2594,32 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const clientId = Number(req.params.clientId);
     const { title, name, phone, email, address, notes } = req.body;
     if (!title?.trim()) return res.status(400).json({ message: "Title is required" });
+    // Safety: ensure table exists (idempotent)
+    try {
+      sqlite.exec(`CREATE TABLE IF NOT EXISTS care_directory_entries (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        client_id INTEGER NOT NULL,
+        title TEXT NOT NULL,
+        name TEXT, phone TEXT, email TEXT, address TEXT, notes TEXT,
+        created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      )`);
+    } catch {}
     const now = new Date().toISOString();
-    const entry = db.insert(careDirectoryEntries).values({
-      clientId, title: title.trim(),
-      name: name?.trim() || null,
-      phone: phone?.trim() || null,
-      email: email?.trim() || null,
-      address: address?.trim() || null,
-      notes: notes?.trim() || null,
-      createdAt: now, updatedAt: now,
-    }).returning().get();
-    res.json(entry);
+    try {
+      const entry = db.insert(careDirectoryEntries).values({
+        clientId, title: title.trim(),
+        name: name?.trim() || null,
+        phone: phone?.trim() || null,
+        email: email?.trim() || null,
+        address: address?.trim() || null,
+        notes: notes?.trim() || null,
+        createdAt: now, updatedAt: now,
+      }).returning().get();
+      res.json(entry);
+    } catch (err: any) {
+      console.error("[directory POST error]", err?.message);
+      res.status(500).json({ message: "Server error: " + (err?.message || "unknown") });
+    }
   });
 
   // PATCH update entry (MC only)
