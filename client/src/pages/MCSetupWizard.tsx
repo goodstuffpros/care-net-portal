@@ -15,7 +15,7 @@
 import { useState } from "react";
 import {
   Heart, ChevronRight, ChevronLeft, User, Calendar, Stethoscope,
-  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X
+  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X, Link2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +95,9 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   const [clientDob, setClientDob] = useState("");
   const [clientCondition, setClientCondition] = useState("");
 
+  // CG token follow-through (set when backend detects a caregiver_to_mc invite)
+  const [cgLinked, setCgLinked] = useState<{ cgName: string; cgId: number } | null>(null);
+
   // Care team invite state
   const [cgEmail, setCgEmail] = useState("");
   const [cgSending, setCgSending] = useState(false);
@@ -108,13 +111,15 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
     if (!clientName.trim()) return;
     setSaving(true);
     try {
-      await apiRequest("POST", "/api/mc/setup", {
+      const res = await apiRequest("POST", "/api/mc/setup", {
         clientName: clientName.trim(),
         clientDob: clientDob || null,
         clientCondition: clientCondition.trim() || null,
         clientRelationship: relationship || null,
         carePathChoice: "has_caregiver",
       });
+      const data = await res.json();
+      if (data.cgLinked) setCgLinked(data.cgLinked);
       setClientCreated(true);
       setStep("care-team");
     } catch (e: any) {
@@ -307,44 +312,63 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           </div>
         </div>
 
-        {/* Caregiver invite */}
-        <div className="rounded-2xl border border-border bg-card p-5 mb-4">
-          <div className="flex items-center gap-2 mb-3">
-            <Briefcase className="w-4 h-4 text-teal-600" />
-            <p className="text-sm font-semibold text-foreground">Invite your caregiver</p>
-            {cgSent && <CheckCircle2 className="w-4 h-4 text-teal-600 ml-auto" />}
+        {/* Caregiver invite — or CG token follow-through confirmation */}
+        {cgLinked ? (
+          <div className="rounded-2xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/30 p-5 mb-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
+                <Link2 className="w-4 h-4 text-teal-700 dark:text-teal-400" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-0.5">
+                  {cgLinked.cgName} is on your care team
+                </p>
+                <p className="text-xs text-teal-700 dark:text-teal-400 leading-relaxed">
+                  Because {cgLinked.cgName.split(" ")[0]} invited you, they're already connected to {clientName}'s portal. No extra steps needed.
+                </p>
+              </div>
+              <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5 ml-auto" />
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground mb-3">
-            Optional. If you work with a professional caregiver, invite them here. They'll get an email to connect their portal to yours.
-          </p>
-          {cgSent ? (
-            <div className="rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 px-4 py-2.5">
-              <p className="text-xs text-teal-700 dark:text-teal-400 font-medium flex items-center gap-2">
-                <Mail className="w-3.5 h-3.5" />
-                Invite sent to {cgEmail}
-              </p>
+        ) : (
+          <div className="rounded-2xl border border-border bg-card p-5 mb-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Briefcase className="w-4 h-4 text-teal-600" />
+              <p className="text-sm font-semibold text-foreground">Invite your caregiver</p>
+              {cgSent && <CheckCircle2 className="w-4 h-4 text-teal-600 ml-auto" />}
             </div>
-          ) : (
-            <div className="flex gap-2">
-              <Input
-                type="email"
-                placeholder="caregiver@example.com"
-                value={cgEmail}
-                onChange={e => setCgEmail(e.target.value)}
-                className="flex-1"
-                data-testid="input-cg-email"
-              />
-              <Button
-                onClick={sendCGInvite}
-                disabled={!cgEmail.trim() || cgSending}
-                className="bg-teal-600 hover:bg-teal-700 text-white flex-shrink-0"
-                data-testid="btn-send-cg-invite"
-              >
-                {cgSending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
-              </Button>
-            </div>
-          )}
-        </div>
+            <p className="text-xs text-muted-foreground mb-3">
+              Optional. If you work with a professional caregiver, invite them here. They'll get an email to connect their portal to yours.
+            </p>
+            {cgSent ? (
+              <div className="rounded-lg bg-teal-50 dark:bg-teal-950/20 border border-teal-200 dark:border-teal-900 px-4 py-2.5">
+                <p className="text-xs text-teal-700 dark:text-teal-400 font-medium flex items-center gap-2">
+                  <Mail className="w-3.5 h-3.5" />
+                  Invite sent to {cgEmail}
+                </p>
+              </div>
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  placeholder="caregiver@example.com"
+                  value={cgEmail}
+                  onChange={e => setCgEmail(e.target.value)}
+                  className="flex-1"
+                  data-testid="input-cg-email"
+                />
+                <Button
+                  onClick={sendCGInvite}
+                  disabled={!cgEmail.trim() || cgSending}
+                  className="bg-teal-600 hover:bg-teal-700 text-white flex-shrink-0"
+                  data-testid="btn-send-cg-invite"
+                >
+                  {cgSending ? <Loader2 className="w-4 h-4 animate-spin" /> : "Send"}
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Family member invites */}
         <div className="rounded-2xl border border-border bg-card p-5 mb-6">
@@ -418,11 +442,11 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
           data-testid="btn-care-team-next"
         >
-          {cgSent || familySentCount > 0 ? "Enter my portal" : "Skip for now — I'll do this later"}
+          {cgLinked || cgSent || familySentCount > 0 ? "Enter my portal" : "Skip for now — I'll do this later"}
           <ChevronRight className="w-4 h-4" />
         </Button>
 
-        {(cgSent || familySentCount > 0) && (
+        {(cgLinked || cgSent || familySentCount > 0) && (
           <p className="text-xs text-center text-muted-foreground mt-3">
             You can invite more people from the Care Team page at any time.
           </p>
@@ -445,7 +469,9 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
             {clientName}'s portal is ready.
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-2">
-            {cgSent
+            {cgLinked
+              ? `${cgLinked.cgName.split(" ")[0]} is already connected to ${clientName}'s portal — no extra steps needed.`
+              : cgSent
               ? `Your caregiver will receive an email invitation. Once they accept, your portals will connect automatically.`
               : `You can invite your caregiver and family members at any time from the Care Team page.`}
           </p>

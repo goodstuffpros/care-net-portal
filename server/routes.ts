@@ -598,7 +598,37 @@ export function registerRoutes(httpServer: Server, app: Express) {
         mcSetupCompletedAt: new Date().toISOString(),
       }).where(eq(users.id, mcUser.id)).run();
 
-      res.json({ success: true, clientId: newClient.id });
+      // ── CG Token Follow-Through ──────────────────────────────────────────────
+      // If this MC arrived via a caregiver_to_mc invite, the invite was auto-accepted
+      // at email verify time (CG still points at sampleClient). Now that the real
+      // client exists, update the CG's clientId to the new real client and return
+      // the CG's name so the frontend can surface a zero-friction confirmation.
+      let cgLinked: { cgName: string; cgId: number } | null = null;
+      try {
+        const cgInvite = db.select().from(connectionInvites)
+          .where(
+            and(
+              eq(connectionInvites.acceptedByUserId, mcUser.id),
+              eq(connectionInvites.inviteType, "caregiver_to_mc"),
+              eq(connectionInvites.status, "accepted")
+            )
+          ).get();
+        if (cgInvite?.senderUserId) {
+          const cgUser = db.select().from(users).where(eq(users.id, cgInvite.senderUserId)).get();
+          if (cgUser) {
+            // Point CG at the real client (they were still on sampleClient)
+            db.update(users).set({ clientId: newClient.id }).where(eq(users.id, cgUser.id)).run();
+            // Also update the client row: set caregiverId to the real CG
+            db.update(clients).set({ caregiverId: cgUser.id }).where(eq(clients.id, newClient.id)).run();
+            cgLinked = { cgName: cgUser.name, cgId: cgUser.id };
+            console.log(`[mc/setup] CG token follow-through: linked CG ${cgUser.id} (${cgUser.name}) to client ${newClient.id}`);
+          }
+        }
+      } catch (cgErr: any) {
+        console.error("[mc/setup] CG follow-through error (non-fatal):", cgErr?.message);
+      }
+
+      res.json({ success: true, clientId: newClient.id, ...(cgLinked ? { cgLinked } : {}) });
     } catch (err: any) {
       console.error("[mc/setup] ERROR:", err?.message || err);
       res.status(500).json({ message: err?.message || "Setup failed" });
