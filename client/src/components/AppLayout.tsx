@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle
+  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -110,15 +110,26 @@ const ROLE_GROUPS = [
 ];
 
 export function PriorityBadge({ priority }: { priority: string }) {
-  const colors = {
-    red: "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900",
+  const colors: Record<string, string> = {
+    emergency: "bg-red-100 text-red-700 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800",
+    urgent:    "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900",
+    important: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900",
+    normal:    "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900",
+    // legacy color aliases
+    red:    "bg-red-50 text-red-600 border-red-200 dark:bg-red-950/30 dark:text-red-400 dark:border-red-900",
     yellow: "bg-amber-50 text-amber-600 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-900",
-    green: "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900",
+    green:  "bg-emerald-50 text-emerald-600 border-emerald-200 dark:bg-emerald-950/30 dark:text-emerald-400 dark:border-emerald-900",
   };
-  const labels = { red: "Urgent", yellow: "Important", green: "Normal" };
+  const labels: Record<string, string> = {
+    emergency: "Emergency",
+    urgent: "Urgent",
+    important: "Important",
+    normal: "Normal",
+    red: "Urgent", yellow: "Important", green: "Normal",
+  };
   return (
-    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap", colors[priority as keyof typeof colors] || colors.green)}>
-      {labels[priority as keyof typeof labels] || "Normal"}
+    <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium whitespace-nowrap", colors[priority] ?? colors.normal)}>
+      {labels[priority] ?? "Normal"}
     </span>
   );
 }
@@ -245,6 +256,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   // ── Referral / Invite a Friend ──────────────────────────────────────────────────────────────────────────────
   const REFERRAL_LINK = `${typeof window !== "undefined" ? window.location.origin : "https://care-net-portal-production.up.railway.app"}/#/apply`;
+  // SOS Emergency Alert state
+  const [sosModalOpen, setSosModalOpen] = useState(false);
+  const [sosMessage, setSosMessage] = useState("");
+  const [sosAlertCg, setSosAlertCg] = useState(true);
+  const [sosSending, setSosSending] = useState(false);
+  const [sosSent, setSosSent] = useState(false);
+
   const [referralSheetOpen, setReferralSheetOpen] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
   const [referralEmail, setReferralEmail] = useState("");
@@ -655,6 +673,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   });
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
+  const hasEmergency = notifications.some(n => !n.isRead && n.priority === 'emergency');
+
+  // SOS reminder check for MC — fires when they load the app after 2h
+  useQuery({
+    queryKey: ["/api/notifications/pending-sos-reminder", activeUser.id],
+    queryFn: () => apiRequest("GET", "/api/notifications/pending-sos-reminder")
+      .then(r => r.json())
+      .then(d => {
+        if (d.hasReminder) queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] });
+        return d;
+      }),
+    enabled: isRealSession && activeUser.role === 'primary_family',
+    refetchInterval: 30 * 60 * 1000, // check every 30 min
+    staleTime: 10 * 60 * 1000,
+  });
   const isPreCare = appMode === "precare";
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
   const rawNavItems = isPreCare ? NAV_ITEMS_PRECARE : NAV_ITEMS_CAREGIVER;
@@ -1349,30 +1382,73 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
           </div>
 
+          {/* SOS Button — CG and MC only, real sessions, not demo */}
+          {isRealSession && (isCaregiverRole(activeUser.role) || activeUser.role === 'primary_family') && selectedClientId && (
+            <button
+              onClick={() => { setSosSent(false); setSosMessage(""); setSosAlertCg(true); setSosModalOpen(true); }}
+              data-testid="sos-btn"
+              aria-label="Emergency Alert"
+              className="flex-shrink-0 p-1.5 rounded-lg text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors"
+              title="Send Emergency Alert"
+            >
+              <Siren size={18} />
+            </button>
+          )}
+
           {/* Notification Bell */}
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <button className={cn("relative flex-shrink-0 p-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted")} data-testid="notifications-bell">
-                <Bell size={18} />
+              <button
+                className={cn("relative flex-shrink-0 p-1.5 rounded-lg transition-colors",
+                  hasEmergency ? "text-red-600 dark:text-red-400" : isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted"
+                )}
+                data-testid="notifications-bell"
+              >
+                <Bell size={18} className={hasEmergency ? "animate-pulse" : ""} />
                 {unreadCount > 0 && (
-                  <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center font-bold">
+                  <span className={cn(
+                    "absolute -top-0.5 -right-0.5 w-4 h-4 text-white text-[10px] rounded-full flex items-center justify-center font-bold",
+                    hasEmergency ? "bg-red-600 animate-pulse" : "bg-red-500"
+                  )}>
                     {unreadCount > 9 ? "9+" : unreadCount}
                   </span>
                 )}
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-80 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
-              <DropdownMenuLabel>Notifications</DropdownMenuLabel>
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-sm font-semibold text-foreground">Notifications</span>
+                {unreadCount > 0 && (
+                  <button
+                    onClick={() => apiRequest("PATCH", `/api/users/${activeUser.id}/notifications/read-all`).then(() => queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] }))}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid="mark-all-read-btn"
+                  >
+                    Mark all read
+                  </button>
+                )}
+              </div>
               <DropdownMenuSeparator />
               {notifications.length === 0 ? (
                 <div className="p-4 text-center text-sm text-muted-foreground">No notifications</div>
-              ) : notifications.slice(0, 6).map(n => (
-                <DropdownMenuItem key={n.id} className={cn("flex flex-col items-start gap-1 py-3 cursor-pointer", !n.isRead && "bg-accent/30")}>
+              ) : notifications.slice(0, 8).map(n => (
+                <DropdownMenuItem
+                  key={n.id}
+                  className={cn(
+                    "flex flex-col items-start gap-1 py-3 cursor-pointer",
+                    n.priority === 'emergency' && "bg-red-50 dark:bg-red-950/20 border-l-2 border-red-500",
+                    !n.isRead && n.priority !== 'emergency' && "bg-accent/30"
+                  )}
+                  onClick={() => {
+                    if (!n.isRead) apiRequest("PATCH", `/api/notifications/${n.id}/read`).then(() => queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] }));
+                    if (n.linkTo) navigate(n.linkTo);
+                  }}
+                >
                   <div className="flex items-center gap-2 w-full">
-                    <PriorityBadge priority={n.priority || "green"} />
-                    {!n.isRead && <span className="ml-auto w-2 h-2 rounded-full bg-primary" />}
+                    <PriorityBadge priority={n.priority || "normal"} />
+                    {!n.isRead && <span className="ml-auto w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
                   </div>
-                  <span className="text-sm font-medium">{n.title}</span>
+                  <span className={cn("text-sm font-medium", n.priority === 'emergency' && "text-red-700 dark:text-red-300")}>{n.title}</span>
                   <span className="text-xs text-muted-foreground">{n.body}</span>
                 </DropdownMenuItem>
               ))}
@@ -1660,6 +1736,131 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <HelpDesk hfmActive={hfmActive} />
 
       {/* ── Invite a Friend sheet ── */}
+      {/* ── SOS Emergency Alert Modal ───────────────────────────────────────── */}
+      {sosModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" data-testid="sos-modal">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !sosSending && setSosModalOpen(false)} />
+          <div className="relative w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl border border-red-200 dark:border-red-800 shadow-2xl p-6 z-10">
+            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5 sm:hidden" />
+            {sosSent ? (
+              <div className="text-center py-4 space-y-3">
+                <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto">
+                  <Siren size={24} className="text-red-600 dark:text-red-400" />
+                </div>
+                <div>
+                  <p className="text-base font-semibold text-foreground">Alert Sent</p>
+                  <p className="text-sm text-muted-foreground mt-1">Your care team has been notified. A record of this alert has been logged.</p>
+                </div>
+                <button
+                  onClick={() => setSosModalOpen(false)}
+                  className="mt-2 px-6 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                  data-testid="sos-close-btn"
+                >
+                  Close
+                </button>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
+                    <Siren size={18} className="text-red-600 dark:text-red-400" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h2 className="text-base font-semibold text-foreground">Emergency Alert</h2>
+                    <p className="text-xs text-muted-foreground">This will immediately notify your care team</p>
+                  </div>
+                  <button onClick={() => setSosModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1" data-testid="sos-modal-close">
+                    <X size={16} />
+                  </button>
+                </div>
+
+                {/* Message */}
+                <div className="mb-4">
+                  <label className="text-xs font-medium text-foreground mb-1.5 block">Message (optional)</label>
+                  <textarea
+                    value={sosMessage}
+                    onChange={e => setSosMessage(e.target.value)}
+                    placeholder="Emergency — immediate attention needed"
+                    rows={2}
+                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-red-400"
+                    data-testid="sos-message-input"
+                  />
+                </div>
+
+                {/* MC only: alert CG toggle */}
+                {activeUser.role === 'primary_family' && (
+                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-3 mb-4">
+                    <div className="flex items-center gap-2">
+                      <MessageSquare size={14} className="text-muted-foreground flex-shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-foreground">Also send SMS to caregiver</p>
+                        <p className="text-xs text-muted-foreground">Your caregiver will always see an in-app alert</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => setSosAlertCg(v => !v)}
+                      className={cn(
+                        "relative w-11 h-6 rounded-full transition-colors flex-shrink-0",
+                        sosAlertCg ? "bg-teal-600" : "bg-zinc-300 dark:bg-zinc-600"
+                      )}
+                      data-testid="sos-alert-cg-toggle"
+                    >
+                      <span className={cn(
+                        "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
+                        sosAlertCg ? "translate-x-5" : "translate-x-0"
+                      )} />
+                    </button>
+                  </div>
+                )}
+
+                {/* CG info: MC always gets notified */}
+                {isCaregiverRole(activeUser.role) && (
+                  <div className="flex items-center gap-2 rounded-lg bg-muted/30 border border-border px-3 py-2.5 mb-4">
+                    <AlertCircle size={14} className="text-muted-foreground flex-shrink-0" />
+                    <p className="text-xs text-muted-foreground">Main Contact will be notified immediately</p>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setSosModalOpen(false)}
+                    className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
+                    data-testid="sos-cancel-btn"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={sosSending}
+                    onClick={async () => {
+                      if (!selectedClientId) return;
+                      setSosSending(true);
+                      try {
+                        await apiRequest("POST", `/api/clients/${selectedClientId}/sos`, {
+                          message: sosMessage.trim() || "Emergency — immediate attention needed",
+                          smsToMc: true,
+                          smsToCg: activeUser.role === 'primary_family' ? sosAlertCg : false,
+                        });
+                        queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] });
+                        setSosSent(true);
+                      } catch {
+                        toast({ title: "Could not send alert", variant: "destructive" });
+                      } finally {
+                        setSosSending(false);
+                      }
+                    }}
+                    className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                    data-testid="sos-send-btn"
+                  >
+                    {sosSending ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Siren size={14} />}
+                    Send Alert
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
       {referralSheetOpen && !SCREENSHOT_MODE && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setReferralSheetOpen(false); setReferralEmailSent(false); setReferralEmail(""); }} />

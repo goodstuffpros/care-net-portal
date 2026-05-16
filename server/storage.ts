@@ -37,6 +37,8 @@ import {
   type MedicationLog, type InsertMedicationLog,
   documentAccessLog,
   type DocumentAccessLog, type InsertDocumentAccessLog,
+  emergencyAlerts,
+  type EmergencyAlert, type InsertEmergencyAlert,
 } from "@shared/schema";
 
 import { db, sqlite } from "./db";
@@ -880,6 +882,11 @@ export interface IStorage {
   deleteBeckyResponse(id: number): void;
   getResponsesForTheme(theme: string): BeckyResponse[];
   seedBeckyResponsesIfEmpty(): void;
+
+  // Emergency Alerts
+  createEmergencyAlert(data: InsertEmergencyAlert): EmergencyAlert;
+  getEmergencyAlertsByClient(clientId: number): EmergencyAlert[];
+  markReminderSent(alertId: number): void;
 }
 
 export const storage: IStorage = {
@@ -1491,6 +1498,11 @@ export const storage: IStorage = {
       db.insert(beckyResponses).values({ ...s, isActive: 1, createdAt: now, updatedAt: now }).run();
     }
   },
+
+  // Emergency Alerts
+  createEmergencyAlert: (data) => db.insert(emergencyAlerts).values(data).returning().get(),
+  getEmergencyAlertsByClient: (clientId) => db.select().from(emergencyAlerts).where(eq(emergencyAlerts.clientId, clientId)).all(),
+  markReminderSent: (alertId) => db.update(emergencyAlerts).set({ reminderSent: true }).where(eq(emergencyAlerts.id, alertId)).run(),
 };
 
 storage.seedBeckyResponsesIfEmpty();
@@ -1521,6 +1533,19 @@ try { sqlite.exec(`ALTER TABLE users ADD COLUMN notification_prefs TEXT DEFAULT 
 // seenModules migration moved to early migration block (line ~339) to avoid startup crash
 
 // ── Care Directory Migration ──────────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS emergency_alerts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    triggered_by_user_id INTEGER NOT NULL,
+    message TEXT NOT NULL,
+    sms_to_mc INTEGER DEFAULT 1,
+    sms_to_cg INTEGER DEFAULT 0,
+    sms_sent INTEGER DEFAULT 0,
+    reminder_sent INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS care_directory_entries (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

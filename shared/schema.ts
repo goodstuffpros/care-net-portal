@@ -922,6 +922,22 @@ export type ConnectionInvite = typeof connectionInvites.$inferSelect;
 // ── Care Directory ────────────────────────────────────────────────────────────
 // MC-managed contacts for a client: doctors, therapists, services, etc.
 // CG can view, MC can add/edit/delete. No portal access implied.
+// Emergency Alerts (SOS events)
+export const emergencyAlerts = sqliteTable("emergency_alerts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  clientId: integer("client_id").notNull(),
+  triggeredByUserId: integer("triggered_by_user_id").notNull(),
+  message: text("message").notNull(),
+  smsToMc: integer("sms_to_mc", { mode: "boolean" }).default(true),
+  smsToCg: integer("sms_to_cg", { mode: "boolean" }).default(false),
+  smsSent: integer("sms_sent", { mode: "boolean" }).default(false), // stub — will be true when Twilio connected
+  reminderSent: integer("reminder_sent", { mode: "boolean" }).default(false),
+  createdAt: text("created_at").notNull(),
+});
+export const insertEmergencyAlertSchema = createInsertSchema(emergencyAlerts).omit({ id: true });
+export type InsertEmergencyAlert = z.infer<typeof insertEmergencyAlertSchema>;
+export type EmergencyAlert = typeof emergencyAlerts.$inferSelect;
+
 export const careDirectoryEntries = sqliteTable("care_directory_entries", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   clientId: integer("client_id").notNull(),

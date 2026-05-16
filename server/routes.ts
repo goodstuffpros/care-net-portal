@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db, sqlite } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
@@ -1569,9 +1569,56 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const client = storage.createClient(req.body);
     res.status(201).json(client);
   });
-  app.patch("/api/clients/:id", (req, res) => {
-    const client = storage.updateClient(Number(req.params.id), req.body);
+  app.patch("/api/clients/:id", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.id);
+    const existingClient = storage.getClientById(clientId);
+    const client = storage.updateClient(clientId, req.body);
     if (!client) return res.status(404).json({ message: "Client not found" });
+
+    const now = new Date().toISOString();
+    const updatingUser = storage.getUserById(req.authUserId!);
+    const updaterName = updatingUser?.name ?? "Your Main Contact";
+
+    // Fire Urgent in-app bell to all CGs when allergies change
+    const oldAllergies = existingClient?.allergies ?? '[]';
+    const newAllergies = req.body.allergies;
+    if (newAllergies !== undefined && newAllergies !== oldAllergies) {
+      const caregivers = storage.getCaregiversByClientId(clientId);
+      caregivers.forEach(cg => {
+        storage.createNotification({
+          userId: cg.id,
+          clientId,
+          title: `⚠️ Allergy information updated`,
+          body: `${updaterName} updated allergy information for your client. Please review before your next shift.`,
+          type: 'alert',
+          priority: 'urgent',
+          isRead: false,
+          createdAt: now,
+          linkTo: '/client-portal',
+        });
+      });
+    }
+
+    // Fire Urgent in-app bell when primary condition changes
+    const oldCondition = existingClient?.primaryCondition;
+    const newCondition = req.body.primaryCondition;
+    if (newCondition !== undefined && newCondition !== oldCondition) {
+      const caregivers = storage.getCaregiversByClientId(clientId);
+      caregivers.forEach(cg => {
+        storage.createNotification({
+          userId: cg.id,
+          clientId,
+          title: `📌 Primary condition updated`,
+          body: `${updaterName} updated the primary condition for your client. Please review.`,
+          type: 'alert',
+          priority: 'urgent',
+          isRead: false,
+          createdAt: now,
+          linkTo: '/client-portal',
+        });
+      });
+    }
+
     res.json(client);
   });
 
@@ -1807,7 +1854,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: `${requestingUser.name} says you are ready`,
         body: `${requestingUser.name} has offered to transfer full ownership of your care portal to you. Open your portal to review and accept.`,
         type: 'alert',
-        priority: 'red',
+        priority: 'urgent',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: '/dashboard',
@@ -1838,7 +1885,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: `${requestingUser.name} has started a Transfer of Care`,
         body: `${requestingUser.name} has indicated they are ready to take ownership of their care portal. This is step 1 of 3. No action is required from you yet.`,
         type: 'alert',
-        priority: 'red',
+        priority: 'urgent',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: '/client-portal',
@@ -1925,7 +1972,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             title: `${requestingUser.name} confirmed — step 2 of 3`,
             body: `${requestingUser.name} has reaffirmed their decision to take ownership of their care portal. One more confirmation step remains.`,
             type: 'alert',
-            priority: 'red',
+            priority: 'urgent',
             isRead: false,
             createdAt: new Date().toISOString(),
             linkTo: '/client-portal',
@@ -1990,7 +2037,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: `${requestingUser!.name} agrees — you can complete your transfer now`,
         body: `${requestingUser!.name} has co-confirmed your Transfer of Care. You may now complete the final step at any time.`,
         type: 'alert',
-        priority: 'red',
+        priority: 'urgent',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: '/dashboard',
@@ -2019,7 +2066,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: "Transfer of Care cancelled",
         body: `${requestingUser!.name} has cancelled the Transfer of Care. Everything remains as it is.`,
         type: 'info',
-        priority: 'green',
+        priority: 'normal',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: isMC ? '/dashboard' : '/client-portal',
@@ -2064,7 +2111,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: "Your Transfer of Care is complete",
         body: "You are now the primary authority on your own care portal.",
         type: 'alert',
-        priority: 'red',
+        priority: 'urgent',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: '/dashboard',
@@ -2092,7 +2139,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         title: `${clientUser?.name ?? 'Your care recipient'} now owns their portal`,
         body: `The Transfer of Care is complete. Your new role: ${roleLabel}.`,
         type: 'info',
-        priority: 'green',
+        priority: 'normal',
         isRead: false,
         createdAt: new Date().toISOString(),
         linkTo: '/client-portal',
@@ -2121,7 +2168,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           title: "📅 New Appointment Added by Family",
           body: `"${event.title}" has been added to the schedule for ${when}. Please review.`,
           type: "alert",
-          priority: "red",
+          priority: 'urgent',
           isRead: false,
           createdAt: new Date().toISOString(),
           linkTo: "/schedule",
@@ -2218,7 +2265,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             title: `🚨 EMERGENCY: ${log.title}`,
             body: `Family reported an emergency for your client${log.description ? ': ' + log.description.slice(0, 120) : ''}. Immediate attention may be required.`,
             type: "alert",
-            priority: "red",
+            priority: 'urgent',
             isRead: false,
             createdAt: now,
             linkTo: "/activity",
@@ -2239,7 +2286,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             senderId: data.loggedByUserId,
             content: `🚨 Emergency log entry filed.\n\n"${log.title}"${log.description ? '\n\n' + log.description : ''}\n\nLogged at: ${new Date(log.loggedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}. Please respond when available.`,
             messageType: "text",
-            priority: "red",
+            priority: 'urgent',
             sentAt: now,
             isRead: false,
             readByUserIds: JSON.stringify([data.loggedByUserId]),
@@ -2255,7 +2302,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             title: `📄 Off-Shift Entry: ${log.title}`,
             body: `Family logged an entry while you were off-shift${log.description ? ': ' + log.description.slice(0, 120) : ''}. Please review.`,
             type: "alert",
-            priority: "red",
+            priority: 'urgent',
             isRead: false,
             createdAt: now,
             linkTo: "/activity",
@@ -2271,7 +2318,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             title: `📝 Family Added a Log Entry`,
             body: `"${log.title}" was added by family while you are on shift. Please review.`,
             type: "alert",
-            priority: "yellow",
+            priority: 'important',
             isRead: false,
             createdAt: now,
             linkTo: "/activity",
@@ -2385,6 +2432,137 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/users/:userId/notifications/read-all", (req, res) => {
     storage.markAllNotificationsRead(Number(req.params.userId));
     res.json({ success: true });
+  });
+
+  // ── Emergency SOS ──────────────────────────────────────────────────────────
+  // POST /api/clients/:clientId/sos — trigger an emergency alert
+  // smsToMc / smsToCg: whether to (stub) send SMS. In-app bell always fires for both.
+  app.post("/api/clients/:clientId/sos", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      const { message = "Emergency — immediate attention needed", smsToMc = true, smsToCg = false } = req.body;
+      const triggeredByUserId = req.authUserId!;
+      const now = new Date().toISOString();
+
+      const client = storage.getClientById(clientId);
+      if (!client) return res.status(404).json({ message: "Client not found" });
+
+      const triggeringUser = storage.getUserById(triggeredByUserId);
+      const triggerName = triggeringUser?.name ?? "A team member";
+      const isCG = triggeringUser && ['caregiver','temp_caregiver','multi_caregiver'].includes(triggeringUser.role);
+      const isMC = triggeringUser?.role === 'primary_family';
+
+      // Create the alert log
+      const alert = storage.createEmergencyAlert({
+        clientId,
+        triggeredByUserId,
+        message,
+        smsToMc: isCG ? true : smsToMc,  // CG always sends SMS to MC
+        smsToCg: isMC ? smsToCg : false,
+        smsSent: false, // stub — Twilio not yet connected
+        reminderSent: false,
+        createdAt: now,
+      });
+
+      // --- In-app bell: ALWAYS notify MC ---
+      if (client.primaryContactId) {
+        storage.createNotification({
+          userId: client.primaryContactId,
+          clientId,
+          title: `🚨 Emergency Alert from ${triggerName}`,
+          body: message,
+          type: 'alert',
+          priority: 'emergency',
+          isRead: false,
+          createdAt: now,
+          linkTo: '/',
+        });
+      }
+
+      // --- In-app bell: ALWAYS notify all CGs ---
+      const caregivers = storage.getCaregiversByClientId(clientId);
+      caregivers.forEach(cg => {
+        if (cg.id === triggeredByUserId) return; // don't notify self
+        storage.createNotification({
+          userId: cg.id,
+          clientId,
+          title: `🚨 Emergency Alert from ${triggerName}`,
+          body: message,
+          type: 'alert',
+          priority: 'emergency',
+          isRead: false,
+          createdAt: now,
+          linkTo: '/',
+        });
+      });
+
+      // --- Stub SMS log (Twilio wires in here later) ---
+      // TODO: if (smsToCg && cgPhone) await twilioClient.messages.create({...})
+      // TODO: if (smsToMc && mcPhone) await twilioClient.messages.create({...})
+      console.log(`[SOS STUB] Emergency alert triggered for client ${clientId} by user ${triggeredByUserId}. smsToMc=${isCG ? true : smsToMc}, smsToCg=${isMC ? smsToCg : false}`);
+
+      // --- If MC chose NOT to include CG in SMS, queue a reminder ---
+      if (isMC && !smsToCg) {
+        // Schedule a 2-hour in-app reminder to MC
+        const reminderTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+        // Store alert id so cron/polling can send it — we use a lightweight approach:
+        // The reminder is sent when MC next loads notifications if 2h have passed
+        // (full cron approach is Phase 2; for now we tag it in the alert record)
+      }
+
+      res.json({ success: true, alertId: alert.id, smsSent: false, smsStubbed: true });
+    } catch (err: any) {
+      console.error('[SOS] Error:', err);
+      res.status(500).json({ message: 'Failed to send emergency alert' });
+    }
+  });
+
+  // GET /api/clients/:clientId/sos — get emergency alert history
+  app.get("/api/clients/:clientId/sos", requireAuth, (req: AuthRequest, res) => {
+    const alerts = storage.getEmergencyAlertsByClient(Number(req.params.clientId));
+    res.json(alerts);
+  });
+
+  // GET /api/notifications/pending-sos-reminder — check if MC has unseen SOS reminder
+  // Called when MC loads their notifications; sends in-app reminder if 2h elapsed
+  app.get("/api/notifications/pending-sos-reminder", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const userId = req.authUserId!;
+      const user = storage.getUserById(userId);
+      if (!user?.clientId || user.role !== 'primary_family') return res.json({ hasReminder: false });
+
+      const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+      const alerts = storage.getEmergencyAlertsByClient(user.clientId);
+      const pendingReminders = alerts.filter(a =>
+        a.triggeredByUserId === userId &&
+        !a.smsToCg &&
+        !a.reminderSent &&
+        a.createdAt < twoHoursAgo
+      );
+
+      if (pendingReminders.length > 0) {
+        const now = new Date().toISOString();
+        pendingReminders.forEach(a => {
+          storage.markReminderSent(a.id);
+          storage.createNotification({
+            userId,
+            clientId: a.clientId,
+            title: "Did your caregiver get the update?",
+            body: "You sent an emergency alert earlier. It may be helpful to let your caregiver know what happened.",
+            type: 'alert',
+            priority: 'important',
+            isRead: false,
+            createdAt: now,
+            linkTo: '/messages',
+          });
+        });
+        return res.json({ hasReminder: true, count: pendingReminders.length });
+      }
+
+      res.json({ hasReminder: false });
+    } catch (err: any) {
+      res.status(500).json({ message: 'Failed to check reminder' });
+    }
   });
 
   // Archive Summaries
@@ -2713,7 +2891,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           title: "📊 Medication Regimen Updated by Family",
           body: `${med.name} ${med.dosage} has been added to the medication regimen by the Main Contact. Please review and confirm.`,
           type: "alert",
-          priority: "red",
+          priority: 'urgent',
           isRead: false,
           createdAt: now,
           linkTo: "/medications",
@@ -2723,10 +2901,34 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.status(201).json(med);
   });
-  app.patch("/api/medications/:id", (req, res) => {
+  app.patch("/api/medications/:id", requireAuth, (req: AuthRequest, res) => {
     const { changedByUserId, changeNote, ...data } = req.body;
-    const result = storage.updateMedication(Number(req.params.id), data, changedByUserId, changeNote);
+    const medId = Number(req.params.id);
+    const existing = storage.getMedicationById(medId);
+    const result = storage.updateMedication(medId, data, changedByUserId, changeNote);
     if (!result) return res.status(404).json({ error: "Not found" });
+
+    // Notify CGs of medication change (Urgent)
+    if (existing?.clientId) {
+      const now = new Date().toISOString();
+      const updaterName = storage.getUserById(req.authUserId!)?.name ?? "Main Contact";
+      const caregivers = storage.getCaregiversByClientId(existing.clientId);
+      caregivers.forEach(cg => {
+        if (cg.id === req.authUserId) return;
+        storage.createNotification({
+          userId: cg.id,
+          clientId: existing.clientId,
+          title: `📊 Medication updated: ${result.name}`,
+          body: `${updaterName} updated ${result.name}${result.dosage ? ' (' + result.dosage + ')' : ''}. Please review the medication regimen.`,
+          type: 'alert',
+          priority: 'urgent',
+          isRead: false,
+          createdAt: now,
+          linkTo: '/medications',
+        });
+      });
+    }
+
     res.json(result);
   });
   app.post("/api/medications/:id/discontinue", (req, res) => {
@@ -3526,15 +3728,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
       // ── Care Log entries ─────────────────────────────────────────────────
       const careLogEntries = [
-        { title: "Morning medications administered", description: "Donnie took all morning medications without resistance. Good mood, ate a full breakfast beforehand.", category: "medication", priority: "green", loggedAt: fmt(-1, 8, 15), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Assisted with morning hygiene", description: "Showered, shaved, and dressed independently with minimal prompting. Chose his own clothes — a good sign.", category: "hygiene", priority: "green", loggedAt: fmt(-1, 9, 0), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Breakfast — good appetite", description: "Scrambled eggs, toast, and orange juice. Ate everything. Asked for seconds on the eggs.", category: "meal", priority: "green", loggedAt: fmt(-1, 9, 30), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Confusion episode — mid-morning", description: "Around 10:30am Donnie became briefly confused about the day and asked about going to work. Redirected with photos and calm conversation. Resolved in about 10 minutes. No distress.", category: "mood", priority: "yellow", loggedAt: fmt(-1, 10, 45), isChecked: false, loggedByRole: "caregiver" },
-        { title: "Lunch administered and tolerated well", description: "Chicken soup and crackers. Good fluid intake today — approximately 32 oz.", category: "meal", priority: "green", loggedAt: fmt(-1, 12, 15), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Afternoon walk — 20 minutes", description: "Walked the block twice with the walker. Slow but steady. Good weather helped his mood.", category: "general", priority: "green", loggedAt: fmt(-1, 14, 30), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Evening medications administered", description: "All evening medications taken. Donnie was tired and ready for bed by 8pm.", category: "medication", priority: "green", loggedAt: fmt(-1, 20, 0), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Morning medications", description: "Donnie took all medications with breakfast. Cheerful this morning — recognized a song on the radio.", category: "medication", priority: "green", loggedAt: fmt(0, 8, 10), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Refused shower", description: "Donnie was resistant to showering this morning. Did not push it — will try again this afternoon. Washed hands and face instead.", category: "hygiene", priority: "yellow", loggedAt: fmt(0, 9, 20), isChecked: false, loggedByRole: "caregiver" },
+        { title: "Morning medications administered", description: "Donnie took all morning medications without resistance. Good mood, ate a full breakfast beforehand.", category: "medication", priority: 'normal', loggedAt: fmt(-1, 8, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Assisted with morning hygiene", description: "Showered, shaved, and dressed independently with minimal prompting. Chose his own clothes — a good sign.", category: "hygiene", priority: 'normal', loggedAt: fmt(-1, 9, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Breakfast — good appetite", description: "Scrambled eggs, toast, and orange juice. Ate everything. Asked for seconds on the eggs.", category: "meal", priority: 'normal', loggedAt: fmt(-1, 9, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Confusion episode — mid-morning", description: "Around 10:30am Donnie became briefly confused about the day and asked about going to work. Redirected with photos and calm conversation. Resolved in about 10 minutes. No distress.", category: "mood", priority: 'important', loggedAt: fmt(-1, 10, 45), isChecked: false, loggedByRole: "caregiver" },
+        { title: "Lunch administered and tolerated well", description: "Chicken soup and crackers. Good fluid intake today — approximately 32 oz.", category: "meal", priority: 'normal', loggedAt: fmt(-1, 12, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Afternoon walk — 20 minutes", description: "Walked the block twice with the walker. Slow but steady. Good weather helped his mood.", category: "general", priority: 'normal', loggedAt: fmt(-1, 14, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Evening medications administered", description: "All evening medications taken. Donnie was tired and ready for bed by 8pm.", category: "medication", priority: 'normal', loggedAt: fmt(-1, 20, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Morning medications", description: "Donnie took all medications with breakfast. Cheerful this morning — recognized a song on the radio.", category: "medication", priority: 'normal', loggedAt: fmt(0, 8, 10), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Refused shower", description: "Donnie was resistant to showering this morning. Did not push it — will try again this afternoon. Washed hands and face instead.", category: "hygiene", priority: 'important', loggedAt: fmt(0, 9, 20), isChecked: false, loggedByRole: "caregiver" },
       ];
       for (const e of careLogEntries) {
         db.insert(activityLogs).values({ clientId: cid, loggedByUserId: demoCG.id, ...e, isEmergency: false, isLateEntry: false, isOffShiftEntry: false, isExcused: false }).run();
@@ -3542,12 +3744,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
       // ── Schedule events ──────────────────────────────────────────────────
       const scheduleItems = [
-        { title: "Morning medications", type: "medication", scheduledAt: fmt(1, 8, 0), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Metformin, Lisinopril, Donepezil" },
-        { title: "Dr. Martinez — Neurology follow-up", type: "appointment", scheduledAt: fmt(3, 10, 30), recurrence: "none", priority: "green", location: "Vanderbilt Neurology Clinic", caregiverResponsible: false, notes: "Family will transport. Bring medication list and the last 30 days of care logs.", responsibilityNote: "Family handling transport and appointment" },
-        { title: "Evening medications", type: "medication", scheduledAt: fmt(1, 20, 0), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Aspirin, Atorvastatin" },
-        { title: "Physical therapy — in-home", type: "therapy", scheduledAt: fmt(2, 11, 0), recurrence: "weekly", priority: "green", caregiverResponsible: true, notes: "PT focuses on balance and fall prevention. Donnie responds well to encouragement." },
-        { title: "Blood sugar check", type: "task", scheduledAt: fmt(1, 7, 30), recurrence: "daily", priority: "green", caregiverResponsible: true, notes: "Log result in vitals. Target range 80–130 fasting." },
-        { title: "Weekly family check-in call", type: "other", scheduledAt: fmt(5, 18, 0), recurrence: "weekly", priority: "green", caregiverResponsible: false, notes: "Video call with the family. Donnie usually enjoys these.", responsibilityNote: "Family will initiate the call" },
+        { title: "Morning medications", type: "medication", scheduledAt: fmt(1, 8, 0), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Metformin, Lisinopril, Donepezil" },
+        { title: "Dr. Martinez — Neurology follow-up", type: "appointment", scheduledAt: fmt(3, 10, 30), recurrence: "none", priority: 'normal', location: "Vanderbilt Neurology Clinic", caregiverResponsible: false, notes: "Family will transport. Bring medication list and the last 30 days of care logs.", responsibilityNote: "Family handling transport and appointment" },
+        { title: "Evening medications", type: "medication", scheduledAt: fmt(1, 20, 0), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Aspirin, Atorvastatin" },
+        { title: "Physical therapy — in-home", type: "therapy", scheduledAt: fmt(2, 11, 0), recurrence: "weekly", priority: 'normal', caregiverResponsible: true, notes: "PT focuses on balance and fall prevention. Donnie responds well to encouragement." },
+        { title: "Blood sugar check", type: "task", scheduledAt: fmt(1, 7, 30), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Log result in vitals. Target range 80–130 fasting." },
+        { title: "Weekly family check-in call", type: "other", scheduledAt: fmt(5, 18, 0), recurrence: "weekly", priority: 'normal', caregiverResponsible: false, notes: "Video call with the family. Donnie usually enjoys these.", responsibilityNote: "Family will initiate the call" },
       ];
       for (const s of scheduleItems) {
         db.insert(scheduleEvents).values({ clientId: cid, isCompleted: false, alarmEnabled: false, reminderMinutes: 30, ...s } as any).run();
@@ -3593,7 +3795,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         { senderId: demoCG.id, content: "Got it — I'll make sure the care log and med list are printed and ready for you the night before. Is the whole family coming?", sentAt: fmt(-1, 8, 22) },
         { senderId: demoUser.id, content: "Just me and my sister. We'll probably grab lunch with Dad after if he's up for it.", sentAt: fmt(-1, 8, 30) },
         { senderId: demoCG.id, content: "He'll love that. He mentioned your names twice yesterday — good days.", sentAt: fmt(-1, 8, 35) },
-        { senderId: demoCG.id, content: "Quick note — he refused the shower this morning. Didn't push it, washed up at the sink instead. Will try again this afternoon.", sentAt: fmt(0, 9, 25), priority: "yellow" },
+        { senderId: demoCG.id, content: "Quick note — he refused the shower this morning. Didn't push it, washed up at the sink instead. Will try again this afternoon.", sentAt: fmt(0, 9, 25), priority: 'important' },
         { senderId: demoUser.id, content: "Understood. If he's still resistant this afternoon, that's okay — tomorrow morning with music on usually works better.", sentAt: fmt(0, 9, 40) },
       ];
       for (const m of msgData) {
