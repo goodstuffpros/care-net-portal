@@ -257,6 +257,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [referralPopupOpen, setReferralPopupOpen] = useState(false);
   useEffect(() => {
     if (!isRealSession || SCREENSHOT_MODE) return;
+    // Only show to family roles — never to caregivers
+    if (!isFamily) return;
     // Skip if user just completed onboarding (within last 24 hours)
     if (activeUser.onboardingCompletedAt) {
       const completedAt = new Date(activeUser.onboardingCompletedAt);
@@ -1729,7 +1731,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
       {/* ── Monthly referral popup ── */}
-      {referralPopupOpen && !SCREENSHOT_MODE && (
+      {referralPopupOpen && !SCREENSHOT_MODE && isFamily && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={dismissReferralPopup} />
           <div className="relative w-full max-w-sm bg-background rounded-2xl border border-border shadow-2xl p-6 z-10 text-center">
