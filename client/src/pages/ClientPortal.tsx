@@ -53,7 +53,7 @@ export default function ClientPortalPage() {
     queryFn: () => apiRequest("GET", "/api/users").then(r => r.json()),
   });
 
-  const familyMembers = allUsers.filter(u => u.clientId === selectedClientId);
+  const familyMembers = allUsers.filter(u => u.clientId === selectedClientId && u.role !== "caregiver" && u.role !== "multi_caregiver" && u.role !== "temp_caregiver");
   const caregiver = allUsers.find(u => u.clientId === selectedClientId && (u.role === "caregiver" || u.role === "multi_caregiver"));
 
   // Rating score query

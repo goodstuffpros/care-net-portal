@@ -177,7 +177,7 @@ export default function DashboardPage() {
       </div>
 
       {/* FCP connect prompt — shown when MC has no caregiver connected yet */}
-      {isFamilyPortal && !activityLoading && activityLogs.length === 0 && scheduleEvents.length === 0 && (
+      {isFamilyPortal && !activityLoading && !client?.caregiverId && activityLogs.length === 0 && scheduleEvents.length === 0 && (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 flex items-start gap-3">
           <div className="w-9 h-9 rounded-lg bg-primary/15 flex items-center justify-center flex-shrink-0 mt-0.5">
             <Users size={17} className="text-primary" />
