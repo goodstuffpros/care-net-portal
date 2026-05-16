@@ -209,7 +209,8 @@ export default function CaregiversPage() {
           <LessonLauncher pageKey="caregivers" />
           <div className="flex gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
-            {!isFamily && (
+            {/* Offline contact form — MC only. CGs cannot add anyone to the care team. */}
+            {activeUser.role === "primary_family" && (
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="gap-2 flex-1" data-testid="add-caregiver-btn">
                 <UserPlus size={15} /> Add Offline Contact
@@ -293,15 +294,11 @@ export default function CaregiversPage() {
             </DialogContent>
           </Dialog>
 
-          {/* Invite buttons */}
-          {isFamily ? (
-            <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
-              <Link2 size={15} /> Invite a Caregiver
-            </Button>
-          ) : (
+          {/* Invite buttons — MC only. CGs see this page read-only. */}
+          {isFamily && (
             <>
-              <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-mc-btn">
-                <UserPlus size={15} /> Add Family Contact (MC)
+              <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
+                <Link2 size={15} /> Invite a Caregiver
               </Button>
               {activeUser.role === "primary_family" && (
                 <Button size="sm" className="gap-2 flex-1 bg-teal-600 hover:bg-teal-700 text-white" onClick={() => setFamilyInviteOpen(true)} data-testid="invite-family-member-btn">
@@ -501,7 +498,7 @@ export default function CaregiversPage() {
         <div className="text-center py-16 text-muted-foreground">
           <Users size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No caregivers yet</p>
-          {canManage && <p className="text-sm mt-1">Add a caregiver profile to expand the care team.</p>}
+          {canManage && <p className="text-sm mt-1 text-muted-foreground">The main contact will invite caregivers to this portal.</p>}
           {isFamily && (
             <div className="mt-5 space-y-3">
               <p className="text-sm max-w-xs mx-auto">
