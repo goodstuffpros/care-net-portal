@@ -15,7 +15,7 @@
 import { useState } from "react";
 import {
   Heart, ChevronRight, ChevronLeft, User, Calendar, Stethoscope,
-  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X, Link2
+  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +95,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   const [clientDob, setClientDob] = useState("");
   const [clientCondition, setClientCondition] = useState("");
 
-  // CG token follow-through (set when backend detects a caregiver_to_mc invite)
+  // CG token follow-through (set when backend auto-connects CG who sent the invite)
   const [cgLinked, setCgLinked] = useState<{ cgName: string; cgId: number } | null>(null);
 
   // Care team invite state
@@ -315,19 +315,16 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
         {/* Caregiver invite — or CG token follow-through confirmation */}
         {cgLinked ? (
           <div className="rounded-2xl border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-950/30 p-5 mb-4">
-            <div className="flex items-start gap-3">
-              <div className="w-9 h-9 rounded-full bg-teal-100 dark:bg-teal-900/50 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Link2 className="w-4 h-4 text-teal-700 dark:text-teal-400" />
-              </div>
+            <div className="flex items-center gap-3">
+              <CheckCircle2 className="w-5 h-5 text-teal-600 dark:text-teal-400 flex-shrink-0" />
               <div>
-                <p className="text-sm font-semibold text-teal-800 dark:text-teal-300 mb-0.5">
-                  {cgLinked.cgName} is on your care team
+                <p className="text-sm font-semibold text-teal-800 dark:text-teal-300">
+                  {cgLinked.cgName} is already connected
                 </p>
-                <p className="text-xs text-teal-700 dark:text-teal-400 leading-relaxed">
-                  Because {cgLinked.cgName.split(" ")[0]} invited you, they're already connected to {clientName}'s portal. No extra steps needed.
+                <p className="text-xs text-teal-700 dark:text-teal-400 mt-0.5">
+                  Because they invited you, they've been added to your care team automatically.
                 </p>
               </div>
-              <CheckCircle2 className="w-4 h-4 text-teal-600 dark:text-teal-400 flex-shrink-0 mt-0.5 ml-auto" />
             </div>
           </div>
         ) : (
@@ -470,7 +467,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
           </h2>
           <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-2">
             {cgLinked
-              ? `${cgLinked.cgName.split(" ")[0]} is already connected to ${clientName}'s portal — no extra steps needed.`
+              ? `${cgLinked.cgName} has been added to your care team.`
               : cgSent
               ? `Your caregiver will receive an email invitation. Once they accept, your portals will connect automatically.`
               : `You can invite your caregiver and family members at any time from the Care Team page.`}

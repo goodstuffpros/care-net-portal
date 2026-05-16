@@ -609,10 +609,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
       // ── CG Token Follow-Through ──────────────────────────────────────────────
       // If this MC arrived via a caregiver_to_mc invite, the invite was auto-accepted
-      // at email verify time. The CG's clientId was intentionally NOT resolved at that
-      // point (it may have been null or a practice client). Now that the real client
-      // exists, update the CG's clientId to the new real client and return the CG's
-      // name so the frontend can surface a zero-friction confirmation.
+      // at email verify time. The CG's clientId was intentionally not resolved then
+      // (may have been null or a practice client). Now that the real client exists,
+      // link the CG automatically — they sent the invite, the relationship is established.
+      // Return cgLinked so the frontend can show a welcome confirmation on the care-team step.
       let cgLinked: { cgName: string; cgId: number } | null = null;
       try {
         const cgInvite = db.select().from(connectionInvites)
@@ -626,10 +626,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
         if (cgInvite?.senderUserId) {
           const cgUser = db.select().from(users).where(eq(users.id, cgInvite.senderUserId)).get();
           if (cgUser) {
-            // Point CG at the real client. Their clientId may have been null or a
-            // practice client — either way, the real client takes over as active.
             db.update(users).set({ clientId: newClient.id }).where(eq(users.id, cgUser.id)).run();
-            // Update the client row: real CG is now the caregiverId
             db.update(clients).set({ caregiverId: cgUser.id }).where(eq(clients.id, newClient.id)).run();
             cgLinked = { cgName: cgUser.name, cgId: cgUser.id };
             console.log(`[mc/setup] CG follow-through: linked CG ${cgUser.id} (${cgUser.name}) to client ${newClient.id}`);
