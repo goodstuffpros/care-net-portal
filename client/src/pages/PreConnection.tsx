@@ -19,6 +19,7 @@ interface PreConnectionProps {
   name: string;
   role: string;
   email: string;
+  sampleClientId?: number | null;
   onGoToUniversity?: () => void;
 }
 
@@ -30,11 +31,20 @@ function isMC(role: string) {
   return role === "primary_family" || role === "secondary_family";
 }
 
-export default function PreConnectionScreen({ name, role, email, onGoToUniversity }: PreConnectionProps) {
+export default function PreConnectionScreen({ name, role, email, sampleClientId, onGoToUniversity }: PreConnectionProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [generatedLink, setGeneratedLink] = useState<string | null>(null);
   const [sampleModalOpen, setSampleModalOpen] = useState(false);
+
+  // Option A: if CG already has a sample client, wire up switch-to-sample
+  const switchToSampleMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/clients/practice/switch-to-sample`, {}).then(r => r.json()),
+    onSuccess: () => {
+      window.location.replace("/");
+    },
+  });
 
   const firstName = name.split(" ")[0];
 
@@ -141,21 +151,40 @@ export default function PreConnectionScreen({ name, role, email, onGoToUniversit
               </Button>
             </div>
 
-            {/* Take it for a ride — Sample Client CTA */}
-            <button
-              onClick={() => setSampleModalOpen(true)}
-              className="w-full flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors text-left group"
-              data-testid="take-it-for-a-ride-btn"
-            >
-              <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
-                <Rocket className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Take it for a ride</p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">Create a sample client and explore the full portal — no real data required.</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-amber-500 group-hover:text-amber-700 transition-colors flex-shrink-0" />
-            </button>
+            {/* Take it for a ride — Sample Client CTA (or switch back if sample exists) */}
+            {sampleClientId ? (
+              /* Pre-connection guard: CG has a sample but clientId is null — offer switch */
+              <button
+                onClick={() => switchToSampleMutation.mutate()}
+                disabled={switchToSampleMutation.isPending}
+                className="w-full flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors text-left group"
+                data-testid="switch-to-sample-preconn-btn"
+              >
+                <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                  <Rocket className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Open Sample Portal</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">Your showcase portal is ready — switch in to explore or demonstrate it.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-amber-500 group-hover:text-amber-700 transition-colors flex-shrink-0" />
+              </button>
+            ) : (
+              <button
+                onClick={() => setSampleModalOpen(true)}
+                className="w-full flex items-center gap-4 p-4 rounded-xl bg-amber-50 dark:bg-amber-950/20 border border-amber-300 dark:border-amber-700 hover:bg-amber-100 dark:hover:bg-amber-950/30 transition-colors text-left group"
+                data-testid="take-it-for-a-ride-btn"
+              >
+                <div className="w-10 h-10 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                  <Rocket className="w-5 h-5 text-white" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-amber-900 dark:text-amber-200">Take it for a ride</p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">Create a sample client and explore the full portal — no real data required.</p>
+                </div>
+                <ChevronRight className="w-4 h-4 text-amber-500 group-hover:text-amber-700 transition-colors flex-shrink-0" />
+              </button>
+            )}
 
             {/* Demo note */}
             <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/50 border border-border">

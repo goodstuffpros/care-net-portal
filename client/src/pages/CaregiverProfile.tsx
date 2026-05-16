@@ -23,7 +23,7 @@ import {
   User, MapPin, BookOpen, Briefcase, GraduationCap,
   Calendar, Globe, Eye, EyeOff, Check, Pencil, Award,
   Heart, Sparkles, Shield, Star, Clock, Home, Phone, X, Navigation,
-  SlidersHorizontal, Pill, Activity, CalendarCheck
+  SlidersHorizontal, Pill, Activity, CalendarCheck, Rocket, Trash2, ToggleLeft, ToggleRight
 } from "lucide-react";
 import type { CaregiverProfile } from "@shared/schema";
 
@@ -264,12 +264,41 @@ function ProfilePreview({ profile, caregiverName, hearts }: {
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CaregiverProfilePage() {
-  const { activeUser } = useApp();
+  const { activeUser, isPracticeClient, isShowcaseMode, sampleClientId } = useApp();
   const { toast } = useToast();
   const [mode, setMode] = useState<"edit" | "preview">("edit");
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
-  // Only caregivers see this page
-  if (!isCaregiverRole(activeUser.role)) {
+  // All hooks must run unconditionally before any early returns (React rules of hooks)
+  const isCG = isCaregiverRole(activeUser.role);
+
+  // Sample client data — only fetches when CG has a sample client
+  const { data: practiceClient } = useQuery<any>({
+    queryKey: ["/api/clients/practice", activeUser.id],
+    queryFn: () => apiRequest("GET", `/api/clients/practice/${activeUser.id}`).then(r => r.json()),
+    enabled: isCG && !!sampleClientId,
+  });
+
+  const showcaseMutation = useMutation({
+    mutationFn: (isShowcase: boolean) =>
+      apiRequest("PATCH", `/api/clients/practice/${sampleClientId}/showcase`, { isShowcase }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: isShowcaseMode ? "Showcase disabled" : "Showcase enabled", description: isShowcaseMode ? "Edit controls are visible again." : "Edit controls are hidden. You can show this portal to potential families." });
+      window.location.replace("/");
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("DELETE", `/api/clients/practice/${sampleClientId}`).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Sample client deleted", description: "Your portfolio portal has been cleared." });
+      window.location.replace("/");
+    },
+  });
+
+  // Only caregivers see this page — conditional return AFTER all hooks
+  if (!isCG) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] px-6 text-center">
         <User size={32} className="text-muted-foreground/40 mb-3" />
@@ -278,7 +307,141 @@ export default function CaregiverProfilePage() {
     );
   }
 
-  return <ProfileEditor userId={activeUser.id} caregiverName={activeUser.name} mode={mode} setMode={setMode} />;
+  // Switch mutations for Option A
+  const switchToSampleMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/clients/practice/switch-to-sample`, {}).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Switched to Sample Portal", description: "You are now viewing your professional showcase portal." });
+      window.location.replace("/");
+    },
+  });
+
+  const switchToRealMutation = useMutation({
+    mutationFn: () =>
+      apiRequest("POST", `/api/clients/practice/switch-to-real`, {}).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Switched to Real Portal", description: "Back to your active client portal." });
+      window.location.replace("/");
+    },
+  });
+
+  // Has real client = clientId exists and it isn't the sample
+  const hasRealClient = !!activeUser.clientId && activeUser.clientId !== sampleClientId;
+
+  return (
+    <>
+      <ProfileEditor userId={activeUser.id} caregiverName={activeUser.name} mode={mode} setMode={setMode} />
+
+      {/* Sample Portal Management Card — visible whenever CG has a sample client */}
+      {!!sampleClientId && (
+        <div className="px-4 md:px-8 pb-10 max-w-3xl mx-auto">
+          <div className="rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20 p-5 space-y-4">
+            {/* Header */}
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0">
+                <Rocket className="w-4 h-4 text-white" />
+              </div>
+              <div>
+                <p className="font-semibold text-amber-900 dark:text-amber-200 text-sm">My Sample Portal</p>
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  {practiceClient?.primaryCondition ?? "Professional showcase"} ·{" "}
+                  {isPracticeClient ? "Viewing now" : "Ready to use"}
+                </p>
+              </div>
+              <span className={`ml-auto text-xs px-2 py-0.5 rounded-full border font-medium ${
+                isPracticeClient
+                  ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 border-amber-200 dark:border-amber-700"
+                  : "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 border-gray-200 dark:border-gray-700"
+              }`}>
+                {isPracticeClient ? "Active" : "Standby"}
+              </span>
+            </div>
+
+            {/* Portal switch buttons */}
+            <div className="flex gap-2 flex-wrap">
+              {!isPracticeClient && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5 border-amber-300 dark:border-amber-700 text-amber-700 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  onClick={() => switchToSampleMutation.mutate()}
+                  disabled={switchToSampleMutation.isPending}
+                  data-testid="switch-to-sample-btn"
+                >
+                  <Rocket className="w-3.5 h-3.5" />
+                  {switchToSampleMutation.isPending ? "Switching…" : "Switch to Sample Portal"}
+                </Button>
+              )}
+              {isPracticeClient && hasRealClient && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => switchToRealMutation.mutate()}
+                  disabled={switchToRealMutation.isPending}
+                  data-testid="switch-to-real-btn"
+                >
+                  <User className="w-3.5 h-3.5" />
+                  {switchToRealMutation.isPending ? "Switching…" : "Switch Back to Real Portal"}
+                </Button>
+              )}
+            </div>
+
+            {/* Showcase toggle — only when viewing sample */}
+            {isPracticeClient && (
+              <div className="flex items-center justify-between p-3 rounded-lg bg-white dark:bg-amber-950/30 border border-amber-200 dark:border-amber-700">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Showcase View</p>
+                  <p className="text-xs text-muted-foreground">Hides edit controls — use when showing this portal to a potential family.</p>
+                </div>
+                <button
+                  onClick={() => showcaseMutation.mutate(!isShowcaseMode)}
+                  disabled={showcaseMutation.isPending}
+                  className="ml-4 flex-shrink-0"
+                  data-testid="showcase-toggle-btn"
+                >
+                  {isShowcaseMode
+                    ? <ToggleRight className="w-8 h-8 text-amber-500" />
+                    : <ToggleLeft className="w-8 h-8 text-muted-foreground" />}
+                </button>
+              </div>
+            )}
+
+            {/* Delete — permanent action, shows confirmation */}
+            {!confirmDelete ? (
+              <button
+                onClick={() => setConfirmDelete(true)}
+                className="flex items-center gap-2 text-xs text-red-500 dark:text-red-400 hover:underline"
+                data-testid="delete-sample-btn"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Remove sample portal
+              </button>
+            ) : (
+              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 space-y-3">
+                <p className="text-sm text-red-800 dark:text-red-300 font-medium">Remove sample portal permanently?</p>
+                <p className="text-xs text-red-700 dark:text-red-400">All practice data will be deleted. You can always create a new one.</p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    onClick={() => deleteMutation.mutate()}
+                    disabled={deleteMutation.isPending}
+                    className="gap-1.5"
+                    data-testid="confirm-delete-sample-btn"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {deleteMutation.isPending ? "Removing…" : "Yes, remove it"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
 }
 
 function ProfileEditor({

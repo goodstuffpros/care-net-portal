@@ -1,4 +1,5 @@
-import { useApp } from "@/App";
+import { useState } from "react";
+import { useApp, isCaregiverRole } from "@/App";
 import { useLang } from "@/lib/useLang";
 import { useQuery } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -9,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useLocation } from "wouter";
 import {
-  AlertTriangle, Calendar, ClipboardCheck, Heart, MessageSquare,
+  AlertTriangle, Rocket, Calendar, ClipboardCheck, Heart, MessageSquare, X,
   Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell, Volume2,
   Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays
 } from "lucide-react";
@@ -55,7 +56,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -92,6 +93,13 @@ export default function DashboardPage() {
   const pendingToday = todayEvents.filter(e => !e.isCompleted).length;
 
   const [, navigate] = useLocation();
+  const [sampleNudgeDismissed, setSampleNudgeDismissed] = useState(false);
+  // Nudge: show for CGs who have no sample and no real client
+  const showSampleNudge =
+    isCaregiverRole(activeUser.role) &&
+    !sampleClientId &&
+    isPreConnection &&
+    !sampleNudgeDismissed;
   const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family";
   const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
   // Guard: hardcoded USER_BADGES are demo-only. Real users start with no earned badges.
@@ -101,6 +109,36 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 max-w-6xl mx-auto space-y-6 w-full overflow-x-hidden">
+      {/* Sample Portal nudge — shown to CGs without a sample client yet */}
+      {showSampleNudge && (
+        <div className="rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/20 px-4 py-3 flex items-start gap-3">
+          <div className="w-8 h-8 rounded-lg bg-amber-500 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Rocket size={15} className="text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-amber-900 dark:text-amber-200 text-sm font-semibold leading-tight">Take the portal for a ride</p>
+            <p className="text-amber-700/80 dark:text-amber-400/80 text-xs mt-0.5 leading-relaxed">
+              Create a sample client and explore everything the portal can do — no real data needed. You can showcase it to potential families.
+            </p>
+            <button
+              onClick={() => { window.location.hash = "/my-profile"; }}
+              className="mt-2 text-xs font-semibold text-amber-800 dark:text-amber-300 underline underline-offset-2"
+              data-testid="dashboard-sample-nudge-cta"
+            >
+              Set up my sample portal →
+            </button>
+          </div>
+          <button
+            onClick={() => setSampleNudgeDismissed(true)}
+            className="flex-shrink-0 text-amber-400 hover:text-amber-600 transition-colors mt-0.5"
+            aria-label="Dismiss"
+            data-testid="dashboard-sample-nudge-dismiss"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-center gap-3 pb-2 border-b border-border">
         <LayoutDashboard size={20} className="text-primary" />

@@ -23,6 +23,7 @@ export const users = sqliteTable("users", {
   seenModules: text("seen_modules").default("[]"),
   navOrder: text("nav_order").default("[]"), // JSON array of module keys user has already seen intro for
   timezone: text("timezone"),               // IANA timezone string, e.g. "America/Chicago"
+  sampleClientId: integer("sample_client_id"), // permanent reference to CG's showcase/sample client — never nulled on real connection
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({ id: true });

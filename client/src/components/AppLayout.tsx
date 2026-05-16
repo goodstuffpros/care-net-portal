@@ -183,7 +183,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
@@ -294,6 +294,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       setReferralSending(false);
     }
   }
+
+  // ── Real portal ready modal (Option A) ───────────────────────────────────────
+  // Fires once when a real client arrives while sampleClientId exists.
+  const [realPortalReadyShown, setRealPortalReadyShown] = useState(false);
+  const [showRealPortalModal, setShowRealPortalModal] = useState(false);
+  const hasRealClientNow = !!activeUser.clientId && activeUser.clientId !== sampleClientId;
+
+  useEffect(() => {
+    if (
+      !SCREENSHOT_MODE &&
+      isCaregiverRole(activeUser.role) &&
+      !!sampleClientId &&
+      hasRealClientNow &&
+      !isPracticeClient &&
+      !realPortalReadyShown
+    ) {
+      setRealPortalReadyShown(true);
+      setShowRealPortalModal(true);
+    }
+  }, [sampleClientId, hasRealClientNow, isPracticeClient, activeUser.role]);
 
   // ── Pre-connection demo banner ─────────────────────────────────────────────
   const [preConnBannerDismissed, setPreConnBannerDismissed] = useState(false);
@@ -1527,6 +1547,31 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }
         }}
       />
+
+      {/* Real Portal Ready modal — fires once when real client connects while sample exists */}
+      {showRealPortalModal && !SCREENSHOT_MODE && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRealPortalModal(false)} />
+          <div className="relative w-full max-w-sm bg-background rounded-2xl border border-border shadow-2xl p-6 space-y-4 z-10">
+            <div className="w-10 h-10 rounded-xl bg-teal-500 flex items-center justify-center mx-auto">
+              <Award className="w-5 h-5 text-white" />
+            </div>
+            <div className="text-center space-y-1.5">
+              <p className="font-semibold text-foreground text-base">A real client is connected.</p>
+              <p className="text-sm text-muted-foreground">
+                Your Sample Portal is saved and ready whenever you need it — use it to showcase your skills to future families.
+              </p>
+            </div>
+            <Button
+              className="w-full bg-teal-600 hover:bg-teal-700 text-white"
+              onClick={() => setShowRealPortalModal(false)}
+              data-testid="real-portal-ready-ok-btn"
+            >
+              Got it
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Need a Moment — family roles only, controlled from top bar */}
       <NeedAMomentModal open={needAMomentOpen} onClose={() => setNeedAMomentOpen(false)} />

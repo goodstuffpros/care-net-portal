@@ -175,7 +175,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, phone: user.phone, avatarInitials: user.avatarInitials });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, phone: user.phone, avatarInitials: user.avatarInitials });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -803,16 +803,26 @@ export function registerRoutes(httpServer: Server, app: Express) {
       let clientId = invite.clientId;
 
       if (invite.inviteType === "mc_to_caregiver") {
-        // Sender is MC (has clientId), acceptor is CG — give CG the clientId
+        // Sender is MC (has clientId), acceptor is CG — give CG the real clientId.
+        // Option A: sample client is NEVER deleted. We only switch the CG's active clientId.
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
           db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
         }
       } else if (invite.inviteType === "caregiver_to_mc") {
-        // Sender is CG (has clientId), acceptor is MC — share the clientId and set role
+        // Sender is CG (has clientId), acceptor is MC — share the clientId and set role.
+        // Option A: sample client on CG sender is NEVER deleted; only the active clientId switches.
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
-          db.update(users).set({ clientId, role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
+          // If the CG sender's current clientId points to a practice client, their real clientId
+          // will come from the MC side — do NOT delete the practice client (Option A).
+          const cgCurrentClient = clientId ? db.select().from(clients).where(eq(clients.id, clientId)).get() : null;
+          if (cgCurrentClient?.isPractice) {
+            clientId = null; // real clientId resolved after MC finishes their setup
+          }
+          if (clientId) {
+            db.update(users).set({ clientId, role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
+          }
         } else if (acceptingUser.clientId) {
           // MC already has a client — share it back to the CG sender, still mark acceptor as primary_family
           if (sender) {
@@ -1396,34 +1406,60 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(existing || null);
   });
 
-  // POST /api/clients/practice — create a practice client for the logged-in CG
+  // POST /api/clients/practice — create a sample client for the logged-in CG (once only)
   app.post("/api/clients/practice", requireAuth, (req: AuthRequest, res) => {
     const caregiverId = req.user!.userId;
     const { dateOfBirth, primaryCondition } = req.body;
     if (!dateOfBirth || !primaryCondition) {
       return res.status(400).json({ message: "dateOfBirth and primaryCondition are required" });
     }
-    // Enforce one practice client per CG
+    // Enforce one sample client per CG
     const existing = storage.getPracticeClientByCaregiverId(caregiverId);
     if (existing) {
-      return res.status(409).json({ message: "Practice client already exists", client: existing });
+      return res.status(409).json({ message: "Sample client already exists", client: existing });
     }
     const client = storage.createPracticeClient(caregiverId, dateOfBirth, primaryCondition);
-    // Assign this practice client to the CG user so the app connects immediately
-    storage.updateUser(caregiverId, { clientId: client.id });
+    // Only set clientId if CG has no real client yet — if they have a real one, sample stays dormant
+    const cgUser = storage.getUserById(caregiverId);
+    if (!cgUser?.clientId) {
+      storage.updateUser(caregiverId, { clientId: client.id });
+    }
     res.status(201).json(client);
   });
 
-  // DELETE /api/clients/practice/:clientId — delete the practice client and all its data
+  // POST /api/clients/practice/switch-to-sample — CG switches active portal to sample client
+  app.post("/api/clients/practice/switch-to-sample", requireAuth, (req: AuthRequest, res) => {
+    const caregiverId = req.user!.userId;
+    const cgUser = storage.getUserById(caregiverId);
+    if (!cgUser?.sampleClientId) return res.status(404).json({ message: "No sample client found" });
+    // Store the real clientId so we can switch back
+    const realClientId = cgUser.clientId !== cgUser.sampleClientId ? cgUser.clientId : null;
+    storage.updateUser(caregiverId, { clientId: cgUser.sampleClientId });
+    res.json({ success: true, clientId: cgUser.sampleClientId, realClientId });
+  });
+
+  // POST /api/clients/practice/switch-to-real — CG switches back to real client
+  app.post("/api/clients/practice/switch-to-real", requireAuth, (req: AuthRequest, res) => {
+    const caregiverId = req.user!.userId;
+    const { realClientId } = req.body;
+    if (!realClientId) return res.status(400).json({ message: "realClientId required" });
+    storage.updateUser(caregiverId, { clientId: realClientId });
+    res.json({ success: true, clientId: realClientId });
+  });
+
+  // DELETE /api/clients/practice/:clientId — permanently delete the sample client
   app.delete("/api/clients/practice/:clientId", requireAuth, (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const client = storage.getClientById(clientId);
     if (!client) return res.status(404).json({ message: "Client not found" });
     if (!client.isPractice) return res.status(403).json({ message: "Not a practice client" });
     if (client.caregiverId !== req.user!.userId) return res.status(403).json({ message: "Not your practice client" });
+    const cgUser = storage.getUserById(req.user!.userId);
+    // If CG is currently in sample mode, move them back to pre-connection
+    if (cgUser?.clientId === clientId) {
+      storage.updateUser(req.user!.userId, { clientId: null });
+    }
     storage.deletePracticeClient(clientId);
-    // Remove clientId from the CG user — returns them to pre-connection state
-    storage.updateUser(req.user!.userId, { clientId: null });
     res.json({ success: true });
   });
 

@@ -391,6 +391,8 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN assistive_devices TEXT`); } ca
 // clients — sample portal columns
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_practice INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_showcase INTEGER DEFAULT 0`); } catch {}
+// users — sample client permanent anchor
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN sample_client_id INTEGER`); } catch {}
 
 // shifts — CREATE TABLE IF NOT EXISTS (may not exist on older DBs)
 try {
@@ -857,8 +859,8 @@ export const storage: IStorage = {
     db.select().from(clients)
       .where(and(eq(clients.caregiverId, caregiverId), eq(clients.isPractice, true)))
       .get(),
-  createPracticeClient: (caregiverId, dateOfBirth, primaryCondition) =>
-    db.insert(clients).values({
+  createPracticeClient: (caregiverId, dateOfBirth, primaryCondition) => {
+    const client = db.insert(clients).values({
       name: "Sample Client",
       caregiverId,
       dateOfBirth,
@@ -867,8 +869,17 @@ export const storage: IStorage = {
       isShowcase: false,
       isActive: true,
       appMode: "caregiver",
-    }).returning().get(),
+    }).returning().get();
+    // Store permanent anchor on user — never cleared when real client connects
+    db.update(users).set({ sampleClientId: client.id }).where(eq(users.id, caregiverId)).run();
+    return client;
+  },
   deletePracticeClient: (clientId) => {
+    // Also clear sampleClientId on the owning CG
+    const client = db.select().from(clients).where(eq(clients.id, clientId)).get();
+    if (client?.caregiverId) {
+      db.update(users).set({ sampleClientId: null }).where(eq(users.id, client.caregiverId)).run();
+    }
     db.delete(clients).where(eq(clients.id, clientId)).run();
   },
   setShowcase: (clientId, isShowcase) =>

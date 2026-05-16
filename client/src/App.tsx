@@ -105,7 +105,9 @@ interface AppContextType {
   triggerUpgradeTransition: (targetMode: PortalMode) => void;
   isRealSession: boolean; // always true — demo mode removed
   isPreConnection: boolean; // true when real CG session but no clientId yet
-  isPracticeClient: boolean; // true when CG is connected to a practice/sample client
+  sampleClientId: number | null; // permanent anchor — the CG's sample client (never cleared)
+  isInSampleMode: boolean; // true when active clientId === sampleClientId
+  isPracticeClient: boolean; // alias for isInSampleMode — kept for backward compat
   isShowcaseMode: boolean; // true when CG has enabled showcase view for their sample client
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
@@ -122,6 +124,7 @@ interface RealUser {
   role?: string;
   email: string;
   clientId?: number | null;
+  sampleClientId?: number | null;
   onboardingCompletedAt?: string | null;
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
@@ -157,6 +160,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
 
   const [activeUser, setActiveUser] = useState<ActiveUser>(initialActiveUser);
   const [selectedClientId, setSelectedClientId] = useState(realUser?.clientId ?? 1);
+  const [sampleClientId, setSampleClientId] = useState<number | null>(realUser?.sampleClientId ?? null);
   const [isPracticeClient, setIsPracticeClient] = useState(false);
   const [isShowcaseMode, setIsShowcaseMode] = useState(false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
@@ -194,8 +198,27 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
     }
   }, [activeUser]);
 
-  // Fetch client to detect isPractice / isShowcase flags
+  // Option A: detect sample mode and showcase flag.
+  // sampleClientId is fetched from the user record (permanent anchor).
+  // isInSampleMode = activeUser.clientId === sampleClientId.
   useEffect(() => {
+    // Fetch user record to get sampleClientId (the permanent showcase anchor)
+    if (activeUser.id) {
+      fetch(`/api/users/${activeUser.id}`, {
+        headers: { Authorization: `Bearer ${getAuthToken()}` },
+      })
+        .then(r => r.json())
+        .then((u: any) => {
+          const scId: number | null = u?.sampleClientId ?? null;
+          setSampleClientId(scId);
+          // isInSampleMode = currently viewing sample client
+          const inSample = scId !== null && activeUser.clientId === scId;
+          setIsPracticeClient(inSample);
+          if (!inSample) setIsShowcaseMode(false);
+        })
+        .catch(() => {});
+    }
+    // If in sample mode, also check showcase flag on the client record
     if (!activeUser.clientId) {
       setIsPracticeClient(false);
       setIsShowcaseMode(false);
@@ -206,11 +229,14 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
     })
       .then(r => r.json())
       .then((c: any) => {
-        setIsPracticeClient(!!c?.isPractice);
-        setIsShowcaseMode(!!c?.isShowcase);
+        // isPractice flag is still the authoritative source on the client record
+        // but isInSampleMode from above (clientId === sampleClientId) takes precedence
+        if (c?.isPractice) {
+          setIsShowcaseMode(!!c?.isShowcase);
+        }
       })
       .catch(() => {});
-  }, [activeUser.clientId]);
+  }, [activeUser.id, activeUser.clientId]);
 
   const toggleTheme = () => setTheme(t => t === "light" ? "dark" : "light");
 
@@ -278,6 +304,8 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         triggerUpgradeTransition,
         isRealSession,
         isPreConnection,
+        sampleClientId,
+        isInSampleMode: isPracticeClient,
         isPracticeClient,
         isShowcaseMode,
         navOverlayOpen,
