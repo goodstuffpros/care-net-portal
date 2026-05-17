@@ -614,24 +614,37 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const mcUser = db.select().from(users).where(eq(users.id, account.userId)).get();
       if (!mcUser) return res.status(401).json({ message: "User not found" });
 
-      // Create the client (loved one) row
-      const newClient = db.insert(clients).values({
-        name: clientName,
-        dateOfBirth: clientDob || null,
-        primaryCondition: clientCondition || null,
-        notes: clientNotes || null,
-        caregiverId: mcUser.id, // MC is temporary "caregiver" until real CG connects
-        primaryContactId: mcUser.id,
-        isActive: true,
-        appMode: "caregiver",
-      }).returning().get();
+      let clientIdToUse: number;
 
-      // Link MC user to client + save care path
-      db.update(users).set({
-        clientId: newClient.id,
-        carePathChoice: carePathChoice || "self_managing",
-        mcSetupCompletedAt: new Date().toISOString(),
-      }).where(eq(users.id, mcUser.id)).run();
+      // If MC already has a clientId (arrived via self_care_to_mc invite), skip client creation
+      if (mcUser.clientId) {
+        clientIdToUse = mcUser.clientId;
+        // Just mark setup complete — the client record already exists
+        db.update(users).set({
+          carePathChoice: carePathChoice || "self_managing",
+          mcSetupCompletedAt: new Date().toISOString(),
+        }).where(eq(users.id, mcUser.id)).run();
+      } else {
+        // Create the client (loved one) row
+        const newClient = db.insert(clients).values({
+          name: clientName,
+          dateOfBirth: clientDob || null,
+          primaryCondition: clientCondition || null,
+          notes: clientNotes || null,
+          caregiverId: mcUser.id, // MC is temporary "caregiver" until real CG connects
+          primaryContactId: mcUser.id,
+          isActive: true,
+          appMode: "caregiver",
+        }).returning().get();
+        clientIdToUse = newClient.id;
+
+        // Link MC user to client + save care path
+        db.update(users).set({
+          clientId: newClient.id,
+          carePathChoice: carePathChoice || "self_managing",
+          mcSetupCompletedAt: new Date().toISOString(),
+        }).where(eq(users.id, mcUser.id)).run();
+      }
 
       // ── CG Token Follow-Through ──────────────────────────────────────────────
       // If this MC arrived via a caregiver_to_mc invite, the invite was auto-accepted
@@ -652,17 +665,17 @@ export function registerRoutes(httpServer: Server, app: Express) {
         if (cgInvite?.senderUserId) {
           const cgUser = db.select().from(users).where(eq(users.id, cgInvite.senderUserId)).get();
           if (cgUser) {
-            db.update(users).set({ clientId: newClient.id }).where(eq(users.id, cgUser.id)).run();
-            db.update(clients).set({ caregiverId: cgUser.id }).where(eq(clients.id, newClient.id)).run();
+            db.update(users).set({ clientId: clientIdToUse }).where(eq(users.id, cgUser.id)).run();
+            db.update(clients).set({ caregiverId: cgUser.id }).where(eq(clients.id, clientIdToUse)).run();
             cgLinked = { cgName: cgUser.name, cgId: cgUser.id };
-            console.log(`[mc/setup] CG follow-through: linked CG ${cgUser.id} (${cgUser.name}) to client ${newClient.id}`);
+            console.log(`[mc/setup] CG follow-through: linked CG ${cgUser.id} (${cgUser.name}) to client ${clientIdToUse}`);
           }
         }
       } catch (cgErr: any) {
         console.error("[mc/setup] CG follow-through error (non-fatal):", cgErr?.message);
       }
 
-      res.json({ success: true, clientId: newClient.id, ...(cgLinked ? { cgLinked } : {}) });
+      res.json({ success: true, clientId: clientIdToUse, ...(cgLinked ? { cgLinked } : {}) });
     } catch (err: any) {
       console.error("[mc/setup] ERROR:", err?.message || err);
       res.status(500).json({ message: err?.message || "Setup failed" });
