@@ -357,7 +357,9 @@ export default function ClientPortalPage() {
         })}
       </nav>
 
-      <LessonLauncher pageKey="client-portal" />
+      <div className="mt-3">
+        <LessonLauncher pageKey="client-portal" />
+      </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────────── */}
       <div className="p-4 max-w-4xl mx-auto w-full space-y-6">
