@@ -1043,13 +1043,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden">
       {/* Desktop Sidebar */}
-      <div className="hidden md:flex flex-col w-60 flex-shrink-0 border-r border-border">
+      <div className="hidden lg:flex flex-col w-60 flex-shrink-0 border-r border-border">
         <Sidebar />
       </div>
 
       {/* Mobile Sidebar Overlay */}
       {mobileOpen && (
-        <div className="fixed inset-0 z-50 md:hidden">
+        <div className="fixed inset-0 z-50 lg:hidden">
           <div className="absolute inset-0 bg-black/50" onClick={() => setMobileOpen(false)} />
           <div className="absolute left-0 top-0 bottom-0 w-64 flex flex-col bg-sidebar shadow-2xl">
             <Sidebar />
