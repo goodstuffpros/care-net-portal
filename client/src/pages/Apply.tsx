@@ -61,7 +61,7 @@ const SIGNUP_ROLES: {
     value: "family",
     label: "Main Contact",
     subtitle: "Family member — primary decision maker",
-    description: "I'm the primary person managing care for a loved one. I may be coordinating with a professional caregiver, or I may be handling everything myself — either way, this portal is built for me.",
+    description: "I coordinate care for a family member — with a professional caregiver or on my own. This is my portal.",
     icon: <Heart className="w-6 h-6" />,
     color: "border-border bg-card hover:border-rose-400/50",
     checkedColor: "border-rose-500 bg-rose-50 dark:bg-rose-950/30 ring-1 ring-rose-500/30",
@@ -227,6 +227,15 @@ export default function ApplyPage() {
       <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
         <div className="w-full max-w-lg">
 
+          {/* Sign in — top of page */}
+          <button
+            onClick={() => navigate("/login")}
+            className="w-full mb-6 py-3.5 rounded-xl border-2 border-teal-500 text-teal-600 dark:text-teal-400 font-semibold text-sm hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors"
+            data-testid="link-login-prominent"
+          >
+            Already have an account? Sign in
+          </button>
+
           {/* Header */}
           <div className="text-center mb-10">
             <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 mb-4">
@@ -299,13 +308,7 @@ export default function ApplyPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full py-3.5 rounded-xl border-2 border-teal-500 text-teal-600 dark:text-teal-400 font-semibold text-sm hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors"
-            data-testid="link-login-prominent"
-          >
-            Already have an account? Sign in
-          </button>
+
         </div>
       </div>
     );
