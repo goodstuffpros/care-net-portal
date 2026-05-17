@@ -321,10 +321,8 @@ export default function ClientPortalPage() {
           <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />
           <div className="flex-1 min-w-0">
             <h1 className="text-xl font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("portal.title")}</h1>
-            <p className="text-xs text-muted-foreground truncate">Profile · Family access · Contacts</p>
           </div>
         </div>
-        <LessonLauncher pageKey="client-portal" />
       </div>
 
       {/* ── In-page tab strip ────────────────────────────────────────────────── */}
@@ -358,6 +356,8 @@ export default function ClientPortalPage() {
           );
         })}
       </nav>
+
+      <LessonLauncher pageKey="client-portal" />
 
       {/* ── Tab content ──────────────────────────────────────────────────────── */}
       <div className="p-4 max-w-4xl mx-auto w-full space-y-6">
