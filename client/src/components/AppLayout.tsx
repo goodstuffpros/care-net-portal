@@ -208,30 +208,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [location, navigate] = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
   // navOverlayOpen lives in App context so ModuleIntro can suppress itself while nav is open
-  const [navOrder, setNavOrder] = useState<string[] | null>(null);
-
-  // ── Load saved nav order from DB (real users) or localStorage (demo) ────────
-  useEffect(() => {
-    if (isRealSession) {
-      apiRequest("GET", `/api/users/${activeUser.id}`)
-        .then(r => r.json())
-        .then(u => {
-          try {
-            const order: string[] = JSON.parse(u.navOrder ?? "[]");
-            if (order.length > 0) setNavOrder(order);
-          } catch {}
-        })
-        .catch(() => {});
-    } else {
-      try {
-        const stored = localStorage.getItem(`cnp_nav_order_${activeUser.id}`);
-        if (stored) {
-          const order: string[] = JSON.parse(stored);
-          if (order.length > 0) setNavOrder(order);
-        }
-      } catch {}
-    }
-  }, [activeUser.id, isRealSession]);
 
   // ── Load + save timezone from/to server (real users only) ──────────────────────
   useEffect(() => {
@@ -1689,17 +1665,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           bg: NAV_COLORS[item.path]?.bg ?? "bg-muted border-border",
         }))}
         userId={activeUser.id}
-        savedOrder={navOrder}
-        onOrderSave={(paths) => {
-          setNavOrder(paths);
-          if (isRealSession) {
-            apiRequest("PATCH", `/api/users/${activeUser.id}`, {
-              navOrder: JSON.stringify(paths),
-            }).catch(() => {});
-          } else {
-            try { localStorage.setItem(`cnp_nav_order_${activeUser.id}`, JSON.stringify(paths)); } catch {}
-          }
-        }}
       />
 
       {/* Real Portal Ready modal — fires once when real client connects while sample exists */}

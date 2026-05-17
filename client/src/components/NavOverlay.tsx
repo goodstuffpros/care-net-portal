@@ -1,13 +1,10 @@
 /**
  * NavOverlay — full-screen navigation grid
  * Replaces the dropdown menu. Tapping the hamburger opens this overlay.
- * Users can hold-and-drag tiles to reorder. Order is saved per user in the DB.
- *
- * Also hosts language, theme, color-palette, and user-switcher controls
- * (previously in sidebar only — now accessible from the overlay too).
+ * Also hosts language, theme, color-palette, and user-switcher controls.
  */
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
 import { X, Sun, Moon, BookHeart, Bell } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -50,159 +47,6 @@ const COLOR_SWATCHES: { key: ColorTheme; color: string; label: string }[] = [
   { key: "lavender", color: "#6a3a9a", label: "Lavender" },
 ];
 
-// ── Drag-to-reorder ───────────────────────────────────────────────────────────
-// Strategy: two-phase pick-up model
-//   Phase 1 — HOLD: finger down + still for HOLD_MS → tile lifts (picked up)
-//             Movement > CANCEL_THRESHOLD before HOLD_MS fires → scroll, cancel
-//   Phase 2 — HOVER: dragged tile tracks pointer; overIdx updates smoothly
-//             On pointer-up → drop at overIdx (or back to fromIdx if none)
-//   Keys:
-//   • CANCEL_THRESHOLD raised to 18px — prevents accidental scroll cancellation
-//   • HOLD_MS lowered to 300ms — feels snappy without being hair-trigger
-//   • overIdx only committed on pointer-up, not mid-drag — no hopping
-//   • Haptic feedback (vibrate) on pickup if supported
-
-const CANCEL_THRESHOLD = 18;
-const HOLD_MS = 300;
-
-interface DragState {
-  fromIdx: number;
-  startX: number;
-  startY: number;
-  timer: ReturnType<typeof setTimeout> | null;
-  isDragging: boolean;
-  scrollCancelled: boolean;
-  pointerId: number;
-  currentOverIdx: number | null;
-}
-
-function useDragOrder<T extends { path: string }>(
-  initialItems: T[],
-  onSave: (paths: string[]) => void
-) {
-  const [items, setItems] = useState<T[]>(initialItems);
-  const [draggingIdx, setDraggingIdx] = useState<number | null>(null);
-  const [overIdx, setOverIdx] = useState<number | null>(null);
-  const tileRefs = useRef<(HTMLDivElement | null)[]>([]);
-  const ds = useRef<DragState | null>(null);
-
-  useEffect(() => { setItems(initialItems); }, [initialItems.map(i => i.path).join(",")]);
-
-  // ── Document-level listeners ──────────────────────────────────────────────
-  useEffect(() => {
-    function onMove(e: PointerEvent) {
-      const d = ds.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-
-      if (!d.isDragging) {
-        // Pre-drag: cancel if finger moved too far (scroll gesture)
-        if (!d.scrollCancelled) {
-          const dx = Math.abs(e.clientX - d.startX);
-          const dy = Math.abs(e.clientY - d.startY);
-          if (dx > CANCEL_THRESHOLD || dy > CANCEL_THRESHOLD) {
-            d.scrollCancelled = true;
-            if (d.timer) { clearTimeout(d.timer); d.timer = null; }
-          }
-        }
-        return;
-      }
-
-      // Active drag: track which tile pointer is hovering
-      let found: number | null = null;
-      tileRefs.current.forEach((el, i) => {
-        if (!el || i === d.fromIdx) return;
-        const r = el.getBoundingClientRect();
-        if (e.clientX >= r.left && e.clientX <= r.right &&
-            e.clientY >= r.top  && e.clientY <= r.bottom) {
-          found = i;
-        }
-      });
-      // Update visual highlight only — actual swap happens on pointer-up
-      d.currentOverIdx = found;
-      setOverIdx(found);
-    }
-
-    function onUp(e: PointerEvent) {
-      const d = ds.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
-      // Commit the drop here at document level — reliable on mobile
-      if (d.isDragging) {
-        const from = d.fromIdx;
-        const over = d.currentOverIdx;
-        if (over !== null && over !== from) {
-          setItems(prev => {
-            const next = [...prev];
-            const [moved] = next.splice(from, 1);
-            next.splice(over, 0, moved);
-            onSave(next.map(i => i.path));
-            return next;
-          });
-        }
-        ds.current = null;
-        setDraggingIdx(null);
-        setOverIdx(null);
-      }
-    }
-
-    function onCancel(e: PointerEvent) {
-      const d = ds.current;
-      if (!d || e.pointerId !== d.pointerId) return;
-      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
-      ds.current = null;
-      setDraggingIdx(null);
-      setOverIdx(null);
-    }
-
-    document.addEventListener("pointermove", onMove, { passive: true });
-    document.addEventListener("pointerup", onUp);
-    document.addEventListener("pointercancel", onCancel);
-    return () => {
-      document.removeEventListener("pointermove", onMove);
-      document.removeEventListener("pointerup", onUp);
-      document.removeEventListener("pointercancel", onCancel);
-    };
-  }, [onSave]);
-
-  // ── Per-tile handlers ─────────────────────────────────────────────────────
-
-  const handlePointerDown = useCallback((e: React.PointerEvent, idx: number) => {
-    if (e.pointerType === "mouse" && e.button !== 0) return;
-    const pointerId = e.pointerId;
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    const timer = setTimeout(() => {
-      const d = ds.current;
-      if (!d || d.scrollCancelled || d.pointerId !== pointerId) return;
-      d.isDragging = true;
-      d.currentOverIdx = null;
-      setDraggingIdx(idx);
-      // Haptic feedback on pickup
-      if (navigator.vibrate) navigator.vibrate(30);
-    }, HOLD_MS);
-
-    ds.current = { fromIdx: idx, startX, startY, timer, isDragging: false, scrollCancelled: false, pointerId, currentOverIdx: null };
-  }, []);
-
-  const handlePointerUp = useCallback((_e: React.PointerEvent, idx: number) => {
-    const d = ds.current;
-    if (!d) return false;
-    // If document-level onUp already handled the drop, ds.current is null — nothing to do
-    // This handler only runs if document onUp didn't fire (e.g. fast tap)
-    const wasDragging = d.isDragging;
-    const wasScroll = d.scrollCancelled;
-    if (!wasDragging) {
-      // Clean up timers on fast tap
-      if (d.timer) { clearTimeout(d.timer); d.timer = null; }
-      ds.current = null;
-    }
-    return wasDragging || wasScroll;
-  }, []);
-
-  return { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerUp };
-}
-
 // ── Main component ────────────────────────────────────────────────────────────
 
 interface NavOverlayProps {
@@ -210,8 +54,6 @@ interface NavOverlayProps {
   onClose: () => void;
   navItems: NavItem[];
   userId: number;
-  savedOrder: string[] | null;
-  onOrderSave: (paths: string[]) => void;
 }
 
 export default function NavOverlay({
@@ -219,25 +61,12 @@ export default function NavOverlay({
   onClose,
   navItems,
   userId,
-  savedOrder,
-  onOrderSave,
 }: NavOverlayProps) {
   const [, navigate] = useLocation();
   const { t, lang, setLang } = useLang();
   const { activeUser, theme, toggleTheme, colorTheme, setColorTheme, portalMode, setPortalMode, isRealSession } = useApp();
 
-  // Apply saved order
-  const orderedItems = (() => {
-    if (!savedOrder || savedOrder.length === 0) return navItems;
-    const map = new Map(navItems.map(i => [i.path, i]));
-    const ordered: NavItem[] = [];
-    savedOrder.forEach(p => { const item = map.get(p); if (item) ordered.push(item); });
-    navItems.forEach(i => { if (!savedOrder.includes(i.path)) ordered.push(i); });
-    return ordered;
-  })();
-
-  const { items, tileRefs, draggingIdx, overIdx, handlePointerDown, handlePointerUp } =
-    useDragOrder(orderedItems, onOrderSave);
+  const items = navItems;
 
   // Close on Escape
   useEffect(() => {
@@ -264,8 +93,6 @@ export default function NavOverlay({
     .filter(i => portalMode !== "family" || !FCP_HIDDEN_PATHS.includes(i.path));
   const emergencyItem = items.find(i => i.emergency);
 
-
-  const isDraggingAny = draggingIdx !== null;
 
   return (
     <>
@@ -301,7 +128,6 @@ export default function NavOverlay({
             >
               Navigate
             </h2>
-            <p className="text-[11px] text-muted-foreground">Hold a tile to drag &amp; reorder</p>
           </div>
 
           {/* Controls row */}
@@ -358,38 +184,23 @@ export default function NavOverlay({
           {/* 4 columns always — compact tiles for all screen sizes */}
           <div
             className="grid grid-cols-4 gap-1"
-            style={{ touchAction: isDraggingAny ? "none" : "pan-y" }}
           >
             {regularItems.map((item, idx) => {
               const Icon = item.icon;
               const label = t(item.labelKey);
-              const isDragging = draggingIdx === idx;
-              const isOver = overIdx === idx && draggingIdx !== idx;
               const isFC = portalMode === "family";
 
               return (
                 <div
                   key={item.path}
-                  ref={el => { tileRefs.current[idx] = el; }}
-                  onPointerDown={e => handlePointerDown(e, idx)}
-                  onPointerUp={e => {
-                    const suppress = handlePointerUp(e, idx);
-                    if (!suppress) handleTileClick(item.path);
-                  }}
+                  onClick={() => handleTileClick(item.path)}
                   data-testid={`nav-tile-${item.path.replace("/", "") || "home"}`}
-                  style={{
-                    touchAction: isDraggingAny ? "none" : "pan-y",
-                  }}
                   className={cn(
                     "flex flex-col items-center justify-center gap-1.5 px-1 py-2.5 h-[72px] rounded-xl border cursor-pointer select-none",
                     "transition-all duration-150",
-                    // Light: white tile, gray keyboard-key drop-shadow
-                    // Dark: near-black tile, subtle light-gray keyboard-key drop-shadow
                     "[box-shadow:0_4px_0_0_rgba(0,0,0,0.18),0_1px_4px_rgba(0,0,0,0.10)] dark:[box-shadow:0_4px_0_0_rgba(255,255,255,0.07),0_1px_4px_rgba(0,0,0,0.40)]",
                     isFC ? TILE_BG_FC : TILE_BG,
-                    isDragging && "opacity-40 scale-95 ring-2 ring-primary/40",
-                    isOver && "ring-2 ring-primary ring-offset-1 scale-[1.04]",
-                    !isDragging && !isOver && "active:scale-95 active:translate-y-[3px] [&:active]:[box-shadow:0_1px_0_0_rgba(0,0,0,0.18)] dark:[&:active]:[box-shadow:0_1px_0_0_rgba(255,255,255,0.07)] hover:scale-[1.02]"
+                    "active:scale-95 active:translate-y-[3px] [&:active]:[box-shadow:0_1px_0_0_rgba(0,0,0,0.18)] dark:[&:active]:[box-shadow:0_1px_0_0_rgba(255,255,255,0.07)] hover:scale-[1.02]"
                   )}
                 >
                   <Icon size={24} className={isFC ? TILE_ICON_COLOR_FC : TILE_ICON_COLOR} />
