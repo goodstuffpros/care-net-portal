@@ -7,7 +7,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
-import { MessageCircleHeart, X, Send, ChevronDown, Loader2, AlertCircle, ArrowUpRight, Mic, MicOff } from "lucide-react";
+import { MessageCircleHeart, X, Send, ChevronDown, Loader2, AlertCircle, ArrowUpRight, Mic, MicOff, Lightbulb, CheckCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useApp } from "@/App";
 import { useLocation } from "wouter";
@@ -61,6 +61,7 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
   const isFamilyPortal = portalMode === "family";
 
   const [open, setOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState<"help" | "idea">("help");
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
   const [loading, setLoading] = useState(false);
@@ -73,6 +74,11 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
   const [listening, setListening] = useState(false);
   const [voiceSupported] = useState(() => "webkitSpeechRecognition" in window || "SpeechRecognition" in window);
   const [wakeWordActive, setWakeWordActive] = useState(false);
+
+  // Idea tab state
+  const [ideaText, setIdeaText] = useState("");
+  const [ideaSubmitting, setIdeaSubmitting] = useState(false);
+  const [ideaSubmitted, setIdeaSubmitted] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -306,6 +312,24 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
     }
   }
 
+  async function submitIdea() {
+    if (!ideaText.trim() || ideaSubmitting) return;
+    setIdeaSubmitting(true);
+    try {
+      await apiRequest("POST", "/api/ideas", {
+        text: ideaText.trim(),
+        page: currentPage,
+      });
+      setIdeaSubmitted(true);
+      setIdeaText("");
+    } catch {
+      // Fail silently — idea is best-effort
+      setIdeaSubmitted(true);
+    } finally {
+      setIdeaSubmitting(false);
+    }
+  }
+
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
@@ -368,23 +392,106 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
         >
           {/* Header */}
           <div className={cn(
-            "flex items-center justify-between px-4 py-3 border-b border-border",
+            "border-b border-border",
             isFamilyPortal ? "bg-rose-600" : "bg-primary"
           )}>
-            <div className="flex items-center gap-2">
-              <MessageCircleHeart className="w-4 h-4 text-white" />
-              <span className="text-sm font-semibold text-white">Care Net Support</span>
+            <div className="flex items-center justify-between px-4 pt-3 pb-2">
+              <div className="flex items-center gap-2">
+                <MessageCircleHeart className="w-4 h-4 text-white" />
+                <span className="text-sm font-semibold text-white">Care Net Support</span>
+              </div>
+              <button
+                onClick={() => setOpen(false)}
+                className="text-white/70 hover:text-white transition-colors"
+                data-testid="helpdesk-close"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setOpen(false)}
-              className="text-white/70 hover:text-white transition-colors"
-              data-testid="helpdesk-close"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {/* Tabs */}
+            <div className="flex px-4 gap-1 pb-0">
+              <button
+                onClick={() => setActiveTab("help")}
+                data-testid="helpdesk-tab-help"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors",
+                  activeTab === "help"
+                    ? "bg-background text-foreground"
+                    : "text-white/70 hover:text-white"
+                )}
+              >
+                <MessageCircleHeart className="w-3 h-3" />
+                Get Help
+              </button>
+              <button
+                onClick={() => { setActiveTab("idea"); setIdeaSubmitted(false); }}
+                data-testid="helpdesk-tab-idea"
+                className={cn(
+                  "flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-t-md transition-colors",
+                  activeTab === "idea"
+                    ? "bg-background text-foreground"
+                    : "text-white/70 hover:text-white"
+                )}
+              >
+                <Lightbulb className="w-3 h-3" />
+                Share an Idea
+              </button>
+            </div>
           </div>
 
+          {/* Idea Tab */}
+          {activeTab === "idea" && (
+            <div className="flex-1 flex flex-col px-4 py-5">
+              {ideaSubmitted ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center gap-3 animate-in fade-in duration-300">
+                  <div className="w-12 h-12 rounded-full bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center">
+                    <CheckCircle2 className="w-6 h-6 text-teal-600" />
+                  </div>
+                  <p className="text-sm font-semibold text-foreground">Thank you!</p>
+                  <p className="text-xs text-muted-foreground leading-relaxed max-w-[220px]">
+                    Your idea has been received. We read every one.
+                  </p>
+                  <button
+                    onClick={() => setIdeaSubmitted(false)}
+                    className="text-xs text-primary underline underline-offset-2 mt-2"
+                  >
+                    Share another idea
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="text-sm font-semibold text-foreground mb-1">I wish this app could…</p>
+                  <p className="text-xs text-muted-foreground mb-4 leading-relaxed">
+                    Tell us anything — a feature you’re missing, something that feels clunky, or an idea that would make your day easier.
+                  </p>
+                  <textarea
+                    value={ideaText}
+                    onChange={e => setIdeaText(e.target.value)}
+                    placeholder="e.g. I wish I could see all medications due in the next 2 hours at a glance..."
+                    rows={5}
+                    className="flex-1 w-full resize-none text-sm bg-muted/40 border border-border rounded-xl p-3 outline-none placeholder:text-muted-foreground/50 leading-relaxed focus:ring-1 focus:ring-primary/40"
+                    data-testid="idea-input"
+                  />
+                  <Button
+                    className={cn("w-full mt-3 gap-2", accentColor, "text-white")}
+                    disabled={!ideaText.trim() || ideaSubmitting}
+                    onClick={submitIdea}
+                    data-testid="idea-submit"
+                  >
+                    {ideaSubmitting
+                      ? <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Sending…</>
+                      : <><Lightbulb className="w-3.5 h-3.5" /> Send My Idea</>
+                    }
+                  </Button>
+                </>
+              )}
+            </div>
+          )}
+
           {/* Messages */}
+          {activeTab === "help" && (
+          <>
+          {/* Messages (help tab only) */}
           <div className="flex-1 overflow-y-auto px-3 py-3 space-y-3">
             {messages.map(msg => (
               <div
@@ -446,9 +553,12 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
 
             <div ref={messagesEndRef} />
           </div>
+          </>
+          )}{/* end help tab */}
 
           {/* Input */}
-          <div className="border-t border-border px-3 py-2 flex items-end gap-2">
+          <div className="border-t border-border px-3 py-2 flex items-end gap-2"
+            style={{ display: activeTab === "idea" ? "none" : undefined }}>
             {/* Mic button */}
             {voiceSupported && (
               <button

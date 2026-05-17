@@ -39,6 +39,8 @@ import {
   type DocumentAccessLog, type InsertDocumentAccessLog,
   emergencyAlerts,
   type EmergencyAlert, type InsertEmergencyAlert,
+  ideas,
+  type Idea, type InsertIdea,
 } from "@shared/schema";
 
 import { db, sqlite } from "./db";
@@ -887,6 +889,12 @@ export interface IStorage {
   createEmergencyAlert(data: InsertEmergencyAlert): EmergencyAlert;
   getEmergencyAlertsByClient(clientId: number): EmergencyAlert[];
   markReminderSent(alertId: number): void;
+
+  // Ideas
+  createIdea(data: InsertIdea): Idea;
+  getAllIdeas(): Idea[];
+  getIdeasByCluster(): { clusterId: string; clusterLabel: string; count: number; ideas: Idea[] }[];
+  updateIdea(id: number, data: Partial<Idea>): Idea | undefined;
 }
 
 export const storage: IStorage = {
@@ -1503,6 +1511,24 @@ export const storage: IStorage = {
   createEmergencyAlert: (data) => db.insert(emergencyAlerts).values(data).returning().get(),
   getEmergencyAlertsByClient: (clientId) => db.select().from(emergencyAlerts).where(eq(emergencyAlerts.clientId, clientId)).all(),
   markReminderSent: (alertId) => db.update(emergencyAlerts).set({ reminderSent: true }).where(eq(emergencyAlerts.id, alertId)).run(),
+
+  // Ideas
+  createIdea: (data) => db.insert(ideas).values(data).returning().get(),
+  getAllIdeas: () => db.select().from(ideas).orderBy(desc(ideas.createdAt)).all(),
+  getIdeasByCluster: () => {
+    const all = db.select().from(ideas).orderBy(desc(ideas.createdAt)).all();
+    const clusterMap = new Map<string, { clusterLabel: string; ideas: Idea[] }>();
+    for (const idea of all) {
+      const key = idea.clusterId || "unclustered";
+      const label = idea.clusterLabel || "Unclustered";
+      if (!clusterMap.has(key)) clusterMap.set(key, { clusterLabel: label, ideas: [] });
+      clusterMap.get(key)!.ideas.push(idea);
+    }
+    return Array.from(clusterMap.entries())
+      .map(([clusterId, { clusterLabel, ideas }]) => ({ clusterId, clusterLabel, count: ideas.length, ideas }))
+      .sort((a, b) => b.count - a.count);
+  },
+  updateIdea: (id, data) => db.update(ideas).set(data).where(eq(ideas.id, id)).returning().get(),
 };
 
 storage.seedBeckyResponsesIfEmpty();
@@ -1558,5 +1584,24 @@ try {
     notes TEXT,
     created_at TEXT NOT NULL,
     updated_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
+
+// ── Ideas Migration ───────────────────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS ideas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER,
+    user_role TEXT,
+    text TEXT NOT NULL,
+    page TEXT,
+    care_context TEXT,
+    idea_type TEXT,
+    cluster_id TEXT,
+    cluster_label TEXT,
+    gemini_summary TEXT,
+    status TEXT NOT NULL DEFAULT 'new',
+    admin_note TEXT,
+    created_at TEXT NOT NULL
   )`);
 } catch { /* already exists */ }

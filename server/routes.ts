@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db, sqlite } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts, ideas } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
@@ -1239,6 +1239,120 @@ Please follow up with this user. The conversation above contains everything need
         .where(eq(helpdeskEscalations.id, id))
         .run();
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // IDEAS ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // POST /api/ideas — submit a new idea, auto-tag with Gemini
+  app.post("/api/ideas", requireAuthAccount, async (req: AuthRequest, res) => {
+    const { text, page } = req.body;
+    if (!text?.trim()) return res.status(400).json({ message: "Idea text is required" });
+
+    const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+    const user = account?.userId ? db.select().from(users).where(eq(users.id, account.userId)).get() : null;
+
+    // Save immediately — Gemini tagging is best-effort
+    const now = new Date().toISOString();
+    const idea = storage.createIdea({
+      userId: user?.id ?? null,
+      userRole: user?.role ?? null,
+      text: text.trim(),
+      page: page || null,
+      careContext: null,
+      ideaType: null,
+      clusterId: null,
+      clusterLabel: null,
+      geminiSummary: null,
+      status: "new",
+      adminNote: null,
+      createdAt: now,
+    });
+
+    // Fire Gemini tagging async — don't block response
+    res.json({ success: true, ideaId: idea.id });
+
+    // Async Gemini tagging
+    try {
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) return;
+
+      // Fetch existing ideas for similarity context (last 50)
+      const existing = storage.getAllIdeas().slice(0, 50);
+      const existingSummary = existing
+        .filter(i => i.id !== idea.id && i.clusterId)
+        .map(i => `[${i.clusterId}] ${i.text.slice(0, 80)}`)
+        .slice(0, 20)
+        .join("\n");
+
+      const prompt = `You are organizing user feedback for a healthcare caregiver app called Care Net Portal.
+
+New idea submitted:
+"${text.trim()}"
+
+Existing idea clusters for similarity reference:
+${existingSummary || "(none yet)"}
+
+Respond with a JSON object (no markdown, no code fences) with these fields:
+- careContext: one of "universal", "elderly", "special_needs", "short_term", "self_managed"
+- ideaType: one of "missing_feature", "friction_point", "emotional_need", "safety"
+- clusterId: a short kebab-case key grouping similar ideas (e.g. "medication-logging", "schedule-reminders"). Match an existing cluster if this idea is clearly about the same need.
+- clusterLabel: a human-readable 2-5 word label for the cluster (e.g. "Medication Logging")
+- geminiSummary: a single sentence synthesizing this idea's core need (max 20 words)`;
+
+      const body = {
+        contents: [{ role: "user", parts: [{ text: prompt }] }],
+        generationConfig: { maxOutputTokens: 200, temperature: 0.3 },
+      };
+
+      const response = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }
+      );
+
+      if (response.ok) {
+        const data = await response.json() as any;
+        const raw = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        // Strip markdown fences if present
+        const cleaned = raw.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim();
+        const parsed = JSON.parse(cleaned);
+        storage.updateIdea(idea.id, {
+          careContext: parsed.careContext || null,
+          ideaType: parsed.ideaType || null,
+          clusterId: parsed.clusterId || null,
+          clusterLabel: parsed.clusterLabel || null,
+          geminiSummary: parsed.geminiSummary || null,
+        });
+      }
+    } catch (e) {
+      console.error("[ideas] Gemini tagging failed:", e);
+    }
+  });
+
+  // GET /api/admin/ideas — all ideas grouped by cluster (admin only)
+  app.get("/api/admin/ideas", async (req, res) => {
+    try {
+      const clusters = storage.getIdeasByCluster();
+      res.json(clusters);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // PATCH /api/admin/ideas/:id — update status or admin note
+  app.patch("/api/admin/ideas/:id", async (req, res) => {
+    const id = parseInt(req.params.id);
+    const { status, adminNote } = req.body;
+    try {
+      const updated = storage.updateIdea(id, {
+        ...(status ? { status } : {}),
+        ...(adminNote !== undefined ? { adminNote } : {}),
+      });
+      res.json(updated);
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }

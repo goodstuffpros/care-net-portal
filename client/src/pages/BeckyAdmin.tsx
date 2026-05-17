@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart, Lightbulb, Tag, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -1040,9 +1040,267 @@ function BetaCleanupTab() {
   );
 }
 
+// ── Ideas Tab ────────────────────────────────────────────────────────────────
+const CARE_CONTEXT_LABELS: Record<string, string> = {
+  universal: "Universal",
+  elderly: "Elderly Care",
+  special_needs: "Special Needs",
+  short_term: "Short-Term Care",
+  self_managed: "Self-Managed",
+};
+const IDEA_TYPE_LABELS: Record<string, string> = {
+  missing_feature: "Missing Feature",
+  friction_point: "Friction Point",
+  emotional_need: "Emotional Need",
+  safety: "Safety",
+};
+const CARE_CONTEXT_COLORS: Record<string, string> = {
+  universal: "bg-teal-900/40 text-teal-300 border-teal-700/40",
+  elderly: "bg-blue-900/40 text-blue-300 border-blue-700/40",
+  special_needs: "bg-purple-900/40 text-purple-300 border-purple-700/40",
+  short_term: "bg-amber-900/40 text-amber-300 border-amber-700/40",
+  self_managed: "bg-emerald-900/40 text-emerald-300 border-emerald-700/40",
+};
+const IDEA_TYPE_COLORS: Record<string, string> = {
+  missing_feature: "bg-rose-900/40 text-rose-300 border-rose-700/40",
+  friction_point: "bg-orange-900/40 text-orange-300 border-orange-700/40",
+  emotional_need: "bg-pink-900/40 text-pink-300 border-pink-700/40",
+  safety: "bg-red-900/40 text-red-300 border-red-700/40",
+};
+const STATUS_OPTIONS = ["new", "reviewed", "promoted", "dismissed"];
+const STATUS_COLORS: Record<string, string> = {
+  new: "bg-zinc-700 text-zinc-200",
+  reviewed: "bg-blue-900/60 text-blue-300",
+  promoted: "bg-emerald-900/60 text-emerald-300",
+  dismissed: "bg-zinc-800 text-zinc-500",
+};
+
+interface IdeaCluster {
+  clusterId: string;
+  clusterLabel: string;
+  count: number;
+  ideas: {
+    id: number;
+    userId: number | null;
+    userRole: string | null;
+    text: string;
+    page: string | null;
+    careContext: string | null;
+    ideaType: string | null;
+    clusterId: string | null;
+    clusterLabel: string | null;
+    geminiSummary: string | null;
+    status: string;
+    adminNote: string | null;
+    createdAt: string;
+  }[];
+}
+
+function IdeasTab() {
+  const [expandedClusters, setExpandedClusters] = useState<Set<string>>(new Set());
+  const [editingNote, setEditingNote] = useState<number | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const { toast } = useToast();
+
+  const { data: clusters = [], isLoading, refetch } = useQuery<IdeaCluster[]>({
+    queryKey: ["/api/admin/ideas"],
+    queryFn: () => apiRequest("GET", "/api/admin/ideas").then(r => r.json()),
+    staleTime: 15000,
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: ({ id, patch }: { id: number; patch: Record<string, string> }) =>
+      apiRequest("PATCH", `/api/admin/ideas/${id}`, patch).then(r => r.json()),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/admin/ideas"] }),
+    onError: () => toast({ title: "Could not update idea", variant: "destructive" }),
+  });
+
+  const totalIdeas = clusters.reduce((sum, c) => sum + c.count, 0);
+  const newCount = clusters.reduce((sum, c) => sum + c.ideas.filter(i => i.status === "new").length, 0);
+
+  function toggleCluster(id: string) {
+    setExpandedClusters(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="text-white font-semibold">{totalIdeas} idea{totalIdeas !== 1 ? "s" : ""} submitted</p>
+          {newCount > 0 && <p className="text-xs text-amber-400">{newCount} unreviewed</p>}
+        </div>
+        <button
+          onClick={() => refetch()}
+          className="flex items-center gap-1.5 text-xs text-white/50 hover:text-white/80 transition-colors"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
+
+      {isLoading && (
+        <div className="text-center py-12 text-white/40 text-sm">Loading ideas…</div>
+      )}
+
+      {!isLoading && clusters.length === 0 && (
+        <div className="text-center py-16">
+          <Lightbulb className="w-8 h-8 text-white/20 mx-auto mb-3" />
+          <p className="text-white/40 text-sm">No ideas submitted yet.</p>
+          <p className="text-white/25 text-xs mt-1">Ideas will appear here once users submit them via the App Help button.</p>
+        </div>
+      )}
+
+      {/* Cluster cards */}
+      {clusters.map(cluster => {
+        const isExpanded = expandedClusters.has(cluster.clusterId);
+        const clusterNewCount = cluster.ideas.filter(i => i.status === "new").length;
+        // Representative idea for cluster summary
+        const repIdea = cluster.ideas.find(i => i.geminiSummary) || cluster.ideas[0];
+
+        return (
+          <div key={cluster.clusterId} className="rounded-xl border border-white/10 bg-white/5 overflow-hidden">
+            {/* Cluster header */}
+            <button
+              onClick={() => toggleCluster(cluster.clusterId)}
+              className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors text-left"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-7 h-7 rounded-lg bg-rose-600/30 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xs font-bold text-rose-300">{cluster.count}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-white truncate">{cluster.clusterLabel || cluster.clusterId}</p>
+                  {repIdea?.geminiSummary && (
+                    <p className="text-xs text-white/50 truncate">{repIdea.geminiSummary}</p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {clusterNewCount > 0 && (
+                  <span className="text-[10px] bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full px-2 py-0.5">
+                    {clusterNewCount} new
+                  </span>
+                )}
+                {isExpanded ? <ChevronUp size={14} className="text-white/40" /> : <ChevronDown size={14} className="text-white/40" />}
+              </div>
+            </button>
+
+            {/* Tag row */}
+            {!isExpanded && repIdea && (
+              <div className="px-4 pb-3 flex flex-wrap gap-1.5">
+                {repIdea.careContext && (
+                  <span className={cn("text-[10px] border rounded-full px-2 py-0.5", CARE_CONTEXT_COLORS[repIdea.careContext] || "bg-zinc-800 text-zinc-400 border-zinc-700")}>
+                    {CARE_CONTEXT_LABELS[repIdea.careContext] || repIdea.careContext}
+                  </span>
+                )}
+                {repIdea.ideaType && (
+                  <span className={cn("text-[10px] border rounded-full px-2 py-0.5", IDEA_TYPE_COLORS[repIdea.ideaType] || "bg-zinc-800 text-zinc-400 border-zinc-700")}>
+                    {IDEA_TYPE_LABELS[repIdea.ideaType] || repIdea.ideaType}
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Expanded: individual ideas */}
+            {isExpanded && (
+              <div className="border-t border-white/10 divide-y divide-white/5">
+                {cluster.ideas.map(idea => (
+                  <div key={idea.id} className="px-4 py-3 space-y-2">
+                    {/* Idea text */}
+                    <p className="text-sm text-white/90 leading-relaxed">“{idea.text}”</p>
+
+                    {/* Meta row */}
+                    <div className="flex flex-wrap gap-1.5">
+                      {idea.careContext && (
+                        <span className={cn("text-[10px] border rounded-full px-2 py-0.5", CARE_CONTEXT_COLORS[idea.careContext] || "bg-zinc-800 text-zinc-400 border-zinc-700")}>
+                          {CARE_CONTEXT_LABELS[idea.careContext] || idea.careContext}
+                        </span>
+                      )}
+                      {idea.ideaType && (
+                        <span className={cn("text-[10px] border rounded-full px-2 py-0.5", IDEA_TYPE_COLORS[idea.ideaType] || "bg-zinc-800 text-zinc-400 border-zinc-700")}>
+                          {IDEA_TYPE_LABELS[idea.ideaType] || idea.ideaType}
+                        </span>
+                      )}
+                      {idea.page && (
+                        <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full px-2 py-0.5">
+                          {idea.page}
+                        </span>
+                      )}
+                      {idea.userRole && (
+                        <span className="text-[10px] bg-zinc-800 text-zinc-400 border border-zinc-700 rounded-full px-2 py-0.5">
+                          {idea.userRole}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Status + admin note row */}
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <select
+                        value={idea.status}
+                        onChange={e => updateMutation.mutate({ id: idea.id, patch: { status: e.target.value } })}
+                        className={cn("text-[11px] rounded-full px-2 py-0.5 border-0 outline-none cursor-pointer", STATUS_COLORS[idea.status] || "bg-zinc-700 text-zinc-200")}
+                      >
+                        {STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      {editingNote === idea.id ? (
+                        <div className="flex items-center gap-1 flex-1">
+                          <input
+                            value={noteText}
+                            onChange={e => setNoteText(e.target.value)}
+                            className="flex-1 text-xs bg-zinc-800 border border-zinc-600 rounded px-2 py-0.5 text-white outline-none"
+                            placeholder="Add a note…"
+                            autoFocus
+                            onKeyDown={e => {
+                              if (e.key === "Enter") {
+                                updateMutation.mutate({ id: idea.id, patch: { adminNote: noteText } });
+                                setEditingNote(null);
+                              }
+                              if (e.key === "Escape") setEditingNote(null);
+                            }}
+                          />
+                          <button
+                            onClick={() => { updateMutation.mutate({ id: idea.id, patch: { adminNote: noteText } }); setEditingNote(null); }}
+                            className="text-[10px] text-emerald-400 hover:text-emerald-300"
+                          >Save</button>
+                          <button onClick={() => setEditingNote(null)} className="text-[10px] text-white/30 hover:text-white/60">Cancel</button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => { setEditingNote(idea.id); setNoteText(idea.adminNote || ""); }}
+                          className="text-[10px] text-white/30 hover:text-white/60 flex items-center gap-1"
+                        >
+                          <NotebookPen size={10} />
+                          {idea.adminNote ? idea.adminNote : "Add note"}
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Gemini summary if different from cluster rep */}
+                    {idea.geminiSummary && (
+                      <p className="text-[11px] text-white/35 italic">{idea.geminiSummary}</p>
+                    )}
+
+                    <p className="text-[10px] text-white/20">
+                      {new Date(idea.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup">("library");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas">("library");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
 
@@ -1136,6 +1394,15 @@ export default function BeckyAdminPage() {
             >
               <Eraser size={14} /> Cleanup
             </button>
+            <button
+              onClick={() => setActiveTab("ideas")}
+              className={cn(
+                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
+                activeTab === "ideas" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
+              )}
+            >
+              <Lightbulb size={14} /> Ideas
+            </button>
           </div>
         </div>
       </div>
@@ -1150,6 +1417,9 @@ export default function BeckyAdminPage() {
 
         {/* Beta Cleanup tab */}
         {activeTab === "cleanup" && <BetaCleanupTab />}
+
+        {/* Ideas tab */}
+        {activeTab === "ideas" && <IdeasTab />}
 
         {/* Library tab — only render when on library tab */}
         {activeTab === "library" && (<>

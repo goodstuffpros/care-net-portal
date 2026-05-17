@@ -953,3 +953,24 @@ export const careDirectoryEntries = sqliteTable("care_directory_entries", {
 export const insertCareDirectoryEntrySchema = createInsertSchema(careDirectoryEntries).omit({ id: true });
 export type InsertCareDirectoryEntry = z.infer<typeof insertCareDirectoryEntrySchema>;
 export type CareDirectoryEntry = typeof careDirectoryEntries.$inferSelect;
+
+// ── Ideas (User Feedback / Feature Requests) ─────────────────────────────────
+// Submitted via HelpDesk "Share an Idea" tab. Auto-tagged by Gemini.
+export const ideas = sqliteTable("ideas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id"),                        // who submitted (null = anonymous)
+  userRole: text("user_role"),                       // snapshot of role at submission time
+  text: text("text").notNull(),                      // raw idea text
+  page: text("page"),                                // page they were on when submitted
+  careContext: text("care_context"),                 // 'universal' | 'elderly' | 'special_needs' | 'short_term' | 'self_managed'
+  ideaType: text("idea_type"),                       // 'missing_feature' | 'friction_point' | 'emotional_need' | 'safety'
+  clusterId: text("cluster_id"),                     // Gemini-assigned cluster key (e.g. "medication-logging")
+  clusterLabel: text("cluster_label"),              // human-readable cluster name
+  geminiSummary: text("gemini_summary"),            // Gemini synthesis of this idea within its cluster
+  status: text("status").notNull().default("new"),   // 'new' | 'reviewed' | 'promoted' | 'dismissed'
+  adminNote: text("admin_note"),                     // David/Becky internal note
+  createdAt: text("created_at").notNull(),
+});
+export const insertIdeaSchema = createInsertSchema(ideas).omit({ id: true });
+export type InsertIdea = z.infer<typeof insertIdeaSchema>;
+export type Idea = typeof ideas.$inferSelect;
