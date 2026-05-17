@@ -259,7 +259,7 @@ export default function ClientPortalPage() {
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/users"] }),
   });
 
-  const canEdit = activeUser.role === "primary_family" && !isShowcaseMode;
+  const canEdit = (activeUser.role === "primary_family" || activeUser.role === "self_care") && !isShowcaseMode;
 
   if (clientLoading) {
     return (
