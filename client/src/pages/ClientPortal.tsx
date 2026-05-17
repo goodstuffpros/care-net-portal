@@ -1569,8 +1569,8 @@ export default function ClientPortalPage() {
 // Helper: compute age in full years from ISO date string
 function computeAge(dob: string | null): number | null {
   if (!dob) return null;
-  const [y,m,d] = dob.split("-");
-  const birth = new Date(+y, +m-1, +d);
+  const [yr,mo,dy] = dob.split("-");
+  const birth = new Date(+yr, +mo-1, +dy);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
