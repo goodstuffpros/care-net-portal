@@ -6,6 +6,7 @@ import { registerRoutes } from "./routes";
 import { serveStatic } from "./static";
 import { startFlagEngine } from "./flagEngine";
 import { createServer } from "node:http";
+import { sqlite } from "./db";
 
 const app = express();
 const httpServer = createServer(app);
@@ -65,6 +66,15 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // One-time cleanup: delete orphaned client 23 (Donielle/McKenzie ghost portal)
+  try {
+    const usersOnClient23 = sqlite.prepare(`SELECT id FROM users WHERE client_id = 23`).all();
+    if (usersOnClient23.length === 0) {
+      sqlite.prepare(`DELETE FROM clients WHERE id = 23`).run();
+      console.log("[startup] Deleted orphaned client 23");
+    }
+  } catch (e) { /* already gone or never existed */ }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
