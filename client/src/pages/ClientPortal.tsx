@@ -400,7 +400,7 @@ export default function ClientPortalPage() {
                 {client?.dateOfBirth && (
                   <div>
                     <div className="text-xs text-muted-foreground mb-1">Date of Birth</div>
-                    <div className="text-sm">{new Date(client.dateOfBirth).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}</div>
+                    <div className="text-sm">{(() => { const [y,m,d] = client.dateOfBirth!.split("-"); return new Date(+y, +m-1, +d).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }); })()}</div>
                   </div>
                 )}
               </div>
@@ -1569,7 +1569,8 @@ export default function ClientPortalPage() {
 // Helper: compute age in full years from ISO date string
 function computeAge(dob: string | null): number | null {
   if (!dob) return null;
-  const birth = new Date(dob);
+  const [y,m,d] = dob.split("-");
+  const birth = new Date(+y, +m-1, +d);
   const today = new Date();
   let age = today.getFullYear() - birth.getFullYear();
   const m = today.getMonth() - birth.getMonth();
