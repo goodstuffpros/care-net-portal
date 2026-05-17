@@ -328,11 +328,19 @@ export default function MediaPage() {
               <Plus size={16} /> Add Media
             </Button>
           </DialogTrigger>
-          <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Add Media</DialogTitle>
             </DialogHeader>
-            <div className="space-y-4 py-2">
+            <div className="py-6 flex flex-col items-center text-center gap-4">
+              <div className="flex items-center justify-center gap-3 text-4xl">🔨🔧</div>
+              <div>
+                <p className="font-semibold text-foreground">Under Development</p>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">Photo and video upload is coming soon. Direct file upload from your device will be available in an upcoming release.</p>
+              </div>
+              <Button variant="outline" className="w-full" onClick={() => setAddOpen(false)}>Got it</Button>
+            </div>
+            {false && <div className="space-y-4 py-2">
               <div className="space-y-1.5">
                 <Label>Type</Label>
                 <Select value={form.type} onValueChange={v => setForm(f => ({ ...f, type: v, url: "" }))}>
@@ -414,7 +422,7 @@ export default function MediaPage() {
               <Button className="w-full" onClick={() => addMutation.mutate()} disabled={!form.url || addMutation.isPending} data-testid="save-media-btn">
                 {addMutation.isPending ? "Uploading..." : "Save to Media"}
               </Button>
-            </div>
+            </div>}
           </DialogContent>
         </Dialog>
       </div>
