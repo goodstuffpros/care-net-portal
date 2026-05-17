@@ -83,10 +83,11 @@ export default function DocumentsPage() {
 
   const isMC = activeUser.role === "primary_family";
   const isCG = isCaregiverRole(activeUser.role);
+  const isSelfCare = activeUser.role === "self_care";
 
-  // Only MC can upload or delete
-  const canUpload = isMC;
-  const canDelete = isMC;
+  // MC and self_care can upload and delete their own documents
+  const canUpload = isMC || isSelfCare;
+  const canDelete = isMC || isSelfCare;
 
   const [categoryFilter, setCategoryFilter] = useState("All");
   const [addOpen, setAddOpen] = useState(false);

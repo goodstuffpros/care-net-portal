@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Heart, Mail, Eye, EyeOff, Users, ArrowRight, Briefcase, CheckCircle2, UserCog } from "lucide-react";
+import { Loader2, Heart, Mail, Eye, EyeOff, Users, ArrowRight, Briefcase, CheckCircle2, UserCog, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InviteContext {
@@ -129,9 +129,11 @@ export default function ApplyPage() {
   }, [inviteCtx]);
 
   // When role is selected on role screen, advance to form
+  // Self-managed without an invite token stays on the role screen with a warning
   function handleRoleSelect(role: SignupRole) {
     setSelectedRole(role);
     setForm(f => ({ ...f, role }));
+    if (role === "self_managed" && !inviteToken) return; // show warning, don't advance
     setStage("form");
   }
 
@@ -300,13 +302,25 @@ export default function ApplyPage() {
             })}
           </div>
 
+          {/* Self-managed without invite — block cold signup */}
+          {selectedRole === "self_managed" && !inviteToken && (
+            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 mb-4">
+              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
+                <span className="font-semibold">An invitation link is required.</span> If your Main Contact has already set up a portal for you, ask them to send you an invite from their Care Team page. Opening that link will bring you right here with everything connected.
+              </p>
+            </div>
+          )}
+
           {/* Family member note */}
-          <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 mb-8">
-            <Users className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              <span className="font-medium text-foreground">Secondary family members</span> are invited by the Main Contact from inside the portal — no sign-up needed until then.
-            </p>
-          </div>
+          {!(selectedRole === "self_managed" && !inviteToken) && (
+            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 mb-8">
+              <Users className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                <span className="font-medium text-foreground">Secondary family members</span> are invited by the Main Contact from inside the portal — no sign-up needed until then.
+              </p>
+            </div>
+          )}
 
 
         </div>
