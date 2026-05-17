@@ -1587,6 +1587,27 @@ try {
   )`);
 } catch { /* already exists */ }
 
+// ── Health History Migration ────────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS health_history_entries (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    added_by_user_id INTEGER NOT NULL,
+    entry_type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    date_approx TEXT,
+    date_year INTEGER,
+    date_month INTEGER,
+    date_day INTEGER,
+    facility TEXT,
+    provider TEXT,
+    outcome TEXT,
+    notes TEXT,
+    is_significant INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
+
 // ── Ideas Migration ───────────────────────────────────────────────────────────
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS ideas (

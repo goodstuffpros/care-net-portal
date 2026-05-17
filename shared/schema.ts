@@ -974,3 +974,25 @@ export const ideas = sqliteTable("ideas", {
 export const insertIdeaSchema = createInsertSchema(ideas).omit({ id: true });
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
 export type Idea = typeof ideas.$inferSelect;
+
+// ── Health History (retrospective timeline) ───────────────────────────────────
+export const healthHistoryEntries = sqliteTable("health_history_entries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  clientId: integer("client_id").notNull(),
+  addedByUserId: integer("added_by_user_id").notNull(),
+  entryType: text("entry_type").notNull(), // 'surgery' | 'diagnosis' | 'hospitalization' | 'injury' | 'treatment' | 'medication_start' | 'allergy_discovered' | 'other'
+  title: text("title").notNull(),          // e.g. "Appendectomy", "Type 2 Diabetes diagnosed"
+  dateApprox: text("date_approx"),         // free text for approximate dates: "Summer 1998", "Around 2015"
+  dateYear: integer("date_year"),          // numeric year for timeline sorting (required)
+  dateMonth: integer("date_month"),        // 1–12, optional
+  dateDay: integer("date_day"),            // 1–31, optional
+  facility: text("facility"),              // hospital, clinic, doctor's office
+  provider: text("provider"),             // doctor / surgeon name
+  outcome: text("outcome"),               // brief outcome notes
+  notes: text("notes"),                   // full free-text notes
+  isSignificant: integer("is_significant", { mode: "boolean" }).default(false), // MC/user flagged as "integral to health arc"
+  createdAt: text("created_at").notNull(),
+});
+export const insertHealthHistoryEntrySchema = createInsertSchema(healthHistoryEntries).omit({ id: true });
+export type InsertHealthHistoryEntry = z.infer<typeof insertHealthHistoryEntrySchema>;
+export type HealthHistoryEntry = typeof healthHistoryEntries.$inferSelect;

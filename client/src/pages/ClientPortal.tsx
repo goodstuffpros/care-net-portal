@@ -14,7 +14,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink } from "lucide-react";
+import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink, Clock, Stethoscope, Scissors, Pill, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
@@ -128,6 +128,7 @@ export default function ClientPortalPage() {
 
   // ── In-page tab state ────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<'overview' | 'medical' | 'care' | 'directory'>('overview');
+  const [medicalSubTab, setMedicalSubTab] = useState<'current' | 'history'>('current');
 
   const [editingClient, setEditingClient] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
@@ -166,6 +167,12 @@ export default function ClientPortalPage() {
   const { data: directoryEntries = [], isLoading: directoryLoading } = useQuery<CareDirectoryEntry[]>({
     queryKey: ["/api/clients", selectedClientId, "directory"],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/directory`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
+  const { data: healthHistory = [], isLoading: historyLoading } = useQuery<any[]>({
+    queryKey: ["/api/clients", selectedClientId, "health-history"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/health-history`).then(r => r.json()),
     enabled: !!selectedClientId,
   });
 
@@ -260,6 +267,30 @@ export default function ClientPortalPage() {
   });
 
   const canEdit = (activeUser.role === "primary_family" || activeUser.role === "self_care") && !isShowcaseMode;
+
+  // ── Health History state + mutations ──────────────────────────────────
+  const [showHistoryForm, setShowHistoryForm] = useState(false);
+  const [historyForm, setHistoryForm] = useState({
+    entryType: "surgery", title: "", dateApprox: "", dateYear: "", dateMonth: "", facility: "", provider: "", outcome: "", notes: "", isSignificant: false,
+  });
+
+  const addHistoryMutation = useMutation({
+    mutationFn: (data: typeof historyForm) => apiRequest("POST", `/api/clients/${selectedClientId}/health-history`, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "health-history"] });
+      setShowHistoryForm(false);
+      setHistoryForm({ entryType: "surgery", title: "", dateApprox: "", dateYear: "", dateMonth: "", facility: "", provider: "", outcome: "", notes: "", isSignificant: false });
+      toast({ title: "History entry added" });
+    },
+  });
+
+  const deleteHistoryMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/clients/${selectedClientId}/health-history/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "health-history"] });
+      toast({ title: "Entry removed" });
+    },
+  });
 
   if (clientLoading) {
     return (
@@ -580,7 +611,30 @@ export default function ClientPortalPage() {
       )}
       {/* ══════════════════════════════════ MEDICAL TAB ══════════════════════ */}
       {activeTab === 'medical' && (
-        <div className="space-y-6">
+        <div className="space-y-4">
+
+          {/* Medical sub-tab strip */}
+          <div className="flex gap-1 px-1 pt-1">
+            {(['current', 'history'] as const).map(sub => (
+              <button
+                key={sub}
+                onClick={() => setMedicalSubTab(sub)}
+                className={cn(
+                  'flex-1 py-1.5 text-xs font-semibold rounded-lg border transition-colors',
+                  medicalSubTab === sub
+                    ? 'bg-primary text-primary-foreground border-primary'
+                    : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                )}
+                data-testid={`medical-subtab-${sub}`}
+              >
+                {sub === 'current' ? 'Current Medical' : 'Health History'}
+              </button>
+            ))}
+          </div>
+
+          {/* Current sub-tab */}
+          {medicalSubTab === 'current' && (
+            <div className="space-y-6">
           {/* Diagnoses */}
           <Card className="border-border" data-testid="medical-diagnoses-card">
             <CardHeader className="pb-3">
@@ -750,6 +804,260 @@ export default function ClientPortalPage() {
               </CardContent>
             </Card>
           )}
+            </div>
+          )}
+
+          {/* History sub-tab */}
+          {medicalSubTab === 'history' && (
+            <div className="space-y-4">
+
+              {/* Header + add button */}
+              <div className="flex items-center justify-between px-1">
+                <div>
+                  <h2 className="text-sm font-semibold">Health History</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">Surgeries, diagnoses, hospitalizations, and other significant events before using Care Net Portal.</p>
+                </div>
+                {canEdit && (
+                  <button
+                    onClick={() => setShowHistoryForm(s => !s)}
+                    className="flex items-center gap-1.5 text-xs font-medium text-primary hover:underline"
+                    data-testid="add-history-btn"
+                  >
+                    <Plus size={13} /> Add Entry
+                  </button>
+                )}
+              </div>
+
+              {/* Add entry form */}
+              {showHistoryForm && canEdit && (
+                <div className="rounded-xl border border-border bg-muted/20 p-4 space-y-3">
+                  <p className="text-xs font-semibold text-foreground">New History Entry</p>
+
+                  {/* Entry type */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Type</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[
+                        { value: "surgery", label: "Surgery" },
+                        { value: "diagnosis", label: "Diagnosis" },
+                        { value: "hospitalization", label: "Hospitalization" },
+                        { value: "injury", label: "Injury" },
+                        { value: "treatment", label: "Treatment" },
+                        { value: "medication_start", label: "Medication Started" },
+                        { value: "allergy_discovered", label: "Allergy Discovered" },
+                        { value: "other", label: "Other" },
+                      ].map(opt => (
+                        <button
+                          key={opt.value}
+                          onClick={() => setHistoryForm(f => ({ ...f, entryType: opt.value }))}
+                          className={cn(
+                            'px-2.5 py-1 rounded-full text-xs border transition-colors',
+                            historyForm.entryType === opt.value
+                              ? 'bg-primary text-primary-foreground border-primary'
+                              : 'bg-background border-border text-muted-foreground hover:text-foreground'
+                          )}
+                        >{opt.label}</button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Title */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Title <span className="text-red-500">*</span></label>
+                    <input
+                      className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder={historyForm.entryType === "surgery" ? "e.g. Appendectomy" : historyForm.entryType === "diagnosis" ? "e.g. Type 2 Diabetes diagnosed" : "Brief title"}
+                      value={historyForm.title}
+                      onChange={e => setHistoryForm(f => ({ ...f, title: e.target.value }))}
+                      data-testid="history-title-input"
+                    />
+                  </div>
+
+                  {/* Date row */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Year</label>
+                      <input
+                        type="number"
+                        className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="e.g. 2018"
+                        min="1900" max="2099"
+                        value={historyForm.dateYear}
+                        onChange={e => setHistoryForm(f => ({ ...f, dateYear: e.target.value }))}
+                        data-testid="history-year-input"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Month (optional)</label>
+                      <select
+                        className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        value={historyForm.dateMonth}
+                        onChange={e => setHistoryForm(f => ({ ...f, dateMonth: e.target.value }))}
+                        data-testid="history-month-select"
+                      >
+                        <option value="">-- Month --</option>
+                        {["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"].map((m, i) => (
+                          <option key={i} value={String(i + 1)}>{m}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  {/* Approximate date text */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Approximate date description (optional)</label>
+                    <input
+                      className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                      placeholder="e.g. Summer 1998, Around age 12, Early 2000s"
+                      value={historyForm.dateApprox}
+                      onChange={e => setHistoryForm(f => ({ ...f, dateApprox: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Facility + Provider */}
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Facility (optional)</label>
+                      <input
+                        className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Hospital or clinic"
+                        value={historyForm.facility}
+                        onChange={e => setHistoryForm(f => ({ ...f, facility: e.target.value }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-xs text-muted-foreground">Provider (optional)</label>
+                      <input
+                        className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                        placeholder="Doctor or surgeon"
+                        value={historyForm.provider}
+                        onChange={e => setHistoryForm(f => ({ ...f, provider: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Notes */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Notes (optional)</label>
+                    <textarea
+                      className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary resize-none"
+                      rows={3}
+                      placeholder="Outcome, complications, anything worth remembering..."
+                      value={historyForm.notes}
+                      onChange={e => setHistoryForm(f => ({ ...f, notes: e.target.value }))}
+                    />
+                  </div>
+
+                  {/* Significant toggle */}
+                  <div className="flex items-center gap-3">
+                    <Switch
+                      checked={historyForm.isSignificant}
+                      onCheckedChange={v => setHistoryForm(f => ({ ...f, isSignificant: v }))}
+                      data-testid="history-significant-toggle"
+                    />
+                    <div>
+                      <p className="text-xs font-medium">Mark as significant</p>
+                      <p className="text-xs text-muted-foreground">Highlights this entry as integral to the health arc</p>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex gap-2 pt-1">
+                    <Button
+                      size="sm"
+                      onClick={() => addHistoryMutation.mutate(historyForm)}
+                      disabled={!historyForm.title || !historyForm.dateYear || addHistoryMutation.isPending}
+                      className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white"
+                      data-testid="save-history-btn"
+                    >
+                      <Save size={13} /> Save Entry
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowHistoryForm(false)}>
+                      <X size={13} /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              {/* Timeline */}
+              {historyLoading ? (
+                <div className="space-y-3">{[1,2,3].map(i => <div key={i} className="h-20 rounded-xl bg-muted/40 animate-pulse" />)}</div>
+              ) : healthHistory.length === 0 ? (
+                <div className="text-center py-12 text-muted-foreground">
+                  <Clock size={32} className="mx-auto mb-3 opacity-20" />
+                  <p className="font-medium text-sm">No history entries yet</p>
+                  <p className="text-xs mt-1 max-w-xs mx-auto leading-relaxed">Add past surgeries, diagnoses, hospitalizations, and other significant events to build a complete health timeline.</p>
+                </div>
+              ) : (
+                <div className="relative space-y-3 pl-4">
+                  {/* Timeline line */}
+                  <div className="absolute left-[7px] top-2 bottom-2 w-[2px] bg-border rounded-full" />
+                  {healthHistory.map((entry: any) => {
+                    const TYPE_COLORS: Record<string, string> = {
+                      surgery: "bg-blue-100 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400 border-blue-200 dark:border-blue-900",
+                      diagnosis: "bg-purple-100 text-purple-700 dark:bg-purple-950/40 dark:text-purple-400 border-purple-200 dark:border-purple-900",
+                      hospitalization: "bg-red-100 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-900",
+                      injury: "bg-orange-100 text-orange-700 dark:bg-orange-950/30 dark:text-orange-400 border-orange-200 dark:border-orange-900",
+                      treatment: "bg-teal-100 text-teal-700 dark:bg-teal-950/30 dark:text-teal-400 border-teal-200 dark:border-teal-900",
+                      medication_start: "bg-green-100 text-green-700 dark:bg-green-950/30 dark:text-green-400 border-green-200 dark:border-green-900",
+                      allergy_discovered: "bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border-amber-200 dark:border-amber-900",
+                      other: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400 border-slate-200 dark:border-slate-700",
+                    };
+                    const TYPE_LABELS: Record<string, string> = {
+                      surgery: "Surgery", diagnosis: "Diagnosis", hospitalization: "Hospitalization",
+                      injury: "Injury", treatment: "Treatment", medication_start: "Medication Started",
+                      allergy_discovered: "Allergy Discovered", other: "Other",
+                    };
+                    const dateStr = entry.dateApprox
+                      ? entry.dateApprox
+                      : entry.dateMonth
+                        ? `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][entry.dateMonth - 1]} ${entry.dateYear}`
+                        : entry.dateYear
+                          ? String(entry.dateYear)
+                          : "Date unknown";
+                    const colorClass = TYPE_COLORS[entry.entryType] || TYPE_COLORS.other;
+                    const typeLabel = TYPE_LABELS[entry.entryType] || "Other";
+                    return (
+                      <div key={entry.id} className="relative flex gap-3" data-testid={`history-entry-${entry.id}`}>
+                        {/* Timeline dot */}
+                        <div className={cn("absolute left-[-13px] top-3 w-3 h-3 rounded-full border-2 border-background flex-shrink-0", entry.isSignificant ? "bg-primary" : "bg-muted-foreground/40")} />
+                        <div className={cn("flex-1 rounded-xl border p-3 space-y-1.5", entry.isSignificant ? "border-primary/30 bg-primary/5" : "border-border bg-background")}>
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full border font-medium", colorClass)}>{typeLabel}</span>
+                              {entry.isSignificant && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20 font-medium">Significant</span>
+                              )}
+                              <span className="text-xs text-muted-foreground flex items-center gap-1"><Clock size={10} /> {dateStr}</span>
+                            </div>
+                            {canEdit && (
+                              <button
+                                onClick={() => deleteHistoryMutation.mutate(entry.id)}
+                                className="text-muted-foreground hover:text-red-500 transition-colors flex-shrink-0"
+                                data-testid={`delete-history-${entry.id}`}
+                              >
+                                <Trash2 size={13} />
+                              </button>
+                            )}
+                          </div>
+                          <p className="text-sm font-semibold leading-tight">{entry.title}</p>
+                          {(entry.facility || entry.provider) && (
+                            <p className="text-xs text-muted-foreground">
+                              {[entry.facility, entry.provider].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                          {entry.notes && (
+                            <p className="text-xs text-muted-foreground leading-relaxed">{entry.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+
         </div>
       )}
 

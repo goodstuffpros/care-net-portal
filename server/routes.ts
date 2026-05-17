@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db, sqlite } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts, ideas } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts, ideas, healthHistoryEntries } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
@@ -1366,6 +1366,68 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         ...(adminNote !== undefined ? { adminNote } : {}),
       });
       res.json(updated);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // HEALTH HISTORY ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/clients/:clientId/health-history — all entries, sorted newest year first
+  app.get("/api/clients/:clientId/health-history", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      const entries = db.select().from(healthHistoryEntries)
+        .where(eq(healthHistoryEntries.clientId, clientId))
+        .all()
+        .sort((a, b) => {
+          const yearDiff = (b.dateYear ?? 0) - (a.dateYear ?? 0);
+          if (yearDiff !== 0) return yearDiff;
+          return (b.dateMonth ?? 0) - (a.dateMonth ?? 0);
+        });
+      res.json(entries);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/clients/:clientId/health-history — add new entry
+  app.post("/api/clients/:clientId/health-history", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      const userId = req.authUserId!;
+      const { entryType, title, dateApprox, dateYear, dateMonth, dateDay, facility, provider, outcome, notes, isSignificant } = req.body;
+      if (!entryType || !title) return res.status(400).json({ message: "entryType and title are required" });
+      const entry = db.insert(healthHistoryEntries).values({
+        clientId,
+        addedByUserId: userId,
+        entryType,
+        title,
+        dateApprox: dateApprox || null,
+        dateYear: dateYear ? Number(dateYear) : null,
+        dateMonth: dateMonth ? Number(dateMonth) : null,
+        dateDay: dateDay ? Number(dateDay) : null,
+        facility: facility || null,
+        provider: provider || null,
+        outcome: outcome || null,
+        notes: notes || null,
+        isSignificant: !!isSignificant,
+        createdAt: new Date().toISOString(),
+      }).returning().get();
+      res.json(entry);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // DELETE /api/clients/:clientId/health-history/:entryId
+  app.delete("/api/clients/:clientId/health-history/:entryId", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const entryId = Number(req.params.entryId);
+      db.delete(healthHistoryEntries).where(eq(healthHistoryEntries.id, entryId)).run();
+      res.json({ success: true });
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }
