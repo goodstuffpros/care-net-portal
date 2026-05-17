@@ -126,6 +126,9 @@ export default function ClientPortalPage() {
   const [dirForm, setDirForm] = useState({ titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "" });
   const [dirDeleteConfirm, setDirDeleteConfirm] = useState<number | null>(null);
 
+  // ── In-page tab state ────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'overview' | 'medical' | 'care' | 'directory'>('overview');
+
   const [editingClient, setEditingClient] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
   const [excuseFlagId, setExcuseFlagId] = useState<number | null>(null);
@@ -293,20 +296,27 @@ export default function ClientPortalPage() {
     "critical": "bg-red-50 text-red-700 dark:bg-red-950/30 dark:text-red-400 border-red-200 dark:border-red-900",
   };
 
+  const TABS = [
+    { key: 'overview' as const,   label: 'Overview'   },
+    { key: 'medical' as const,    label: 'Medical'    },
+    { key: 'care' as const,       label: 'Care'       },
+    { key: 'directory' as const,  label: 'Directory'  },
+  ];
+
   return (
-    <div className="p-4 max-w-4xl mx-auto space-y-6 w-full overflow-x-hidden">
+    <div className="w-full overflow-x-hidden">
 
-      {/* Showcase mode banner */}
-      {isPracticeClient && isShowcaseMode && (
-        <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
-          <span className="text-base">👁</span>
-          <div>
-            <strong>Showcase View</strong> — Edit controls are hidden. This is what a potential family will see when you share this portal with them.
+      {/* ── Page header ─────────────────────────────────────────────────────── */}
+      <div className="px-4 pt-4 pb-3 border-b border-border space-y-2">
+        {/* Showcase mode banner */}
+        {isPracticeClient && isShowcaseMode && (
+          <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 text-sm text-amber-800 dark:text-amber-300 flex items-center gap-2">
+            <span className="text-base">👁</span>
+            <div>
+              <strong>Showcase View</strong> — Edit controls are hidden. This is what a potential family will see when you share this portal with them.
+            </div>
           </div>
-        </div>
-      )}
-
-      <div className="pb-3 border-b border-border space-y-2">
+        )}
         <div className="flex items-center gap-3">
           <UserIcon size={20} className="text-blue-600 dark:text-blue-400" />
           <div className="flex-1 min-w-0">
@@ -316,6 +326,45 @@ export default function ClientPortalPage() {
         </div>
         <LessonLauncher pageKey="client-portal" />
       </div>
+
+      {/* ── In-page tab strip ────────────────────────────────────────────────── */}
+      <nav className="flex items-stretch flex-shrink-0 border-b border-border bg-background">
+        {TABS.map(({ key, label }) => {
+          const isActive = activeTab === key;
+          const isFamilyPortal = activeUser.role === 'primary_family' || activeUser.role === 'secondary_family' || activeUser.role === 'self_care';
+          const accent = isFamilyPortal ? 'rose' : 'teal';
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={cn(
+                'flex-1 py-2 text-[11px] font-bold tracking-wide transition-colors relative',
+                isActive
+                  ? accent === 'rose'
+                    ? 'text-rose-600 dark:text-rose-400'
+                    : 'text-teal-600 dark:text-teal-400'
+                  : 'text-muted-foreground hover:text-foreground'
+              )}
+              data-testid={`profile-tab-${key}`}
+            >
+              {label}
+              {isActive && (
+                <span className={cn(
+                  'absolute bottom-0 left-1/2 -translate-x-1/2 h-[2px] w-8 rounded-full',
+                  accent === 'rose' ? 'bg-rose-500' : 'bg-teal-500'
+                )} />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* ── Tab content ──────────────────────────────────────────────────────── */}
+      <div className="p-4 max-w-4xl mx-auto w-full space-y-6">
+
+      {/* ════════════════════════════════ OVERVIEW TAB ═══════════════════════ */}
+      {activeTab === 'overview' && (
+        <div className="space-y-6">
 
       {/* Client Info Card */}
       <Card className="border-border">
@@ -524,6 +573,326 @@ export default function ClientPortalPage() {
           )}
         </CardContent>
       </Card>
+
+        </div>
+      )}
+      {/* ══════════════════════════════════ MEDICAL TAB ══════════════════════ */}
+      {activeTab === 'medical' && (
+        <div className="space-y-6">
+          {/* Diagnoses */}
+          <Card className="border-border" data-testid="medical-diagnoses-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <Heart size={16} className="text-blue-500" /> Diagnoses
+                </CardTitle>
+                {canEdit && (
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingClient(true); setEditForm(client || {}); }} className="gap-1.5 h-8" data-testid="edit-medical-btn">
+                    <Edit2 size={13} /> Edit
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {editingClient ? (
+                <div className="space-y-5">
+                  <ClientListEditor
+                    label="Diagnoses"
+                    items={(() => { try { return JSON.parse(editForm.diagnoses || "[]"); } catch { return []; } })()}
+                    onSave={items => setEditForm(f => ({ ...f, diagnoses: JSON.stringify(items) }))}
+                    fields={[
+                      { key: "name", label: "Diagnosis name", type: "text", required: true },
+                      { key: "severity", label: "Severity", type: "select", options: ["managed", "serious", "critical"] },
+                      { key: "dateNoted", label: "Date noted", type: "date" },
+                    ]}
+                  />
+                  <ClientListEditor
+                    label="Allergies & Contraindications"
+                    items={(() => { try { const r = JSON.parse(editForm.allergies || "[]"); return typeof r[0] === "string" ? r.map((s: string) => ({ name: s, severity: "serious" })) : r; } catch { return []; } })()}
+                    onSave={items => setEditForm(f => ({ ...f, allergies: JSON.stringify(items) }))}
+                    fields={[
+                      { key: "name", label: "Allergen or contraindication", type: "text", required: true },
+                      { key: "severity", label: "Severity", type: "select", options: ["mild", "serious", "life-threatening"] },
+                    ]}
+                  />
+                  <ClientListEditor
+                    label="Assistive Devices"
+                    items={(() => { try { return JSON.parse(editForm.assistiveDevices || "[]"); } catch { return []; } })()}
+                    onSave={items => setEditForm(f => ({ ...f, assistiveDevices: JSON.stringify(items) }))}
+                    fields={[
+                      { key: "device", label: "Device name", type: "text", required: true },
+                      { key: "notes", label: "Notes (optional)", type: "text" },
+                    ]}
+                  />
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => updateClientMutation.mutate(editForm)} disabled={updateClientMutation.isPending} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="save-medical-btn">
+                      <Save size={13} /> Save Changes
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingClient(false)}>
+                      <X size={13} /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-5">
+                  {diagnoses.length === 0 ? (
+                    <div className="text-sm text-muted-foreground py-2">No diagnoses recorded yet.</div>
+                  ) : (
+                    <div className="space-y-2">
+                      {diagnoses.map((d, i) => (
+                        <div key={i} className="flex items-start justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                          <div className="text-sm font-medium flex-1">{d.name}</div>
+                          <div className="flex items-center gap-2 flex-shrink-0">
+                            {d.dateNoted && <span className="text-xs text-muted-foreground">{new Date(d.dateNoted).toLocaleDateString([], { month: "short", year: "numeric" })}</span>}
+                            <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${SEVERITY_DX_COLORS[d.severity] || SEVERITY_DX_COLORS["managed"]}`}>{d.severity}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Allergies */}
+          {!editingClient && (
+            <Card className="border-border" data-testid="medical-allergies-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <AlertTriangle size={16} className="text-red-500" /> Allergies & Contraindications
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {allergies.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-2">No allergies or contraindications recorded.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {allergies.map((a, i) => (
+                      <div key={i} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="text-sm font-medium">{a.name}</div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${SEVERITY_ALLERGY_COLORS[a.severity] || SEVERITY_ALLERGY_COLORS["serious"]}`}>{a.severity}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Assistive Devices */}
+          {!editingClient && (
+            <Card className="border-border" data-testid="medical-devices-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <ArrowRightCircle size={16} className="text-slate-500" /> Assistive Devices
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {assistiveDevices.length === 0 ? (
+                  <div className="text-sm text-muted-foreground py-2">No assistive devices recorded.</div>
+                ) : (
+                  <div className="space-y-2">
+                    {assistiveDevices.map((d, i) => (
+                      <div key={i} className="flex items-start gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
+                        <div className="text-sm font-medium flex-1">{d.device}</div>
+                        {d.notes && <div className="text-xs text-muted-foreground flex-1 text-right">{d.notes}</div>}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Rating + Flags (MC + CG only) */}
+          {caregiver && (
+            <Card className={cn("border", scoreBg)} data-testid="rating-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <Star size={16} className={scoreColor} /> {t("portal.caregiverRating")}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center gap-5">
+                  <div className="text-center">
+                    <div className={cn("text-4xl font-bold", scoreColor)} data-testid="rating-score">{score}%</div>
+                    <div className={cn("text-xs font-medium mt-0.5", scoreColor)}>{scoreLabel}</div>
+                  </div>
+                  <div className="flex-1 space-y-2">
+                    <div className="h-3 rounded-full bg-muted overflow-hidden">
+                      <div className={cn("h-full rounded-full transition-all", score >= 90 ? "bg-emerald-500" : score >= 75 ? "bg-amber-500" : "bg-red-500")} style={{ width: `${Math.max(0, score)}%` }} />
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground">{hearts}</span> / 5
+                      <span className="ml-1">{Array.from({ length: 5 }).map((_, i) => (<span key={i} className={i < Math.floor(hearts) ? "text-rose-500" : "text-muted-foreground/30"}>♥</span>))}</span>
+                      <span className="ml-1 text-muted-foreground">{t("portal.publicBadge")}</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="p-2.5 rounded-xl bg-background border border-border text-center">
+                    <div className="text-lg font-bold text-amber-500">{yellowFlags.length}</div>
+                    <div className="text-xs text-muted-foreground">{t("portal.yellowFlags")}</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-background border border-border text-center">
+                    <div className="text-lg font-bold text-red-500">{redFlags.length}</div>
+                    <div className="text-xs text-muted-foreground">{t("portal.redFlags")}</div>
+                  </div>
+                  <div className="p-2.5 rounded-xl bg-background border border-border text-center">
+                    <div className="text-lg font-bold text-emerald-500">{excusedFlags.length}</div>
+                    <div className="text-xs text-muted-foreground">{t("portal.excused")}</div>
+                  </div>
+                </div>
+                <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5">{t("portal.ratingFormula")}</div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════════ CARE TAB ════════════════════════ */}
+      {activeTab === 'care' && (
+        <div className="space-y-6">
+          {/* Care Notes */}
+          <Card className="border-border" data-testid="care-notes-card">
+            <CardHeader className="pb-3">
+              <div className="flex items-start justify-between">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <BookOpen size={16} className="text-teal-600 dark:text-teal-400" /> Care Notes
+                </CardTitle>
+                {canEdit && !editingClient && (
+                  <Button variant="ghost" size="sm" onClick={() => { setEditingClient(true); setEditForm(client || {}); }} className="gap-1.5 h-8" data-testid="edit-care-notes-btn">
+                    <Edit2 size={13} /> Edit
+                  </Button>
+                )}
+              </div>
+            </CardHeader>
+            <CardContent>
+              {editingClient ? (
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <Label>Care Notes</Label>
+                    <Textarea value={editForm.notes || ""} onChange={e => setEditForm(f => ({ ...f, notes: e.target.value }))} rows={4} />
+                  </div>
+                  <div className="flex gap-2">
+                    <Button size="sm" onClick={() => updateClientMutation.mutate(editForm)} disabled={updateClientMutation.isPending} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="save-care-notes-btn">
+                      <Save size={13} /> Save Changes
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setEditingClient(false)}>
+                      <X size={13} /> Cancel
+                    </Button>
+                  </div>
+                </div>
+              ) : client?.notes ? (
+                <div className="text-sm text-muted-foreground bg-muted/40 p-3 rounded-lg leading-relaxed">{client.notes}</div>
+              ) : (
+                <div className="text-sm text-muted-foreground py-2">No care notes recorded yet.{canEdit ? " Tap Edit to add notes about routines, preferences, and care needs." : ""}</div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Flag Reconciliation */}
+          {(canManageFlags || isCaregiverRole(activeUser.role)) && (
+            <Card className="border-border" data-testid="flags-card">
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                  <Flag size={16} className="text-amber-500" /> {t("portal.careFlags")}
+                  {activeFlags.length > 0 && (
+                    <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 dark:bg-amber-950/30 dark:text-amber-400 border border-amber-200 dark:border-amber-800">
+                      {activeFlags.length} active
+                    </span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {flagsLoading ? (
+                  <div className="space-y-2">{Array(3).fill(0).map((_, i) => <div key={i} className="h-14 bg-muted/40 rounded-xl animate-pulse" />)}</div>
+                ) : careFlags.length === 0 ? (
+                  <div className="flex items-center gap-3 p-4 rounded-xl bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900">
+                    <CheckCircle2 size={18} className="text-emerald-500 flex-shrink-0" />
+                    <div>
+                      <div className="text-sm font-medium text-emerald-700 dark:text-emerald-400">{t("portal.noFlags")}</div>
+                      <div className="text-xs text-muted-foreground">All care tasks are on track for this period.</div>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {redFlags.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-red-600 dark:text-red-400 uppercase tracking-wide">Red Flags</div>
+                        {redFlags.map(flag => (
+                          <div key={flag.id} className="p-3 rounded-xl border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 space-y-1.5" data-testid={`flag-card-${flag.id}`}>
+                            <div className="flex items-start gap-2">
+                              <span className="text-base flex-shrink-0">🚩</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-red-700 dark:text-red-400 capitalize">{flag.category} — Red Flag</div>
+                                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{flag.reason}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{new Date(flag.triggeredAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                              </div>
+                              {canManageFlags && (
+                                <button onClick={() => { setExcuseFlagId(flag.id); setExcuseNote(""); }} className="text-xs text-red-600 hover:text-red-800 border border-red-300 px-2 py-1 rounded-lg hover:bg-red-100 transition-colors flex-shrink-0" data-testid={`excuse-flag-${flag.id}`}>Excuse</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {yellowFlags.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="text-xs font-semibold text-amber-600 dark:text-amber-400 uppercase tracking-wide">Yellow Flags</div>
+                        {yellowFlags.map(flag => (
+                          <div key={flag.id} className="p-3 rounded-xl border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/20 space-y-1.5" data-testid={`flag-card-${flag.id}`}>
+                            <div className="flex items-start gap-2">
+                              <span className="text-base flex-shrink-0">🟡</span>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-amber-700 dark:text-amber-400 capitalize">{flag.category}</div>
+                                <div className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{flag.reason}</div>
+                                <div className="text-xs text-muted-foreground mt-1">{new Date(flag.triggeredAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</div>
+                              </div>
+                              {canManageFlags && (
+                                <button onClick={() => { setExcuseFlagId(flag.id); setExcuseNote(""); }} className="text-xs text-amber-600 hover:text-amber-800 border border-amber-300 px-2 py-1 rounded-lg hover:bg-amber-100 transition-colors flex-shrink-0" data-testid={`excuse-flag-${flag.id}`}>Excuse</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {excusedFlags.length > 0 && (
+                      <details className="group">
+                        <summary className="text-xs text-muted-foreground cursor-pointer hover:text-foreground flex items-center gap-1.5 py-1">
+                          <CheckCircle2 size={12} className="text-emerald-500" />
+                          {excusedFlags.length} excused flag{excusedFlags.length !== 1 ? "s" : ""} (not counted)
+                        </summary>
+                        <div className="mt-2 space-y-2">
+                          {excusedFlags.map(flag => (
+                            <div key={flag.id} className="p-3 rounded-xl border border-border bg-muted/20 opacity-70">
+                              <div className="flex items-start gap-2">
+                                <CheckCircle2 size={14} className="text-emerald-500 flex-shrink-0 mt-0.5" />
+                                <div className="flex-1 min-w-0">
+                                  <div className="text-xs font-medium capitalize">{flag.category} — excused</div>
+                                  <div className="text-xs text-muted-foreground mt-0.5">{flag.excuseNote}</div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+                    )}
+                  </>
+                )}
+                {!canManageFlags && isCaregiverRole(activeUser.role) && (
+                  <div className="text-xs text-muted-foreground bg-muted/40 rounded-lg p-2.5">{t("portal.flagsReviewedBy")}</div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
+      {/* ══════════════════════════════ DIRECTORY TAB ═══════════════════════ */}
+      {activeTab === 'directory' && (
+        <div className="space-y-6">
 
       {/* ── CARE DIRECTORY ───────────────────────────────────────────────────── */}
       <Card className="border-border" data-testid="care-directory-card">
@@ -922,8 +1291,13 @@ export default function ClientPortalPage() {
         </CardContent>
       </Card>
 
-      {/* ── CAREGIVER RATING SCORE ──────────────────────────────────────────── */}
-      {caregiver && (
+        </div>
+      )}
+
+      {/* ══════════════════════════════ SHARED MODALS (all tabs) ════════════ */}
+
+      {/* ── CAREGIVER RATING SCORE (moved to Medical tab — kept here for modal contexts) ── */}
+      {false && caregiver && (
         <Card className={cn("border", scoreBg)} data-testid="rating-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
@@ -984,8 +1358,8 @@ export default function ClientPortalPage() {
         </Card>
       )}
 
-      {/* ── FLAG RECONCILIATION ─────────────────────────────────────────────── */}
-      {(canManageFlags || isCaregiverRole(activeUser.role)) && (
+      {/* ── FLAG RECONCILIATION (moved to Care tab) ─────────────────────── */}
+      {false && (canManageFlags || isCaregiverRole(activeUser.role)) && (
         <Card className="border-border" data-testid="flags-card">
           <CardHeader className="pb-3">
             <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
@@ -1138,47 +1512,53 @@ export default function ClientPortalPage() {
         </div>
       )}
 
+      </div>{/* end tab content */}
+
+      {/* ── SHARED MODALS & PORTALS (outside tab panels, always mounted) ── */}
+
       {/* Invite Family Member Sheet (MC only) — shared component */}
       <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
 
       {/* ── CLIENT PORTAL ACCESS (MC side) ───────────────────────────────── */}
       {isPrimaryFC && (
-        <ClientPortalAccessSection
-          clientId={selectedClientId}
-          clientName={client?.name ?? "Client"}
-          clientDateOfBirth={client?.dateOfBirth ?? null}
-          requiresMinorApproval={!!(client as any)?.requiresMinorApproval}
-          allUsers={allUsers}
-        />
-      )}
+        <div className="px-4 pb-4 max-w-4xl mx-auto w-full space-y-6">
+          <ClientPortalAccessSection
+            clientId={selectedClientId}
+            clientName={client?.name ?? "Client"}
+            clientDateOfBirth={client?.dateOfBirth ?? null}
+            requiresMinorApproval={!!(client as any)?.requiresMinorApproval}
+            allUsers={allUsers}
+          />
 
-      {/* Access Level Info */}
-      <Card className="border-border">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
-            <Shield size={16} /> Access Levels
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3">
-            {[
-              { role: "caregiver", icon: Shield, desc: "Full access: log activities, manage schedule, all communications, media, archive. Can open and close chat threads." },
-              { role: "primary_family", icon: UserCheck, desc: "Full read access: all updates, schedule, care log, messages, media, archive summaries. Can send messages and manage accountability settings." },
-              { role: "secondary_family", icon: Eye, desc: "Limited access: receives updates per notification preferences. Can view shared content and send messages." },
-            ].map(({ role, icon: Icon, desc }) => (
-              <div key={role} className="flex items-start gap-3 p-3 rounded-lg bg-muted/40">
-                <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", ROLE_COLORS[role])}>
-                  <Icon size={14} />
-                </div>
-                <div>
-                  <div className="text-sm font-medium">{ROLE_LABELS[role]}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
-                </div>
+          {/* Access Level Info */}
+          <Card className="border-border">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                <Shield size={16} /> Access Levels
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {[
+                  { role: "caregiver", icon: Shield, desc: "Full access: log activities, manage schedule, all communications, media, archive. Can open and close chat threads." },
+                  { role: "primary_family", icon: UserCheck, desc: "Full read access: all updates, schedule, care log, messages, media, archive summaries. Can send messages and manage accountability settings." },
+                  { role: "secondary_family", icon: Eye, desc: "Limited access: receives updates per notification preferences. Can view shared content and send messages." },
+                ].map(({ role, icon: Icon, desc }) => (
+                  <div key={role} className="flex items-start gap-3 p-3 rounded-lg bg-muted/40">
+                    <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0", ROLE_COLORS[role])}>
+                      <Icon size={14} />
+                    </div>
+                    <div>
+                      <div className="text-sm font-medium">{ROLE_LABELS[role]}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{desc}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
