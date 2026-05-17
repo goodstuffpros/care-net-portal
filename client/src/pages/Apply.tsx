@@ -299,12 +299,13 @@ export default function ApplyPage() {
             </p>
           </div>
 
-          <p className="text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
-            <button onClick={() => navigate("/login")} className="text-primary hover:underline font-medium">
-              Sign in
-            </button>
-          </p>
+          <button
+            onClick={() => navigate("/login")}
+            className="w-full py-3.5 rounded-xl border-2 border-teal-500 text-teal-600 dark:text-teal-400 font-semibold text-sm hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors"
+            data-testid="link-login-prominent"
+          >
+            Already have an account? Sign in
+          </button>
         </div>
       </div>
     );
