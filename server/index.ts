@@ -75,6 +75,16 @@ app.use((req, res, next) => {
     }
   } catch (e) { /* already gone or never existed */ }
 
+  // One-time fix: correct McKenzie (user 50) role from primary_family -> self_care
+  // She arrived via self_care path but was stored incorrectly
+  try {
+    const mck = sqlite.prepare(`SELECT role FROM users WHERE id = 50`).get() as any;
+    if (mck && mck.role !== 'self_care') {
+      sqlite.prepare(`UPDATE users SET role = 'self_care' WHERE id = 50`).run();
+      console.log('[startup] Fixed McKenzie (user 50) role -> self_care');
+    }
+  } catch (e) { /* user 50 may not exist in all environments */ }
+
   // One-time fix: stamp Donielle (user 49) as primaryContactId on client 24
   // Root cause: self_care_to_mc path did not update primaryContactId when MC already had clientId
   try {
