@@ -29,8 +29,8 @@ interface OnboardingProps {
 export default function Onboarding({ email, onComplete, initialRole }: OnboardingProps) {
   const { toast } = useToast();
 
-  const isCG = initialRole === "caregiver";
-  const isSelfManaged = initialRole === "self_managed";
+  const isCG = initialRole === "caregiver" || initialRole === "multi_caregiver" || initialRole === "temp_caregiver";
+  const isSelfManaged = initialRole === "self_managed" || initialRole === "self_care";
   const roleLabel = isCG ? "Caregiver" : isSelfManaged ? "Self-Managed Care" : "Main Contact";
 
   // ── Shared profile state ────────────────────────────────────────────────────
