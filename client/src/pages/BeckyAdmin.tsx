@@ -1356,53 +1356,26 @@ export default function BeckyAdminPage() {
               <div className="text-white/50 text-xs">Care Net Portal — Private</div>
             </div>
           </div>
-          {/* Tab bar */}
-          <div className="flex gap-1">
-            <button
-              onClick={() => setActiveTab("library")}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === "library" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
-              )}
-            >
-              <BookHeart size={14} /> Response Library
-            </button>
-            <button
-              onClick={() => setActiveTab("applications")}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === "applications" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
-              )}
-            >
-              <Users size={14} /> Beta Applications
-            </button>
-            <button
-              onClick={() => setActiveTab("helpdesk")}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === "helpdesk" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
-              )}
-            >
-              <MessageCircleHeart size={14} /> Help Desk
-            </button>
-            <button
-              onClick={() => setActiveTab("cleanup")}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === "cleanup" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
-              )}
-            >
-              <Eraser size={14} /> Cleanup
-            </button>
-            <button
-              onClick={() => setActiveTab("ideas")}
-              className={cn(
-                "flex-1 py-2 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-2",
-                activeTab === "ideas" ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
-              )}
-            >
-              <Lightbulb size={14} /> Ideas
-            </button>
+          {/* Tab bar — horizontally scrollable on mobile */}
+          <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
+            {([
+              { key: "library",      icon: <BookHeart size={14} />,           label: "Library" },
+              { key: "applications", icon: <Users size={14} />,               label: "Users" },
+              { key: "helpdesk",     icon: <MessageCircleHeart size={14} />,  label: "Help Desk" },
+              { key: "cleanup",      icon: <Eraser size={14} />,              label: "Cleanup" },
+              { key: "ideas",        icon: <Lightbulb size={14} />,           label: "Ideas" },
+            ] as const).map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                className={cn(
+                  "flex-shrink-0 py-2 px-3 rounded-lg text-sm font-medium transition-all flex items-center justify-center gap-1.5 whitespace-nowrap",
+                  activeTab === tab.key ? "bg-rose-600/30 text-rose-300 border border-rose-600/40" : "text-white/40 hover:text-white/70"
+                )}
+              >
+                {tab.icon} {tab.label}
+              </button>
+            ))}
           </div>
         </div>
       </div>
