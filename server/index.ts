@@ -75,6 +75,16 @@ app.use((req, res, next) => {
     }
   } catch (e) { /* already gone or never existed */ }
 
+  // One-time fix: stamp Donielle (user 49) as primaryContactId on client 24
+  // Root cause: self_care_to_mc path did not update primaryContactId when MC already had clientId
+  try {
+    const client24 = sqlite.prepare(`SELECT primary_contact_id FROM clients WHERE id = 24`).get() as any;
+    if (client24 && client24.primary_contact_id !== 49) {
+      sqlite.prepare(`UPDATE clients SET primary_contact_id = 49 WHERE id = 24`).run();
+      console.log("[startup] Fixed primaryContactId on client 24 -> user 49 (Donielle)");
+    }
+  } catch (e) { /* client 24 may not exist in all environments */ }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

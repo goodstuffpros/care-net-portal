@@ -619,11 +619,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
       // If MC already has a clientId (arrived via self_care_to_mc invite), skip client creation
       if (mcUser.clientId) {
         clientIdToUse = mcUser.clientId;
-        // Just mark setup complete — the client record already exists
+        // Mark setup complete and ensure this MC is set as the primaryContactId
         db.update(users).set({
           carePathChoice: carePathChoice || "self_managing",
           mcSetupCompletedAt: new Date().toISOString(),
         }).where(eq(users.id, mcUser.id)).run();
+        // Stamp MC as primary contact on the existing client record
+        db.update(clients).set({ primaryContactId: mcUser.id }).where(eq(clients.id, mcUser.clientId)).run();
       } else {
         // Create the client (loved one) row
         const newClient = db.insert(clients).values({
