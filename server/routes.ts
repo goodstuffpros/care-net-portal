@@ -178,7 +178,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -1554,6 +1554,18 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         createdAt: new Date().toISOString(),
       }).run();
       res.json({ success: true, clientId: newClient.id, clientName: newClient.name, colorTheme: newClient.colorTheme });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/me/nudge-snooze — snooze the multi-portal nudge card for 30 days
+  app.post("/api/me/nudge-snooze", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const userId = req.authUserId!;
+      const snoozeUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+      db.update(users).set({ multiPortalNudgeSnoozedUntil: snoozeUntil }).where(eq(users.id, userId)).run();
+      res.json({ success: true, snoozedUntil: snoozeUntil });
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }

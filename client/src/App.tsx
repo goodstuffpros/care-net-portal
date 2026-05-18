@@ -102,6 +102,7 @@ interface AppContextType {
   triggerOnboarding: () => void;
   hasMultiplePortals: boolean;
   returnToCareHome: () => void;
+  multiPortalNudgeSnoozedUntil: string | null;
   portalMode: PortalMode;
   setPortalMode: (mode: PortalMode) => void;
   showUpgradeTransition: boolean;
@@ -137,6 +138,7 @@ interface RealUser {
   onboardingCompletedAt?: string | null;
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
+  multiPortalNudgeSnoozedUntil?: string | null;
 }
 
 function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPortals }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; hasMultiplePortals?: boolean }) {
@@ -315,6 +317,7 @@ function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPort
         triggerOnboarding,
         hasMultiplePortals: hasManyPortals ?? false,
         returnToCareHome: onReturnToCareHome ?? (() => {}),
+        multiPortalNudgeSnoozedUntil: (realUser as any)?.multiPortalNudgeSnoozedUntil ?? null,
 
         portalMode,
         setPortalMode,
@@ -609,6 +612,7 @@ function RealAuthGate() {
             onboardingCompletedAt: data.onboardingCompletedAt ?? null,
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,
+            multiPortalNudgeSnoozedUntil: data.multiPortalNudgeSnoozedUntil ?? null,
           };
           setRealUser(user);
           if (data.onboardingCompletedAt) setOnboardingDone(true);

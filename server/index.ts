@@ -85,6 +85,41 @@ app.use((req, res, next) => {
     }
   } catch (e) { /* client 24 may not exist in all environments */ }
 
+  // One-time seed: give +mc2 a second client portal so Care Home can be tested
+  // goodstuffpros+mc2@gmail.com is the test MC account
+  try {
+    const mc2Account = sqlite.prepare(`SELECT user_id FROM auth_accounts WHERE email = 'goodstuffpros+mc2@gmail.com'`).get() as any;
+    if (mc2Account) {
+      const mc2UserId = mc2Account.user_id;
+      // Count existing portals in junction table
+      const existingPortals = sqlite.prepare(`SELECT COUNT(*) as cnt FROM user_client_relationships WHERE user_id = ?`).get(mc2UserId) as any;
+      if (existingPortals && existingPortals.cnt < 2) {
+        // Check if mc2 already has a primary client
+        const mc2User = sqlite.prepare(`SELECT client_id FROM users WHERE id = ?`).get(mc2UserId) as any;
+        if (mc2User?.client_id) {
+          // Ensure primary junction row exists
+          const primaryExists = sqlite.prepare(`SELECT id FROM user_client_relationships WHERE user_id = ? AND client_id = ?`).get(mc2UserId, mc2User.client_id) as any;
+          if (!primaryExists) {
+            sqlite.prepare(`INSERT INTO user_client_relationships (user_id, client_id, role, is_primary, created_at) VALUES (?, ?, 'mc', 1, ?)`)
+              .run(mc2UserId, mc2User.client_id, new Date().toISOString());
+            console.log(`[startup] +mc2: seeded primary junction row for client ${mc2User.client_id}`);
+          }
+          // Create the second test client
+          const existing2 = sqlite.prepare(`SELECT COUNT(*) as cnt FROM user_client_relationships WHERE user_id = ?`).get(mc2UserId) as any;
+          if (existing2.cnt < 2) {
+            const now = new Date().toISOString();
+            const newClient = sqlite.prepare(
+              `INSERT INTO clients (name, caregiver_id, primary_contact_id, color_theme, is_active) VALUES (?, ?, ?, ?, 1)`
+            ).run('Test Parent Two', mc2UserId, mc2UserId, 'amber');
+            sqlite.prepare(`INSERT INTO user_client_relationships (user_id, client_id, role, is_primary, created_at) VALUES (?, ?, 'mc', 0, ?)`)
+              .run(mc2UserId, newClient.lastInsertRowid, now);
+            console.log(`[startup] +mc2: created second test client (amber) for Care Home testing`);
+          }
+        }
+      }
+    }
+  } catch (e) { console.log('[startup] +mc2 seed skipped:', e); }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {

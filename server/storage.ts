@@ -1590,6 +1590,9 @@ try {
 // ── colorTheme column on clients ─────────────────────────────────────
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN color_theme TEXT DEFAULT 'teal'`); } catch { /* already exists */ }
 
+// ── Multi-portal nudge snooze column on users ──────────────────────────
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN multi_portal_nudge_snoozed_until TEXT`); } catch { /* already exists */ }
+
 // ── User-Client Relationships Migration ────────────────────────────────
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS user_client_relationships (

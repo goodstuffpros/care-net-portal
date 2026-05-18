@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useApp, isCaregiverRole } from "@/App";
 import { useLang } from "@/lib/useLang";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import type { Client, ScheduleEvent, ActivityLog, Notification } from "@shared/schema";
 import { PriorityBadge } from "@/components/AppLayout";
@@ -12,7 +12,8 @@ import { Link, useLocation } from "wouter";
 import {
   AlertTriangle, Rocket, Calendar, ClipboardCheck, Heart, MessageSquare, X,
   Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell, Volume2,
-  Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays
+  Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays,
+  Home, Plus
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
@@ -57,7 +58,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -96,12 +97,31 @@ export default function DashboardPage() {
   const [, navigate] = useLocation();
   const [sampleNudgeDismissed, setSampleNudgeDismissed] = useState(false);
   const [sampleModalOpen, setSampleModalOpen] = useState(false);
+  const [multiPortalNudgeDismissedLocal, setMultiPortalNudgeDismissedLocal] = useState(false);
+
   // Nudge: show for CGs who have no sample and no real client
   const showSampleNudge =
     isCaregiverRole(activeUser.role) &&
     !sampleClientId &&
     isPreConnection &&
     !sampleNudgeDismissed;
+
+  // Multi-portal nudge: show for MC users who don't already have multiple portals
+  // Only show if snooze has expired (or was never set), and not already dismissed this session
+  const nudgeSnoozedUntilDate = multiPortalNudgeSnoozedUntil ? new Date(multiPortalNudgeSnoozedUntil) : null;
+  const nudgeSnoozed = nudgeSnoozedUntilDate ? nudgeSnoozedUntilDate > new Date() : false;
+  const showMultiPortalNudge =
+    activeUser.role === "primary_family" &&
+    !hasMultiplePortals &&
+    !nudgeSnoozed &&
+    !multiPortalNudgeDismissedLocal &&
+    isRealSession &&
+    activeUser.id > 0;
+
+  const snoozeMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/me/nudge-snooze"),
+    onSuccess: () => setMultiPortalNudgeDismissedLocal(true),
+  });
   const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family";
   const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
   // Guard: hardcoded USER_BADGES are demo-only. Real users start with no earned badges.
@@ -195,6 +215,45 @@ export default function DashboardPage() {
               </Link>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Multi-portal nudge — shown to single-portal MC users once snooze expires */}
+      {showMultiPortalNudge && (
+        <div className="rounded-xl border border-teal-300/50 dark:border-teal-700/40 bg-teal-50 dark:bg-teal-950/30 p-4 flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-teal-500/15 flex items-center justify-center flex-shrink-0 mt-0.5">
+            <Home size={17} className="text-teal-600 dark:text-teal-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-semibold text-foreground leading-tight">Caring for more than one person?</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Care Net Portal supports multiple portals under one account. Each loved one gets their own color-coded space — you choose who to enter each time.
+            </p>
+            <div className="flex flex-wrap gap-2 mt-3">
+              <button
+                onClick={returnToCareHome}
+                className="flex items-center gap-1.5 text-xs font-medium bg-teal-600 text-white px-3 py-1.5 rounded-lg hover:bg-teal-700 transition-colors"
+                data-testid="multi-portal-nudge-yes"
+              >
+                <Plus size={13} /> Add another loved one
+              </button>
+              <button
+                onClick={() => snoozeMutation.mutate()}
+                disabled={snoozeMutation.isPending}
+                className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg border border-border hover:border-foreground/30 transition-colors"
+                data-testid="multi-portal-nudge-snooze"
+              >
+                Remind me later
+              </button>
+            </div>
+          </div>
+          <button
+            onClick={() => setMultiPortalNudgeDismissedLocal(true)}
+            className="text-muted-foreground/50 hover:text-muted-foreground transition-colors flex-shrink-0 mt-0.5"
+            aria-label="Close"
+          >
+            <X size={14} />
+          </button>
         </div>
       )}
 

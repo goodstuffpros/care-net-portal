@@ -22,9 +22,10 @@ import { cn } from "@/lib/utils";
 import {
   User, Phone, Mail, Heart, Bell, BellOff, Shield,
   Pencil, Check, X, ChevronRight, Users, Home,
-  Clock, Globe, Star, Info, UserPlus, ChevronDown
+  Clock, Globe, Star, Info, UserPlus, ChevronDown, Plus, ArrowRight
 } from "lucide-react";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
+import { THEME_CONFIG } from "@/pages/CareHome";
 import type { User as UserType } from "@shared/schema";
 
 // ── Timezone options ─────────────────────────────────────────────────────────
@@ -138,7 +139,7 @@ function EditableField({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function FamilyProfile() {
-  const { activeUser, isRealSession } = useApp();
+  const { activeUser, isRealSession, hasMultiplePortals, returnToCareHome } = useApp();
   const { toast } = useToast();
 
   // ── Fetch user data ──────────────────────────────────────────────────────────
@@ -146,6 +147,14 @@ export default function FamilyProfile() {
     queryKey: ["/api/users", activeUser.id],
     queryFn: () => apiRequest("GET", `/api/users/${activeUser.id}`).then(r => r.json()),
     enabled: isRealSession,
+  });
+
+  // ── Portals query (MC only) ────────────────────────────────────────
+  interface PortalEntry { clientId: number; clientName: string; colorTheme: string; isPrimary: boolean; role: string; }
+  const { data: portals = [] } = useQuery<PortalEntry[]>({
+    queryKey: ["/api/me/portals"],
+    queryFn: () => apiRequest("GET", "/api/me/portals").then(r => r.json()),
+    enabled: isRealSession && activeUser.role === "primary_family",
   });
 
   const user = isRealSession ? userData : activeUser;
@@ -468,6 +477,63 @@ export default function FamilyProfile() {
 
         </div>
       </div>
+
+      {/* ── People I Care For (MC only) ── */}
+      {activeUser.role === "primary_family" && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">People I Care For</p>
+            {portals.length > 0 && (
+              <span className="text-xs text-muted-foreground">{portals.length} portal{portals.length !== 1 ? "s" : ""}</span>
+            )}
+          </div>
+          <div className="px-5 divide-y divide-border">
+            {portals.length === 0 ? (
+              <div className="py-4 text-sm text-muted-foreground">Loading portals…</div>
+            ) : (
+              portals.map(portal => {
+                const theme = THEME_CONFIG[portal.colorTheme] || THEME_CONFIG.teal;
+                const initials = portal.clientName.split(" ").map((w: string) => w[0]).join("").slice(0, 2).toUpperCase();
+                return (
+                  <div key={portal.clientId} className="flex items-center gap-3 py-3.5">
+                    <div className={cn("w-9 h-9 rounded-xl flex items-center justify-center text-white text-xs font-bold shrink-0", theme.accent)}>
+                      {initials}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-medium text-foreground truncate">{portal.clientName}</p>
+                        {portal.isPrimary && <Star size={11} className={cn("shrink-0", theme.text)} />}
+                      </div>
+                      <p className={cn("text-xs font-medium", theme.text)}>{theme.label}</p>
+                    </div>
+                    {hasMultiplePortals && (
+                      <button
+                        onClick={returnToCareHome}
+                        className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                      >
+                        Enter <ArrowRight size={12} />
+                      </button>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+          {/* Add another */}
+          <div className="px-5 py-3 border-t border-border">
+            <button
+              onClick={returnToCareHome}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+              data-testid="profile-add-another-portal"
+            >
+              <div className="w-7 h-7 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
+                <Plus size={13} />
+              </div>
+              Add another loved one
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* ── Info note ── */}
       <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/20 px-4 py-3">
