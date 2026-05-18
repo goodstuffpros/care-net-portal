@@ -1534,6 +1534,10 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   app.get("/becky-admin", (_req, res) => {
+    // Redirect to the React app's hash route which has the full admin panel with all tabs
+    return res.redirect("/#/becky-admin");
+    // Legacy server-rendered handler below (kept for reference)
+    if (false) {
     const items = storage.getBeckyResponses();
     const themes = [...new Set(items.map((r: any) => r.theme))].sort();
     const themeLabels: Record<string, string> = {
@@ -1706,6 +1710,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 </div>
 <script src="becky-admin.js"></script>
 </body></html>`);
+    } // end if(false)
   });
 
   // Users
