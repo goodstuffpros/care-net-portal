@@ -63,6 +63,7 @@ import MCSetupWizard from "@/pages/MCSetupWizard";
 
 // Layout
 import AppLayout from "@/components/AppLayout";
+import CareHomePage from "@/pages/CareHome";
 
 // Role types
 export type UserRole = "caregiver" | "temp_caregiver" | "multi_caregiver" | "primary_family" | "secondary_family" | "self_care";
@@ -84,7 +85,7 @@ export function isCaregiverRole(role: UserRole) {
 }
 
 
-export type ColorTheme = "teal" | "sand" | "navy" | "lavender";
+export type ColorTheme = "teal" | "sage" | "slate" | "rose" | "amber" | "sand" | "navy" | "lavender";
 export type PortalMode = "dedicated" | "family" | "client";
 
 interface AppContextType {
@@ -99,6 +100,8 @@ interface AppContextType {
   colorTheme: ColorTheme;
   setColorTheme: (theme: ColorTheme) => void;
   triggerOnboarding: () => void;
+  hasMultiplePortals: boolean;
+  returnToCareHome: () => void;
   portalMode: PortalMode;
   setPortalMode: (mode: PortalMode) => void;
   showUpgradeTransition: boolean;
@@ -136,7 +139,7 @@ interface RealUser {
   carePathChoice?: string | null;
 }
 
-function MainApp({ realUser }: { realUser?: RealUser | null }) {
+function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPortals }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; hasMultiplePortals?: boolean }) {
   // Pre-connection CGs (no clientId yet) fall through to the main app in demo mode.
   // A banner in AppLayout explains the situation and offers an invite shortcut.
 
@@ -178,7 +181,7 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
-  const [colorTheme, setColorTheme] = useState<ColorTheme>("teal");
+  const [colorTheme, setColorTheme] = useState<ColorTheme>((realUser as any)?._entryColorTheme || "teal");
   const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
@@ -310,6 +313,9 @@ function MainApp({ realUser }: { realUser?: RealUser | null }) {
         colorTheme,
         setColorTheme,
         triggerOnboarding,
+        hasMultiplePortals: hasManyPortals ?? false,
+        returnToCareHome: onReturnToCareHome ?? (() => {}),
+
         portalMode,
         setPortalMode,
         showUpgradeTransition,
@@ -562,10 +568,22 @@ export default function App() {
  * If yes and onboarding done → show MainApp.
  * If no real session → show MainApp (demo mode takes over).
  */
+interface PortalInfo {
+  clientId: number;
+  colorTheme: string;
+  isPrimary: boolean;
+  clientName: string;
+  role: string;
+}
+
 function RealAuthGate() {
   const [checking, setChecking] = useState(true);
   const [realUser, setRealUser] = useState<RealUser | null>(null);
   const [onboardingDone, setOnboardingDone] = useState(false);
+  const [portals, setPortals] = useState<PortalInfo[]>([]);
+  const [showCareHome, setShowCareHome] = useState(false);
+  const [activePortalClientId, setActivePortalClientId] = useState<number | null>(null);
+  const [activePortalTheme, setActivePortalTheme] = useState<string>("teal");
 
   // If user clicked "Go to University" from pre-connection, let them into the demo
   const demoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
@@ -575,13 +593,11 @@ function RealAuthGate() {
 
     async function checkMe(retrying = false) {
       try {
-        // Use apiRequest so the URL goes through API_BASE (Railway proxy on Perplexity preview)
-        // and the Bearer token header is added automatically via authHeaders().
         const res = await apiRequest("GET", "/api/auth/me");
         const data = await res.json();
         if (data?.email && !data?.isDemoMode) {
           sessionStorage.removeItem("cnp_just_logged_in");
-          setRealUser({
+          const user: RealUser = {
             id: data.id,
             name: data.name,
             role: data.role,
@@ -593,15 +609,31 @@ function RealAuthGate() {
             onboardingCompletedAt: data.onboardingCompletedAt ?? null,
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,
-          });
+          };
+          setRealUser(user);
           if (data.onboardingCompletedAt) setOnboardingDone(true);
           if (data.clientId) sessionStorage.removeItem("cnp_demo_preview");
+
+          // Fetch portals to decide whether to show Care Home
+          if (data.id && data.onboardingCompletedAt) {
+            try {
+              const pr = await apiRequest("GET", "/api/me/portals");
+              const pdata: PortalInfo[] = await pr.json();
+              if (Array.isArray(pdata) && pdata.length >= 2) {
+                setPortals(pdata);
+                // Find the primary portal — load that one by default
+                const primary = pdata.find(p => p.isPrimary) || pdata[0];
+                setActivePortalClientId(primary.clientId);
+                setActivePortalTheme(primary.colorTheme || "teal");
+                setShowCareHome(true);
+              }
+            } catch { /* not fatal — just show normal single portal */ }
+          }
         } else if (justLoggedIn && !retrying) {
           setTimeout(() => checkMe(true), 500);
           return;
         }
       } catch {
-        // 401 or network error — retry once if we just logged in
         if (justLoggedIn && !retrying) {
           setTimeout(() => checkMe(true), 500);
           return;
@@ -613,7 +645,7 @@ function RealAuthGate() {
     checkMe();
   }, []);
 
-  if (checking) return null; // brief flicker prevention
+  if (checking) return null;
 
   // Real user who hasn't completed onboarding wizard yet
   // self_care users skip ALL onboarding — they go straight to MainApp
@@ -630,8 +662,6 @@ function RealAuthGate() {
   }
 
   // MC user who hasn't completed the setup wizard yet
-  // secondary_family arrives via invite (already connected) — they skip MC setup
-  // self_care arrives via mc_to_client invite — they also skip MC setup (role !== primary_family)
   const isMCRole = realUser?.role === "primary_family";
   if (realUser && onboardingDone && isMCRole && !realUser.mcSetupCompletedAt) {
     return (
@@ -646,6 +676,41 @@ function RealAuthGate() {
     );
   }
 
-  // Real user, onboarding done — always pass realUser into MainApp.
-  return <MainApp realUser={realUser} />;
+  // Multi-portal user: show Care Home waiting room
+  if (showCareHome && portals.length >= 2) {
+    // Build a realUser override with the chosen portal's clientId and colorTheme
+    const portalUser: RealUser & { _entryColorTheme?: string } = {
+      ...realUser!,
+      clientId: activePortalClientId,
+      _entryColorTheme: activePortalTheme,
+    };
+
+    return (
+      <QueryClientProvider client={queryClient}>
+        <CareHomePage
+          onEnterPortal={(clientId, colorTheme) => {
+            setActivePortalClientId(clientId);
+            setActivePortalTheme(colorTheme);
+            setShowCareHome(false);
+          }}
+          userName={realUser?.name}
+          userRole={realUser?.role}
+        />
+        <Toaster />
+      </QueryClientProvider>
+    );
+  }
+
+  // Single-portal or already chose a portal — enter MainApp with the selected portal
+  const portalUser: RealUser & { _entryColorTheme?: string } = realUser
+    ? { ...realUser, clientId: activePortalClientId ?? realUser.clientId, _entryColorTheme: activePortalTheme }
+    : null as any;
+
+  return (
+    <MainApp
+      realUser={portalUser || realUser}
+      hasMultiplePortals={portals.length >= 2}
+      onReturnToCareHome={portals.length >= 2 ? () => setShowCareHome(true) : undefined}
+    />
+  );
 }

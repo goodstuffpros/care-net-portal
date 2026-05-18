@@ -1587,6 +1587,44 @@ try {
   )`);
 } catch { /* already exists */ }
 
+// ── colorTheme column on clients ─────────────────────────────────────
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN color_theme TEXT DEFAULT 'teal'`); } catch { /* already exists */ }
+
+// ── User-Client Relationships Migration ────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS user_client_relationships (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    is_primary INTEGER DEFAULT 0,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
+
+// ── Seed junction table from existing users ────────────────────────────────
+try {
+  const existing = sqlite.prepare(`SELECT COUNT(*) as cnt FROM user_client_relationships`).get() as any;
+  if (existing.cnt === 0) {
+    // Seed all users who have a clientId into the junction table
+    const usersWithClient = sqlite.prepare(
+      `SELECT id, client_id, role FROM users WHERE client_id IS NOT NULL AND is_active = 1`
+    ).all() as any[];
+    const insert = sqlite.prepare(
+      `INSERT INTO user_client_relationships (user_id, client_id, role, is_primary, created_at) VALUES (?, ?, ?, 1, ?)`
+    );
+    const now = new Date().toISOString();
+    for (const u of usersWithClient) {
+      const ucRole = u.role === 'primary_family' ? 'mc'
+        : u.role === 'secondary_family' ? 'secondary_family'
+        : u.role === 'self_care' ? 'self_care'
+        : 'caregiver';
+      insert.run(u.id, u.client_id, ucRole, now);
+    }
+    console.log(`[startup] Seeded ${usersWithClient.length} user-client relationships`);
+  }
+} catch (e: any) { console.warn('[startup] Junction seed error:', e?.message); }
+
 // ── Health History Migration ────────────────────────────────────────────────
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS health_history_entries (

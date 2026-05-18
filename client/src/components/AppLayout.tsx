@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare
+  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -194,7 +194,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, returnToCareHome } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
@@ -1004,6 +1004,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
             </div>
             <DropdownMenuSeparator />
+            {/* Return to Care Home — only shown for multi-portal users */}
+            {hasMultiplePortals && (
+              <DropdownMenuItem
+                onClick={returnToCareHome}
+                className="cursor-pointer text-primary font-medium"
+                data-testid="nav-care-home"
+              >
+                <Home size={14} className="mr-2" />
+                Care Home
+              </DropdownMenuItem>
+            )}
             {/* Profile page — role-aware */}
             <DropdownMenuItem
               onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
@@ -1473,6 +1484,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
                 </div>
                 <DropdownMenuSeparator />
+                {/* Return to Care Home — multi-portal only */}
+                {hasMultiplePortals && (
+                  <DropdownMenuItem
+                    onClick={returnToCareHome}
+                    className="cursor-pointer text-primary font-medium"
+                    data-testid="nav-care-home-mobile"
+                  >
+                    <Home size={14} className="mr-2" />
+                    Care Home
+                  </DropdownMenuItem>
+                )}
                 {/* Profile page — mobile, role-aware */}
                 <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
                   <User size={14} className="mr-2" />

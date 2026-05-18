@@ -58,6 +58,7 @@ export const clients = sqliteTable("clients", {
   transferOfferedAt: text("transfer_offered_at"), // ISO — when MC sent 'You Are Ready' offer (for 72hr expiry)
   transferStep2At: text("transfer_step2_at"), // ISO — when client completed step 2 (client-initiated path)
   transferCancelledAt: text("transfer_cancelled_at"), // ISO — if cancelled before completion
+  colorTheme: text("color_theme").default("teal"), // portal color accent: 'teal' | 'sage' | 'slate' | 'rose' | 'amber'
   mcPostTransferRole: text("mc_post_transfer_role"), // 'monitor' | 'step_back' | 'remove' — client's choice after transfer
   // Phase 2 — minor contributor approval gate
   requiresMinorApproval: integer("requires_minor_approval", { mode: "boolean" }).default(false), // MC toggle: true = pending entries held for review (minor clients only)
@@ -974,6 +975,20 @@ export const ideas = sqliteTable("ideas", {
 export const insertIdeaSchema = createInsertSchema(ideas).omit({ id: true });
 export type InsertIdea = z.infer<typeof insertIdeaSchema>;
 export type Idea = typeof ideas.$inferSelect;
+
+// ── User-Client Relationships (multi-client / Care Home) ──────────────────
+// Maps one user to multiple client portals. Replaces single clientId for MC/CG multi-portal use.
+export const userClientRelationships = sqliteTable("user_client_relationships", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull(),
+  clientId: integer("client_id").notNull(),
+  role: text("role").notNull(), // 'mc' | 'caregiver' | 'secondary_family' | 'self_care'
+  isPrimary: integer("is_primary", { mode: "boolean" }).default(false), // default portal on login
+  createdAt: text("created_at").notNull(),
+});
+export const insertUserClientRelationshipSchema = createInsertSchema(userClientRelationships).omit({ id: true });
+export type InsertUserClientRelationship = z.infer<typeof insertUserClientRelationshipSchema>;
+export type UserClientRelationship = typeof userClientRelationships.$inferSelect;
 
 // ── Health History (retrospective timeline) ───────────────────────────────────
 export const healthHistoryEntries = sqliteTable("health_history_entries", {

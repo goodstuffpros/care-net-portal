@@ -4,7 +4,7 @@ import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
 import { db, sqlite } from "./db";
-import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts, ideas, healthHistoryEntries } from "@shared/schema";
+import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, authSessions, betaApplications, users, clients, helpdeskEscalations, connectionInvites, documents, activityLogs, scheduleEvents, vitals, medications, thoughtEntries, mediaItems, medicationLogs, chatThreads, archiveSummaries, miscNotes, outings, shifts, careFlags, messages, careDirectoryEntries, emergencyAlerts, ideas, healthHistoryEntries, userClientRelationships } from "@shared/schema";
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
@@ -675,6 +675,40 @@ export function registerRoutes(httpServer: Server, app: Express) {
         }
       } catch (cgErr: any) {
         console.error("[mc/setup] CG follow-through error (non-fatal):", cgErr?.message);
+      }
+
+      // ── Seed junction table for this MC ───────────────────────────────
+      try {
+        const existingRel = db.select().from(userClientRelationships)
+          .where(and(eq(userClientRelationships.userId, mcUser.id), eq(userClientRelationships.clientId, clientIdToUse))).get();
+        if (!existingRel) {
+          // Count existing relationships to determine isPrimary
+          const existingCount = db.select().from(userClientRelationships)
+            .where(eq(userClientRelationships.userId, mcUser.id)).all().length;
+          db.insert(userClientRelationships).values({
+            userId: mcUser.id,
+            clientId: clientIdToUse,
+            role: 'mc',
+            isPrimary: existingCount === 0, // first portal is primary
+            createdAt: new Date().toISOString(),
+          }).run();
+        }
+        // Also seed CG into junction table if linked
+        if (cgLinked) {
+          const cgExisting = db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, cgLinked.cgId), eq(userClientRelationships.clientId, clientIdToUse))).get();
+          if (!cgExisting) {
+            db.insert(userClientRelationships).values({
+              userId: cgLinked.cgId,
+              clientId: clientIdToUse,
+              role: 'caregiver',
+              isPrimary: true,
+              createdAt: new Date().toISOString(),
+            }).run();
+          }
+        }
+      } catch (jErr: any) {
+        console.warn('[mc/setup] Junction seed error (non-fatal):', jErr?.message);
       }
 
       res.json({ success: true, clientId: clientIdToUse, ...(cgLinked ? { cgLinked } : {}) });
@@ -1430,6 +1464,96 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
       const entryId = Number(req.params.entryId);
       db.delete(healthHistoryEntries).where(eq(healthHistoryEntries.id, entryId)).run();
       res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // ══════════════════════════════════════════════════════════════════════════
+  // CARE HOME — MULTI-CLIENT ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/me/portals — all client portals for logged-in user
+  app.get("/api/me/portals", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const userId = req.authUserId!;
+      const relationships = db.select().from(userClientRelationships)
+        .where(eq(userClientRelationships.userId, userId))
+        .all();
+      if (relationships.length === 0) return res.json([]);
+      const result = relationships.map(r => {
+        const client = db.select().from(clients).where(eq(clients.id, r.clientId)).get();
+        return {
+          relationshipId: r.id,
+          clientId: r.clientId,
+          role: r.role,
+          isPrimary: r.isPrimary,
+          clientName: client?.name || "Unknown",
+          colorTheme: client?.colorTheme || "teal",
+          primaryCondition: client?.primaryCondition || null,
+          dateOfBirth: client?.dateOfBirth || null,
+        };
+      });
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/me/portals/set-primary — set which portal loads by default
+  app.post("/api/me/portals/set-primary", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const userId = req.authUserId!;
+      const { clientId } = req.body;
+      // Clear all isPrimary for this user, then set the chosen one
+      sqlite.prepare(`UPDATE user_client_relationships SET is_primary = 0 WHERE user_id = ?`).run(userId);
+      sqlite.prepare(`UPDATE user_client_relationships SET is_primary = 1 WHERE user_id = ? AND client_id = ?`).run(userId, clientId);
+      res.json({ success: true });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // PATCH /api/clients/:clientId/color-theme — MC sets portal color
+  app.patch("/api/clients/:clientId/color-theme", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      const { colorTheme } = req.body;
+      const valid = ['teal', 'sage', 'slate', 'rose', 'amber'];
+      if (!valid.includes(colorTheme)) return res.status(400).json({ message: 'Invalid color theme' });
+      db.update(clients).set({ colorTheme }).where(eq(clients.id, clientId)).run();
+      res.json({ success: true, colorTheme });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/me/portals/add-client — MC adds a second (or more) client
+  // Creates a new client record and junction row, kicks off setup flow
+  app.post("/api/me/portals/add-client", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const userId = req.authUserId!;
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!user) return res.status(404).json({ message: 'User not found' });
+      const { clientName, colorTheme } = req.body;
+      if (!clientName) return res.status(400).json({ message: 'clientName required' });
+      // Create the new client record
+      const newClient = db.insert(clients).values({
+        name: clientName,
+        caregiverId: userId,
+        primaryContactId: userId,
+        colorTheme: colorTheme || 'sage',
+        isActive: true,
+      }).returning().get();
+      // Add junction row
+      db.insert(userClientRelationships).values({
+        userId,
+        clientId: newClient.id,
+        role: 'mc',
+        isPrimary: false,
+        createdAt: new Date().toISOString(),
+      }).run();
+      res.json({ success: true, clientId: newClient.id, clientName: newClient.name, colorTheme: newClient.colorTheme });
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }
