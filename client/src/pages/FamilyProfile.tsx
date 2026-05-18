@@ -481,11 +481,16 @@ export default function FamilyProfile() {
       {/* ── People I Care For (MC only) ── */}
       {activeUser.role === "primary_family" && (
         <div className="rounded-2xl border border-border bg-card overflow-hidden">
-          <div className="px-5 py-3 border-b border-border bg-muted/30 flex items-center justify-between">
-            <p className="text-sm font-semibold text-foreground">People I Care For</p>
-            {portals.length > 0 && (
-              <span className="text-xs text-muted-foreground">{portals.length} portal{portals.length !== 1 ? "s" : ""}</span>
-            )}
+          <div className="px-5 py-4 border-b border-border bg-muted/30">
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">People I Care For</p>
+              {portals.length > 0 && (
+                <span className="text-xs text-muted-foreground">{portals.length} portal{portals.length !== 1 ? "s" : ""}</span>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Each person you coordinate care for gets their own private portal. You manage them all from one login.
+            </p>
           </div>
           <div className="px-5 divide-y divide-border">
             {portals.length === 0 ? (
@@ -520,16 +525,19 @@ export default function FamilyProfile() {
             )}
           </div>
           {/* Add another */}
-          <div className="px-5 py-3 border-t border-border">
+          <div className="px-5 py-4 border-t border-border">
             <button
               onClick={returnToCareHome}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+              className="flex items-start gap-3 w-full text-left group"
               data-testid="profile-add-another-portal"
             >
-              <div className="w-7 h-7 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-                <Plus size={13} />
+              <div className="w-8 h-8 rounded-lg border-2 border-dashed border-border group-hover:border-primary flex items-center justify-center flex-shrink-0 mt-0.5 transition-colors">
+                <Plus size={14} className="text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
-              Add another loved one
+              <div>
+                <p className="text-sm font-medium text-muted-foreground group-hover:text-primary transition-colors">Add another loved one</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Caring for a parent, spouse, or sibling? Each person gets their own portal.</p>
+              </div>
             </button>
           </div>
         </div>
