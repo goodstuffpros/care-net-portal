@@ -680,8 +680,8 @@ function RealAuthGate() {
     );
   }
 
-  // Multi-portal user: show Care Home waiting room
-  if (showCareHome && portals.length >= 2) {
+  // Show Care Home — either multi-portal on login, or single-portal MC adding a second
+  if (showCareHome && realUser) {
     // Build a realUser override with the chosen portal's clientId and colorTheme
     const portalUser: RealUser & { _entryColorTheme?: string } = {
       ...realUser!,
