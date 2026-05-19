@@ -692,9 +692,15 @@ function RealAuthGate() {
     return (
       <QueryClientProvider client={queryClient}>
         <CareHomePage
-          onEnterPortal={(clientId, colorTheme) => {
+          onEnterPortal={async (clientId, colorTheme) => {
             setActivePortalClientId(clientId);
             setActivePortalTheme(colorTheme);
+            // Re-fetch portals so hasMultiplePortals is accurate inside MainApp
+            try {
+              const pr = await apiRequest("GET", "/api/me/portals");
+              const pdata: PortalInfo[] = await pr.json();
+              if (Array.isArray(pdata)) setPortals(pdata);
+            } catch { /* non-fatal */ }
             setShowCareHome(false);
           }}
           userName={realUser?.name}
