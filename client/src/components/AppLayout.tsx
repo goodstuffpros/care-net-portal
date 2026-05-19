@@ -1550,7 +1550,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-20">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden pb-28" style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom, 0px))" }}>
           {/* BETA: prompt banners suspended — restore post-beta, redesign thinner + less frequent */}
           {/* <DailyNudge /> */}
           {/* Proactive wellbeing nudge banner */}
@@ -1934,12 +1934,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       )}
 
         {/* Fixed Bottom Nav */}
-        <nav className={cn(
-          "fixed bottom-0 left-0 right-0 z-[60] flex items-stretch flex-shrink-0 border-t",
-          isFamilyPortal
-            ? "bg-sidebar border-sidebar-border"
-            : "bg-background border-border"
-        )}>
+        <nav
+          className={cn(
+            "fixed bottom-0 left-0 right-0 z-[60] flex items-stretch flex-shrink-0 border-t",
+            isFamilyPortal
+              ? "bg-sidebar border-sidebar-border"
+              : "bg-background border-border"
+          )}
+          style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
+        >
           {([
             { label: "Dashboard", path: "/" },
             { label: "Care Log",  path: "/activity" },
