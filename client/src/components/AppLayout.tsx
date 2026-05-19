@@ -15,7 +15,7 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home
+  Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -204,7 +204,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
-  const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
   const [showTzPicker, setShowTzPicker] = useState(false);   // timezone sub-panel
   const [tzSearch, setTzSearch] = useState("");              // search query in tz picker
   const [userTimezone, setUserTimezone] = useState<string>(
@@ -1207,18 +1206,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           </div> {/* end left pill group */}
 
-          {/* Active portal name badge — bold colored identity marker on every page */}
+          {/* Active portal name pill — clickable, goes to Care Home */}
           {activeClientName && !isPreConnection && !isPracticeClient && (
-            <div
-              className="flex-1 flex justify-center items-center pointer-events-none"
-              data-testid="active-portal-name"
-            >
-              <span
-                className="text-sm font-bold px-3.5 py-1 rounded-full border-2 truncate max-w-[180px] bg-white dark:bg-zinc-900 shadow-sm"
-                style={{ color: portalAccentColor, borderColor: portalAccentColor }}
-              >
-                {activeClientName}
-              </span>
+            <div className="flex-1 flex justify-center items-center">
+              {hasMultiplePortals ? (
+                <button
+                  onClick={returnToCareHome}
+                  data-testid="active-portal-name"
+                  className="flex items-center gap-1.5 text-sm font-bold px-4 py-1 rounded-full border-2 truncate max-w-[200px] bg-white dark:bg-zinc-900 shadow-sm transition-opacity hover:opacity-80 active:opacity-60"
+                  style={{ color: portalAccentColor, borderColor: portalAccentColor }}
+                  title="Return to Care Home"
+                >
+                  <Home size={13} className="flex-shrink-0" style={{ color: portalAccentColor }} />
+                  {activeClientName}
+                </button>
+              ) : (
+                <span
+                  data-testid="active-portal-name"
+                  className="flex items-center gap-1.5 text-sm font-bold px-4 py-1 rounded-full border-2 truncate max-w-[200px] bg-white dark:bg-zinc-900 shadow-sm"
+                  style={{ color: portalAccentColor, borderColor: portalAccentColor }}
+                >
+                  <Home size={13} className="flex-shrink-0" style={{ color: portalAccentColor }} />
+                  {activeClientName}
+                </span>
+              )}
             </div>
           )}
 
@@ -1237,118 +1248,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           )}
 
-          {/* Gear — preferences dropdown (theme, color, language) */}
-          <div className="relative flex-shrink-0">
-            <button
-              onClick={() => setShowPrefsMenu(p => !p)}
-              className={cn("p-1.5 rounded-lg transition-colors",
-                isFamilyPortal ? "text-sidebar-foreground/70 hover:bg-sidebar-accent" : "hover:bg-muted text-muted-foreground hover:text-foreground",
-                showPrefsMenu && "bg-muted"
-              )}
-              aria-label="Preferences"
-              data-testid="prefs-btn"
-            >
-              <Settings size={18} />
-            </button>
-            {showPrefsMenu && (
-              <>
-                <div className="fixed inset-0 z-40" onClick={() => { setShowPrefsMenu(false); setShowTzPicker(false); setTzSearch(""); }} />
-                <div className={cn("absolute right-0 top-full mt-1.5 z-50 bg-white dark:bg-zinc-900 border border-border rounded-xl shadow-xl py-2 transition-all", showTzPicker ? "w-72" : "w-52")}>
-                  <p className="px-3 pb-1.5 text-xs font-medium text-muted-foreground uppercase tracking-wide">Preferences</p>
 
-                  {/* Light / Dark */}
-                  <button
-                    onClick={() => { toggleTheme(); setShowPrefsMenu(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                    data-testid="theme-toggle"
-                  >
-                    {theme === "dark" ? <Sun size={15} /> : <Moon size={15} />}
-                    <span>{theme === "dark" ? "Light mode" : "Dark mode"}</span>
-                  </button>
-
-                  {/* Language */}
-                  <button
-                    onClick={() => { setLang(lang === "en" ? "es" : "en"); setShowPrefsMenu(false); }}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                    data-testid="lang-toggle"
-                  >
-                    <span className="text-base leading-none">🌐</span>
-                    <span>{lang === "en" ? "Español" : "English"}</span>
-                  </button>
-
-                  {/* Time Zone */}
-                  <button
-                    onClick={() => setShowTzPicker(p => !p)}
-                    className="w-full flex items-center gap-3 px-3 py-2 text-sm hover:bg-accent transition-colors"
-                    data-testid="tz-toggle"
-                  >
-                    <Globe size={15} />
-                    <span className="flex-1 text-left">Time Zone</span>
-                    <span className="text-xs text-muted-foreground mr-1">
-                      {(() => {
-                        const found = TIMEZONES.find(z => z.value === userTimezone);
-                        if (found) {
-                          // Extract short name from label (e.g. "Central Time (CT)" → "CT", or first word)
-                          const match = found.label.match(/\(([^)]+)\)/);
-                          return match ? match[1] : found.label.split(" ")[0];
-                        }
-                        // Fallback: last segment of IANA string
-                        return userTimezone.split("/").pop()?.replace("_", " ") ?? "";
-                      })()}
-                    </span>
-                    <ChevronRight size={13} className={cn("transition-transform", showTzPicker && "rotate-90")} />
-                  </button>
-
-                  {/* Timezone sub-panel */}
-                  {showTzPicker && (
-                    <div className="mx-2 mb-2 rounded-lg border border-border bg-background overflow-hidden">
-                      {/* Search */}
-                      <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
-                        <Search size={12} className="text-muted-foreground flex-shrink-0" />
-                        <input
-                          type="text"
-                          placeholder="Search timezones…"
-                          value={tzSearch}
-                          onChange={e => setTzSearch(e.target.value)}
-                          className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground min-w-0"
-                          autoFocus
-                          data-testid="tz-search"
-                        />
-                      </div>
-                      {/* Scrollable list */}
-                      <div className="max-h-48 overflow-y-auto">
-                        {TIMEZONES
-                          .filter(tz =>
-                            !tzSearch ||
-                            tz.label.toLowerCase().includes(tzSearch.toLowerCase()) ||
-                            tz.value.toLowerCase().includes(tzSearch.toLowerCase())
-                          )
-                          .map(tz => (
-                            <button
-                              key={tz.value}
-                              onClick={() => saveTimezone(tz.value)}
-                              className={cn(
-                                "w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors flex items-center gap-2",
-                                userTimezone === tz.value && "bg-accent font-medium"
-                              )}
-                              data-testid={`tz-option-${tz.value}`}
-                            >
-                              {userTimezone === tz.value && (
-                                <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />
-                              )}
-                              <span className={userTimezone === tz.value ? "" : "ml-3.5"}>{tz.label}</span>
-                            </button>
-                          ))
-                        }
-                      </div>
-                    </div>
-                  )}
-
-
-                </div>
-              </>
-            )}
-          </div>
 
           {/* SOS Button — CG and MC only, real sessions, not demo */}
           {isRealSession && (isCaregiverRole(activeUser.role) || activeUser.role === 'primary_family') && selectedClientId && (
@@ -1423,25 +1323,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* ── Mobile-only: Invite + Profile ── */}
-          {/* Invite a Friend — mobile icon button, real users only */}
+          {/* ── Invite Friend button — left of avatar ── */}
           {isRealSession && (
             <button
               onClick={() => setReferralSheetOpen(true)}
-              data-testid="invite-friend-mobile"
+              data-testid="invite-friend-header"
               aria-label="Invite a Friend"
               className={cn(
-                "md:hidden flex-shrink-0 p-2 rounded-lg transition-colors",
+                "flex-shrink-0 p-2 rounded-lg transition-colors",
                 isFamilyPortal
                   ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
                   : "hover:bg-muted text-muted-foreground hover:text-foreground"
               )}
+              title="Invite a Friend"
             >
-              <Gift size={18} />
+              <Gift size={22} />
             </button>
           )}
 
-          {/* Profile / user menu — visible on all screen sizes */}
+          {/* ── Avatar dropdown — prefs + profile + sign out ── */}
           <div className="flex-shrink-0">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
@@ -1458,25 +1358,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   {activeUser.avatarInitials}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-64 bg-white dark:bg-zinc-900 border border-border shadow-2xl">
+              <DropdownMenuContent align="end" className={cn("bg-white dark:bg-zinc-900 border border-border shadow-2xl", showTzPicker ? "w-72" : "w-64")}>
+                {/* User identity */}
                 <div className="px-2 py-2">
                   <div className="text-xs text-muted-foreground">Signed in as</div>
                   <div className="text-sm font-medium text-foreground truncate">{activeUser.name}</div>
                   <div className="text-xs text-muted-foreground">{ROLE_LABELS[activeUser.role]}</div>
                 </div>
                 <DropdownMenuSeparator />
-                {/* Return to Care Home — multi-portal only */}
-                {hasMultiplePortals && (
-                  <DropdownMenuItem
-                    onClick={returnToCareHome}
-                    className="cursor-pointer text-primary font-medium"
-                    data-testid="nav-care-home-mobile"
-                  >
-                    <Home size={14} className="mr-2" />
-                    Care Home
-                  </DropdownMenuItem>
-                )}
-                {/* Profile page — mobile, role-aware */}
+                {/* Profile + Pricing */}
                 <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
                   <User size={14} className="mr-2" />
                   My Profile
@@ -1485,6 +1375,78 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   <Sparkles size={14} className="mr-2" />
                   Pricing
                 </DropdownMenuItem>
+                {/* Invite */}
+                {isRealSession && (
+                  <DropdownMenuItem onClick={() => setReferralSheetOpen(true)} className="cursor-pointer text-muted-foreground" data-testid="nav-invite-avatar">
+                    <Gift size={14} className="mr-2" />
+                    Invite a Friend
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                {/* Preferences */}
+                <DropdownMenuItem
+                  onClick={toggleTheme}
+                  className="cursor-pointer text-muted-foreground"
+                  data-testid="theme-toggle"
+                >
+                  {theme === "dark" ? <Sun size={14} className="mr-2" /> : <Moon size={14} className="mr-2" />}
+                  {theme === "dark" ? "Light mode" : "Dark mode"}
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onClick={() => setLang(lang === "en" ? "es" : "en")}
+                  className="cursor-pointer text-muted-foreground"
+                  data-testid="lang-toggle"
+                >
+                  <span className="mr-2 text-sm leading-none">🌐</span>
+                  {lang === "en" ? "Español" : "English"}
+                </DropdownMenuItem>
+                {/* Timezone — inline sub-panel */}
+                <DropdownMenuItem
+                  onClick={e => { e.preventDefault(); setShowTzPicker(p => !p); }}
+                  className="cursor-pointer text-muted-foreground"
+                  data-testid="tz-toggle"
+                >
+                  <Globe size={14} className="mr-2" />
+                  <span className="flex-1">Time Zone</span>
+                  <span className="text-xs text-muted-foreground mr-1">
+                    {(() => {
+                      const found = TIMEZONES.find(z => z.value === userTimezone);
+                      if (found) { const m = found.label.match(/\(([^)]+)\)/); return m ? m[1] : found.label.split(" ")[0]; }
+                      return userTimezone.split("/").pop()?.replace("_", " ") ?? "";
+                    })()}
+                  </span>
+                  <ChevronRight size={13} className={cn("transition-transform", showTzPicker && "rotate-90")} />
+                </DropdownMenuItem>
+                {showTzPicker && (
+                  <div className="mx-2 mb-1 rounded-lg border border-border bg-background overflow-hidden">
+                    <div className="flex items-center gap-1.5 px-2 py-1.5 border-b border-border">
+                      <Search size={12} className="text-muted-foreground flex-shrink-0" />
+                      <input
+                        type="text"
+                        placeholder="Search timezones…"
+                        value={tzSearch}
+                        onChange={e => setTzSearch(e.target.value)}
+                        className="flex-1 bg-transparent text-xs outline-none placeholder:text-muted-foreground min-w-0"
+                        autoFocus
+                        data-testid="tz-search"
+                        onClick={e => e.stopPropagation()}
+                      />
+                    </div>
+                    <div className="max-h-40 overflow-y-auto">
+                      {TIMEZONES.filter(tz => !tzSearch || tz.label.toLowerCase().includes(tzSearch.toLowerCase()) || tz.value.toLowerCase().includes(tzSearch.toLowerCase())).map(tz => (
+                        <button
+                          key={tz.value}
+                          onClick={() => { saveTimezone(tz.value); setShowTzPicker(false); setTzSearch(""); }}
+                          className={cn("w-full text-left px-3 py-1.5 text-xs hover:bg-accent transition-colors flex items-center gap-2", userTimezone === tz.value && "bg-accent font-medium")}
+                          data-testid={`tz-option-${tz.value}`}
+                        >
+                          {userTimezone === tz.value && <span className="w-1.5 h-1.5 rounded-full bg-primary flex-shrink-0" />}
+                          <span className={userTimezone === tz.value ? "" : "ml-3.5"}>{tz.label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
