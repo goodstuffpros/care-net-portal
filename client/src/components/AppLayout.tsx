@@ -12,7 +12,7 @@ import {
   Image, Archive, User, Bell, Sun, Moon, ChevronDown,
   Menu, X, Users, Shield, Eye, Mic, UserPlus, Heart,
   Sparkles, Lock, StickyNote, MicOff, ClipboardSignature,
-  TrendingUp, ShieldAlert, FolderOpen, MapPin, Palette,
+  TrendingUp, ShieldAlert, FolderOpen, MapPin,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
   Megaphone, Settings, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home
@@ -204,7 +204,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
-  const [showThemePicker, setShowThemePicker] = useState(false); // sidebar color picker
   const [showPrefsMenu, setShowPrefsMenu] = useState(false); // top bar gear dropdown
   const [showTzPicker, setShowTzPicker] = useState(false);   // timezone sub-panel
   const [tzSearch, setTzSearch] = useState("");              // search query in tz picker
@@ -919,33 +918,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </a>
           </>
         )}
-        {showThemePicker && (
-          <div className="absolute left-3 bottom-32 z-50 bg-white dark:bg-zinc-900 border border-border rounded-lg shadow-2xl p-3 flex gap-2">
-            {([
-              { key: "teal", color: "#2a8c7a", label: "Teal" },
-              { key: "sand", color: "#7a4a1f", label: "Sand" },
-              { key: "navy", color: "#2a4a9a", label: "Navy" },
-              { key: "lavender", color: "#6a3a9a", label: "Lavender" },
-            ] as { key: ColorTheme; color: string; label: string }[]).map(({ key, color, label }) => (
-              <button
-                key={key}
-                onClick={() => { setColorTheme(key); setShowThemePicker(false); }}
-                className={cn("w-7 h-7 rounded-full border-2 transition-all", colorTheme === key ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
-                style={{ backgroundColor: color }}
-                title={label}
-                data-testid={`theme-color-sidebar-${key}`}
-              />
-            ))}
-          </div>
-        )}
-        <button
-          onClick={() => setShowThemePicker(p => !p)}
-          className="p-2 rounded-lg hover:bg-sidebar-accent transition-colors text-sidebar-foreground/60 hover:text-sidebar-foreground"
-          aria-label="Color theme picker"
-          data-testid="color-theme-btn-sidebar"
-        >
-          <Palette size={14} />
-        </button>
+
       </div>
 
       {/* Help Desk — always visible */}
@@ -1371,26 +1344,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                   )}
 
-                  <div className="px-3 pt-2 pb-1">
-                    <p className="text-xs text-muted-foreground mb-2">Accent color</p>
-                    <div className="flex gap-2">
-                      {([
-                        { key: "teal",     color: "#2a8c7a", label: "Teal" },
-                        { key: "sand",     color: "#7a4a1f", label: "Sand" },
-                        { key: "navy",     color: "#2a4a9a", label: "Navy" },
-                        { key: "lavender", color: "#6a3a9a", label: "Lavender" },
-                      ] as { key: ColorTheme; color: string; label: string }[]).map(({ key, color, label }) => (
-                        <button
-                          key={key}
-                          onClick={() => { setColorTheme(key); setShowPrefsMenu(false); }}
-                          className={cn("w-7 h-7 rounded-full border-2 transition-all", colorTheme === key ? "border-foreground scale-110" : "border-transparent hover:scale-105")}
-                          style={{ backgroundColor: color }}
-                          title={label}
-                          data-testid={`theme-color-${key}`}
-                        />
-                      ))}
-                    </div>
-                  </div>
+
                 </div>
               </>
             )}
