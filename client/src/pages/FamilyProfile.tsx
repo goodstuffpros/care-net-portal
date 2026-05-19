@@ -139,7 +139,7 @@ function EditableField({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function FamilyProfile() {
-  const { activeUser, isRealSession, hasMultiplePortals, returnToCareHome } = useApp();
+  const { activeUser, isRealSession, hasMultiplePortals, returnToCareHome, switchPortal } = useApp();
   const { toast } = useToast();
 
   // ── Fetch user data ──────────────────────────────────────────────────────────
@@ -513,7 +513,7 @@ export default function FamilyProfile() {
                     </div>
                     {hasMultiplePortals && (
                       <button
-                        onClick={returnToCareHome}
+                        onClick={() => switchPortal(portal.clientId, portal.colorTheme)}
                         className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
                       >
                         Enter <ArrowRight size={12} />

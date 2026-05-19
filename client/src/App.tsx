@@ -102,6 +102,7 @@ interface AppContextType {
   triggerOnboarding: () => void;
   hasMultiplePortals: boolean;
   returnToCareHome: () => void;
+  switchPortal: (clientId: number, colorTheme: string) => void;
   multiPortalNudgeSnoozedUntil: string | null;
   portalMode: PortalMode;
   setPortalMode: (mode: PortalMode) => void;
@@ -141,7 +142,7 @@ interface RealUser {
   multiPortalNudgeSnoozedUntil?: string | null;
 }
 
-function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPortals }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; hasMultiplePortals?: boolean }) {
+function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean }) {
   // Pre-connection CGs (no clientId yet) fall through to the main app in demo mode.
   // A banner in AppLayout explains the situation and offers an invite shortcut.
 
@@ -214,6 +215,16 @@ function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPort
       setSelectedClientId(activeUser.clientId);
     }
   }, [activeUser]);
+
+  // When portal switches via Care Home, sync selectedClientId and colorTheme
+  useEffect(() => {
+    if (realUser?.clientId) {
+      setSelectedClientId(realUser.clientId);
+    }
+    if ((realUser as any)?._entryColorTheme) {
+      setColorTheme((realUser as any)._entryColorTheme as ColorTheme);
+    }
+  }, [realUser?.clientId]);
 
   // Option A: detect sample mode and showcase flag.
   // sampleClientId is fetched from the user record (permanent anchor).
@@ -317,6 +328,7 @@ function MainApp({ realUser, onReturnToCareHome, hasMultiplePortals: hasManyPort
         triggerOnboarding,
         hasMultiplePortals: hasManyPortals ?? false,
         returnToCareHome: onReturnToCareHome ?? (() => {}),
+        switchPortal: onSwitchPortal ?? (() => {}),
         multiPortalNudgeSnoozedUntil: (realUser as any)?.multiPortalNudgeSnoozedUntil ?? null,
 
         portalMode,
@@ -721,6 +733,17 @@ function RealAuthGate() {
       realUser={portalUser || realUser}
       hasMultiplePortals={portals.length >= 2}
       onReturnToCareHome={() => setShowCareHome(true)}
+      onSwitchPortal={async (clientId, colorTheme) => {
+        setActivePortalClientId(clientId);
+        setActivePortalTheme(colorTheme);
+        // Re-fetch portals to keep count fresh
+        try {
+          const pr = await apiRequest("GET", "/api/me/portals");
+          const pdata: PortalInfo[] = await pr.json();
+          if (Array.isArray(pdata)) setPortals(pdata);
+        } catch { /* non-fatal */ }
+        setShowCareHome(false);
+      }}
     />
   );
 }
