@@ -1323,24 +1323,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </DropdownMenuContent>
           </DropdownMenu>
 
-          {/* ── Invite Friend button — left of avatar ── */}
-          {isRealSession && (
-            <button
-              onClick={() => setReferralSheetOpen(true)}
-              data-testid="invite-friend-header"
-              aria-label="Invite a Friend"
-              className={cn(
-                "flex-shrink-0 p-2 rounded-lg transition-colors",
-                isFamilyPortal
-                  ? "text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground"
-                  : "hover:bg-muted text-muted-foreground hover:text-foreground"
-              )}
-              title="Invite a Friend"
-            >
-              <Gift size={22} />
-            </button>
-          )}
-
           {/* ── Avatar dropdown — prefs + profile + sign out ── */}
           <div className="flex-shrink-0">
             <DropdownMenu>
