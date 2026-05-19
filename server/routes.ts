@@ -280,7 +280,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
           // Assign clientId + role from invite
           let clientId2 = connInvite.clientId ?? null;
           if (connInvite.inviteType === "mc_to_family") {
-            if (clientId2) db.update(users).set({ clientId: clientId2, role: "secondary_family" }).where(eq(users.id, newUser.id)).run();
+            if (clientId2) {
+              db.update(users).set({ clientId: clientId2, role: "secondary_family" }).where(eq(users.id, newUser.id)).run();
+              // Also write a userClientRelationships row so Care Home multi-portal works
+              const existingRel2 = db.select().from(userClientRelationships)
+                .where(and(eq(userClientRelationships.userId, newUser.id), eq(userClientRelationships.clientId, clientId2))).get();
+              if (!existingRel2) {
+                const relCount2 = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, newUser.id)).all().length;
+                db.insert(userClientRelationships).values({
+                  userId: newUser.id, clientId: clientId2, role: "secondary_family",
+                  isPrimary: relCount2 === 0, createdAt: new Date().toISOString(),
+                }).run();
+              }
+            }
           } else if (connInvite.inviteType === "mc_to_caregiver") {
             if (clientId2) db.update(users).set({ clientId: clientId2 }).where(eq(users.id, newUser.id)).run();
           } else if (connInvite.inviteType === "caregiver_to_mc") {
@@ -1032,11 +1044,29 @@ export function registerRoutes(httpServer: Server, app: Express) {
           db.update(users).set({ role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
         }
       } else if (invite.inviteType === "mc_to_family") {
-        // Sender is MC, acceptor is secondary family — give them read access to same client
+        // Sender is MC, acceptor is secondary family — give them read access to same client.
+        // If they already have a clientId (multi-portal), don't overwrite — just add a relationship row.
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
-          db.update(users).set({ clientId, role: "secondary_family" })
-            .where(eq(users.id, acceptingUser.id)).run();
+          const alreadyHasClient = !!acceptingUser.clientId;
+          if (!alreadyHasClient) {
+            // First portal — stamp clientId on user row
+            db.update(users).set({ clientId, role: "secondary_family" })
+              .where(eq(users.id, acceptingUser.id)).run();
+          } else {
+            // Additional portal — just ensure role is correct
+            db.update(users).set({ role: "secondary_family" }).where(eq(users.id, acceptingUser.id)).run();
+          }
+          // Always write a relationship row so Care Home multi-portal switcher works
+          const existingRelFM = db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).get();
+          if (!existingRelFM) {
+            const relCountFM = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, acceptingUser.id)).all().length;
+            db.insert(userClientRelationships).values({
+              userId: acceptingUser.id, clientId, role: "secondary_family",
+              isPrimary: relCountFM === 0, createdAt: new Date().toISOString(),
+            }).run();
+          }
         }
       } else if (invite.inviteType === "mc_to_client") {
         // Sender is MC, acceptor is the care recipient — give them read-only access to their own record
