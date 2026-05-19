@@ -223,6 +223,88 @@
   --accent: 160 35% 18%;
   --accent-foreground: 160 60% 70%;
 }
+
+/* ─── Portal color themes (Care Home multi-portal) ─────────────────────── */
+
+/* Teal — calm, clinical default */
+[data-color-theme="teal"] {
+  --primary: 174 60% 30%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 174 45% 90%;
+  --accent-foreground: 174 60% 20%;
+  --ring: 174 60% 30%;
+  --sidebar: 174 40% 10%;
+  --sidebar-background: 174 40% 10%;
+  --sidebar-primary: 174 60% 55%;
+  --sidebar-accent: 174 30% 16%;
+  --sidebar-border: 174 25% 18%;
+  --sidebar-ring: 174 60% 55%;
+}
+[data-color-theme="teal"].dark {
+  --primary: 174 55% 45%;
+  --accent: 174 35% 18%;
+  --accent-foreground: 174 60% 70%;
+}
+
+/* Sage — warm green, gentle */
+[data-color-theme="sage"] {
+  --primary: 142 38% 32%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 142 30% 90%;
+  --accent-foreground: 142 38% 22%;
+  --ring: 142 38% 32%;
+  --sidebar: 142 28% 10%;
+  --sidebar-background: 142 28% 10%;
+  --sidebar-primary: 142 38% 52%;
+  --sidebar-accent: 142 22% 16%;
+  --sidebar-border: 142 18% 18%;
+  --sidebar-ring: 142 38% 52%;
+}
+[data-color-theme="sage"].dark {
+  --primary: 142 35% 48%;
+  --accent: 142 25% 18%;
+  --accent-foreground: 142 38% 70%;
+}
+
+/* Slate — cool blue-grey, structured */
+[data-color-theme="slate"] {
+  --primary: 215 40% 36%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 215 30% 91%;
+  --accent-foreground: 215 40% 26%;
+  --ring: 215 40% 36%;
+  --sidebar: 215 30% 9%;
+  --sidebar-background: 215 30% 9%;
+  --sidebar-primary: 215 40% 58%;
+  --sidebar-accent: 215 22% 15%;
+  --sidebar-border: 215 18% 17%;
+  --sidebar-ring: 215 40% 58%;
+}
+[data-color-theme="slate"].dark {
+  --primary: 215 38% 54%;
+  --accent: 215 25% 17%;
+  --accent-foreground: 215 40% 72%;
+}
+
+/* Amber — warm, grounding */
+[data-color-theme="amber"] {
+  --primary: 32 70% 34%;
+  --primary-foreground: 0 0% 100%;
+  --accent: 32 55% 91%;
+  --accent-foreground: 32 70% 24%;
+  --ring: 32 70% 34%;
+  --sidebar: 32 40% 10%;
+  --sidebar-background: 32 40% 10%;
+  --sidebar-primary: 32 70% 56%;
+  --sidebar-accent: 32 30% 16%;
+  --sidebar-border: 32 25% 18%;
+  --sidebar-ring: 32 70% 56%;
+}
+[data-color-theme="amber"].dark {
+  --primary: 32 65% 52%;
+  --accent: 32 35% 18%;
+  --accent-foreground: 32 70% 72%;
+}
 /* ========== END COLOR THEMES ========== */
 
 /* Upgrade transition pulse dots */

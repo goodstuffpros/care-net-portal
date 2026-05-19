@@ -1,4 +1,4 @@
-import { useApp } from "@/App";
+import { useApp, isCaregiverRole } from "@/App";
 import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
-import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2, Search, X } from "lucide-react";
+import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2, Search, X, Trash2} from "lucide-react";
 import { speakBecky } from "@/lib/ttsUtils";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -80,6 +80,7 @@ export default function ActivityPage() {
   const [discussingId, setDiscussingId] = useState<number | null>(null);
   const [excuseDialogId, setExcuseDialogId] = useState<number | null>(null);
   const [excuseNote, setExcuseNote] = useState("");
+  const [deleteConfirmId, setDeleteConfirmId] = useState<number | null>(null);
   const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
 
   const toggleExpanded = (id: number) => {
@@ -203,6 +204,16 @@ export default function ActivityPage() {
       setExcuseNote("");
       toast({ title: "Flag excused", description: "This late entry has been marked as excused and will not affect the caregiver rating." });
     },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/activity/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
+      setDeleteConfirmId(null);
+      toast({ title: "Entry deleted", description: "The care log entry has been removed." });
+    },
+    onError: () => toast({ title: "Delete failed", variant: "destructive" }),
   });
 
   // Phase 2: MC approves a pending-review entry from a minor contributor
@@ -810,8 +821,8 @@ export default function ActivityPage() {
                   </div>
                 </div>
 
-                {/* Bottom action row — family only */}
-                {isFamily && (
+                {/* Bottom action row — family and CG */}
+                {(isFamily || isCaregiverRole(activeUser.role)) && (
                   <div className="mt-3 pt-2.5 border-t border-border/50 flex items-center justify-between gap-2">
                     {/* Approve pending-review entry (minor contributor) — MC only */}
                     {isFamilyPrimary && (log as any).pendingReview ? (
@@ -833,19 +844,33 @@ export default function ActivityPage() {
                       </button>
                     ) : <span />}
 
-                    <button
-                      onClick={() => {
-                        setDiscussingId(log.id);
-                        discussMutation.mutate(log);
-                      }}
-                      disabled={discussingId === log.id && discussMutation.isPending}
-                      className="text-xs text-primary hover:underline flex items-center gap-1.5 disabled:opacity-60"
-                      data-testid={`discuss-activity-${log.id}`}
-                    >
-                      {discussingId === log.id && discussMutation.isPending
-                        ? <><Loader2 size={11} className="animate-spin" /> Creating thread...</>
-                        : <>💬 Discuss with family</>}
-                    </button>
+                    {isFamily && (
+                      <button
+                        onClick={() => {
+                          setDiscussingId(log.id);
+                          discussMutation.mutate(log);
+                        }}
+                        disabled={discussingId === log.id && discussMutation.isPending}
+                        className="text-xs text-primary hover:underline flex items-center gap-1.5 disabled:opacity-60"
+                        data-testid={`discuss-activity-${log.id}`}
+                      >
+                        {discussingId === log.id && discussMutation.isPending
+                          ? <><Loader2 size={11} className="animate-spin" /> Creating thread...</>
+                          : <>💬 Discuss with family</>}
+                      </button>
+                    )}
+
+                    {/* Delete — MC or CG only */}
+                    {(isFamilyPrimary || isCaregiverRole(activeUser.role)) && (
+                      <button
+                        onClick={() => setDeleteConfirmId(log.id)}
+                        className="text-xs text-red-500/70 hover:text-red-600 hover:underline flex items-center gap-1 ml-auto"
+                        data-testid={`delete-activity-${log.id}`}
+                        title="Delete this entry"
+                      >
+                        <Trash2 size={11} /> Delete
+                      </button>
+                    )}
                   </div>
                 )}
               </div>
@@ -884,6 +909,41 @@ export default function ActivityPage() {
             >
               {excuseMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Saving...</> : <><CheckCheck size={14} /> {t("activity.excuseConfirm")}</>}
             </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Entry Confirm Dialog */}
+      <Dialog open={deleteConfirmId !== null} onOpenChange={open => { if (!open) setDeleteConfirmId(null); }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Trash2 size={16} className="text-red-500" /> Delete care log entry?
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              This will permanently remove this entry from the care log. This cannot be undone.
+            </p>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => setDeleteConfirmId(null)}
+                disabled={deleteMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                variant="destructive"
+                className="flex-1 gap-2"
+                disabled={deleteMutation.isPending}
+                onClick={() => deleteConfirmId !== null && deleteMutation.mutate(deleteConfirmId)}
+                data-testid="confirm-delete-activity-btn"
+              >
+                {deleteMutation.isPending ? <><Loader2 size={14} className="animate-spin" /> Deleting...</> : <><Trash2 size={14} /> Delete entry</>}
+              </Button>
+            </div>
           </div>
         </DialogContent>
       </Dialog>

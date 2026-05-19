@@ -194,7 +194,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, returnToCareHome } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, activeClientName, returnToCareHome } = useApp();
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
@@ -1221,6 +1221,23 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
 
           </div> {/* end left pill group */}
+
+          {/* Active portal name badge — shows for MC/CG when a client is active */}
+          {activeClientName && !isPreConnection && !isPracticeClient && (
+            <div
+              className="flex-1 flex justify-center items-center pointer-events-none"
+              data-testid="active-portal-name"
+            >
+              <span className={cn(
+                "text-xs font-semibold px-3 py-1 rounded-full border truncate max-w-[160px]",
+                isFamilyPortal
+                  ? "bg-sidebar-accent border-sidebar-border text-sidebar-primary"
+                  : "bg-primary/10 border-primary/25 text-primary"
+              )}>
+                {activeClientName}
+              </span>
+            </div>
+          )}
 
           {/* Voice Controls — Hey CareNet — disabled during beta, icon only on mobile */}
           {isVoiceSupported() && (isCaregiverRole(activeUser.role) || isFamily) && (

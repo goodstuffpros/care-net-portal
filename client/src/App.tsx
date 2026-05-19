@@ -101,6 +101,7 @@ interface AppContextType {
   setColorTheme: (theme: ColorTheme) => void;
   triggerOnboarding: () => void;
   hasMultiplePortals: boolean;
+  activeClientName: string;
   returnToCareHome: () => void;
   switchPortal: (clientId: number, colorTheme: string) => void;
   multiPortalNudgeSnoozedUntil: string | null;
@@ -188,6 +189,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
+  const [activeClientName, setActiveClientName] = useState<string>("");
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -262,6 +264,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         if (c?.isPractice) {
           setIsShowcaseMode(!!c?.isShowcase);
         }
+        if (c?.name) setActiveClientName(c.name);
       })
       .catch(() => {});
   }, [activeUser.id, activeUser.clientId]);
@@ -327,6 +330,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         setColorTheme,
         triggerOnboarding,
         hasMultiplePortals: hasManyPortals ?? false,
+        activeClientName,
         returnToCareHome: onReturnToCareHome ?? (() => {}),
         switchPortal: onSwitchPortal ?? (() => {}),
         multiPortalNudgeSnoozedUntil: (realUser as any)?.multiPortalNudgeSnoozedUntil ?? null,
