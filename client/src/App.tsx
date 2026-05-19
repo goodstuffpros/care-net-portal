@@ -5,7 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, apiRequest, clearAuthToken, getAuthToken } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AlarmEngine } from "@/components/AlarmEngine";
-import { createContext, useContext, useState, useEffect } from "react";
+import { createContext, useContext, useState, useEffect, useRef} from "react";
 import { LangProvider } from "@/lib/LangContext";
 
 // Pages
@@ -218,7 +218,9 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     }
   }, [activeUser]);
 
-  // When portal switches via Care Home, sync selectedClientId and colorTheme
+  // When portal switches via Care Home, sync selectedClientId and colorTheme and go to dashboard
+  const [, navigateTo] = useLocation();
+  const isFirstPortalMount = useRef(true);
   useEffect(() => {
     if (realUser?.clientId) {
       setSelectedClientId(realUser.clientId);
@@ -226,6 +228,13 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     if ((realUser as any)?._entryColorTheme) {
       setColorTheme((realUser as any)._entryColorTheme as ColorTheme);
     }
+    // Skip navigation on first mount — only navigate on actual portal switches
+    if (isFirstPortalMount.current) {
+      isFirstPortalMount.current = false;
+      return;
+    }
+    // Portal switched — always land on dashboard
+    navigateTo("/");
   }, [realUser?.clientId]);
 
   // Option A: detect sample mode and showcase flag.
