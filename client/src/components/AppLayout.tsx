@@ -195,6 +195,12 @@ const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(win
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, activeClientName, returnToCareHome } = useApp();
+  // Portal color stripe — solid color per theme for instant visual identification
+  const PORTAL_COLORS: Record<string, string> = {
+    teal: "#0d9488", sage: "#16a34a", slate: "#3b82f6",
+    rose: "#e11d48", amber: "#d97706", client: "#059669",
+  };
+  const portalAccentColor = PORTAL_COLORS[colorTheme] ?? "#0d9488";
   const isDemo = realUserEmail === "cnpdemo@carenetportal.com";
   const isFamilyPortal = portalMode === "family";
   const isClientMode = portalMode === "client" || isClientPortal;
@@ -1124,12 +1130,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {isDemo && !SCREENSHOT_MODE && <DemoApplyCTA />}
 
         {/* Top Bar */}
-        <header className={cn(
+        <header
+          className={cn(
             "flex items-center gap-1 px-2 py-2.5 border-b backdrop-blur-sm flex-shrink-0 relative",
             isFamilyPortal
               ? "bg-sidebar border-sidebar-border"
               : "bg-background/80 border-border"
-          )}>
+          )}
+          style={activeClientName && !isPreConnection && !isPracticeClient
+            ? { borderTop: `3px solid ${portalAccentColor}` }
+            : undefined
+          }
+        >
           <button
             className={cn("flex-shrink-0 flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg transition-colors", isFamilyPortal ? "text-sidebar-foreground hover:bg-sidebar-accent" : "hover:bg-muted text-foreground")}
             onClick={() => setNavOverlayOpen(true)}
@@ -1222,18 +1234,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
           </div> {/* end left pill group */}
 
-          {/* Active portal name badge — shows for MC/CG when a client is active */}
+          {/* Active portal name badge — bold colored identity marker on every page */}
           {activeClientName && !isPreConnection && !isPracticeClient && (
             <div
               className="flex-1 flex justify-center items-center pointer-events-none"
               data-testid="active-portal-name"
             >
-              <span className={cn(
-                "text-xs font-semibold px-3 py-1 rounded-full border truncate max-w-[160px]",
-                isFamilyPortal
-                  ? "bg-sidebar-accent border-sidebar-border text-sidebar-primary"
-                  : "bg-primary/10 border-primary/25 text-primary"
-              )}>
+              <span
+                className="text-sm font-bold px-3.5 py-1 rounded-full border-2 truncate max-w-[180px] bg-white dark:bg-zinc-900 shadow-sm"
+                style={{ color: portalAccentColor, borderColor: portalAccentColor }}
+              >
                 {activeClientName}
               </span>
             </div>

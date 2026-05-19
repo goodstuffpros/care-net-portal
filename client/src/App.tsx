@@ -143,7 +143,7 @@ interface RealUser {
   multiPortalNudgeSnoozedUntil?: string | null;
 }
 
-function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean }) {
+function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals, goToDashboard }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean; goToDashboard?: boolean }) {
   // Pre-connection CGs (no clientId yet) fall through to the main app in demo mode.
   // A banner in AppLayout explains the situation and offers an invite shortcut.
 
@@ -196,7 +196,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   }, [theme]);
 
   useEffect(() => {
-    const attr = portalMode === "client" ? "client" : portalMode === "family" ? "rose" : colorTheme;
+    const attr = portalMode === "client" ? "client" : colorTheme;
     document.documentElement.setAttribute("data-color-theme", attr);
     document.documentElement.setAttribute("data-portal-mode", portalMode);
   }, [colorTheme, portalMode]);
@@ -236,6 +236,13 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     // Portal switched — always land on dashboard
     navigateTo("/");
   }, [realUser?.clientId]);
+
+  // If coming from Care Home portal selection, navigate to dashboard on mount
+  useEffect(() => {
+    if (goToDashboard) {
+      navigateTo("/");
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps — intentionally runs only on mount
 
   // Option A: detect sample mode and showcase flag.
   // sampleClientId is fetched from the user record (permanent anchor).
@@ -612,6 +619,7 @@ function RealAuthGate() {
   const [showCareHome, setShowCareHome] = useState(false);
   const [activePortalClientId, setActivePortalClientId] = useState<number | null>(null);
   const [activePortalTheme, setActivePortalTheme] = useState<string>("teal");
+  const [goToDashboardOnMount, setGoToDashboardOnMount] = useState(false);
 
   // If user clicked "Go to University" from pre-connection, let them into the demo
   const demoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
@@ -720,6 +728,7 @@ function RealAuthGate() {
           onEnterPortal={async (clientId, colorTheme) => {
             setActivePortalClientId(clientId);
             setActivePortalTheme(colorTheme);
+            setGoToDashboardOnMount(true);
             // Re-fetch portals so hasMultiplePortals is accurate inside MainApp
             try {
               const pr = await apiRequest("GET", "/api/me/portals");
@@ -745,10 +754,12 @@ function RealAuthGate() {
     <MainApp
       realUser={portalUser || realUser}
       hasMultiplePortals={portals.length >= 2}
+      goToDashboard={goToDashboardOnMount}
       onReturnToCareHome={() => setShowCareHome(true)}
       onSwitchPortal={async (clientId, colorTheme) => {
         setActivePortalClientId(clientId);
         setActivePortalTheme(colorTheme);
+        setGoToDashboardOnMount(false); // switch handled via clientId effect
         // Re-fetch portals to keep count fresh
         try {
           const pr = await apiRequest("GET", "/api/me/portals");
