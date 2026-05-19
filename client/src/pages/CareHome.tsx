@@ -86,8 +86,10 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
         </div>
         <h1 className="text-xl font-bold text-foreground">Care Home</h1>
         <p className="text-sm text-muted-foreground mt-1">
-          {userName ? `Welcome back, ${userName.split(" ")[0]}.` : "Welcome back."}{" "}
-          Choose a portal to enter.
+          {portals.length === 1
+            ? (userName ? `Welcome back, ${userName.split(" ")[0]}.` : "Welcome back.")
+            : (userName ? `Welcome back, ${userName.split(" ")[0]}.` : "Welcome back.")}{" "}
+          {portals.length === 1 ? "Enter your portal or add another loved one." : "Choose a portal to enter."}
         </p>
       </div>
 
@@ -103,6 +105,45 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
           <div className="text-center py-12 text-muted-foreground text-sm">
             No portals found. Something may have gone wrong — please contact support.
           </div>
+        ) : portals.length === 1 && !showAddForm ? (
+          // Single portal — show it plus a prominent "add another" prompt
+          <>
+            {portals.map((portal) => {
+              const theme = THEME_CONFIG[portal.colorTheme] || THEME_CONFIG.teal;
+              const initials = portal.clientName.split(" ").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+              return (
+                <div
+                  key={portal.clientId}
+                  className={cn("relative rounded-2xl border-2 p-4 cursor-pointer transition-all duration-200 active:scale-[0.98]", theme.bg, theme.border, theme.card)}
+                  onClick={() => onEnterPortal(portal.clientId, portal.colorTheme)}
+                >
+                  <div className={cn("absolute top-0 left-0 right-0 h-1 rounded-t-2xl", theme.accent)} />
+                  <div className="flex items-center gap-4 mt-1">
+                    <div className={cn("w-14 h-14 rounded-xl flex items-center justify-center text-white font-bold text-lg flex-shrink-0", theme.accent)}>{initials}</div>
+                    <div className="flex-1 min-w-0">
+                      <span className="font-semibold text-base text-foreground">{portal.clientName}</span>
+                      <p className={cn("text-xs font-medium mt-0.5", theme.text)}>Enter portal</p>
+                    </div>
+                    <ArrowRight size={18} className={cn("flex-shrink-0", theme.text)} />
+                  </div>
+                </div>
+              );
+            })}
+            {isMC && (
+              <button
+                onClick={() => setShowAddForm(true)}
+                className="w-full rounded-2xl border-2 border-dashed border-border hover:border-primary/50 p-5 flex items-center gap-4 transition-colors group"
+              >
+                <div className="w-14 h-14 rounded-xl border-2 border-dashed border-border group-hover:border-primary/50 flex items-center justify-center flex-shrink-0 transition-colors">
+                  <Plus size={22} className="text-muted-foreground group-hover:text-primary transition-colors" />
+                </div>
+                <div className="text-left">
+                  <p className="font-semibold text-sm text-foreground">Add another loved one</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Each person gets their own private portal.</p>
+                </div>
+              </button>
+            )}
+          </>
         ) : (
           portals.map((portal) => {
             const theme = THEME_CONFIG[portal.colorTheme] || THEME_CONFIG.teal;

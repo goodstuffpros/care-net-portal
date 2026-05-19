@@ -15,7 +15,7 @@
 import { useState } from "react";
 import {
   Heart, ChevronRight, ChevronLeft, User, Calendar, Stethoscope,
-  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X
+  Users, UserPlus, Briefcase, ArrowRight, CheckCircle2, Mail, Loader2, X, Palette
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,6 +23,7 @@ import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { THEME_CONFIG } from "@/pages/CareHome";
 
 interface MCSetupProps {
   name: string;
@@ -94,6 +95,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   const [relationship, setRelationship] = useState("");
   const [clientDob, setClientDob] = useState("");
   const [clientCondition, setClientCondition] = useState("");
+  const [colorTheme, setColorTheme] = useState("teal");
 
   // CG token follow-through (set when backend auto-connects CG who sent the invite)
   const [cgLinked, setCgLinked] = useState<{ cgName: string; cgId: number } | null>(null);
@@ -117,6 +119,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
         clientCondition: clientCondition.trim() || null,
         clientRelationship: relationship || null,
         carePathChoice: "has_caregiver",
+        colorTheme: colorTheme,
       });
       const data = await res.json();
       if (data.cgLinked) setCgLinked(data.cgLinked);
@@ -243,6 +246,32 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
                   )}
                 >
                   {r}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Portal color */}
+          <div className="space-y-2">
+            <Label className="flex items-center gap-1.5">
+              <Palette className="w-3.5 h-3.5 text-muted-foreground" />
+              Portal color
+            </Label>
+            <div className="flex gap-2 flex-wrap">
+              {Object.entries(THEME_CONFIG).map(([key, cfg]) => (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setColorTheme(key)}
+                  className={cn(
+                    "flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-medium border transition-all",
+                    colorTheme === key
+                      ? `${cfg.accent} text-white border-transparent`
+                      : "bg-background text-foreground/70 border-border hover:border-foreground/30"
+                  )}
+                >
+                  <span className={cn("w-2.5 h-2.5 rounded-full", colorTheme === key ? "bg-white/70" : cfg.accent)} />
+                  {cfg.label}
                 </button>
               ))}
             </div>

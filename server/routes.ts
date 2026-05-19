@@ -628,6 +628,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
         db.update(clients).set({ primaryContactId: mcUser.id }).where(eq(clients.id, mcUser.clientId)).run();
       } else {
         // Create the client (loved one) row
+        const validThemes = ['teal', 'sage', 'slate', 'rose', 'amber'];
+        const safeTheme = validThemes.includes(req.body.colorTheme) ? req.body.colorTheme : 'teal';
         const newClient = db.insert(clients).values({
           name: clientName,
           dateOfBirth: clientDob || null,
@@ -637,6 +639,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           primaryContactId: mcUser.id,
           isActive: true,
           appMode: "caregiver",
+          colorTheme: safeTheme,
         }).returning().get();
         clientIdToUse = newClient.id;
 

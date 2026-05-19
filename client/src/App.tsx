@@ -714,7 +714,7 @@ function RealAuthGate() {
     <MainApp
       realUser={portalUser || realUser}
       hasMultiplePortals={portals.length >= 2}
-      onReturnToCareHome={portals.length >= 2 ? () => setShowCareHome(true) : undefined}
+      onReturnToCareHome={() => setShowCareHome(true)}
     />
   );
 }
