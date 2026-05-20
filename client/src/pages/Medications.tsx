@@ -382,6 +382,7 @@ function DrugSearchInput({
   const [confirmed, setConfirmed] = useState(!!value);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const pickingRef = useRef(false); // prevents onBlur from stomping a tap-pick on mobile
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -433,6 +434,7 @@ function DrugSearchInput({
   };
 
   const handlePick = async (s: RxSuggestion) => {
+    pickingRef.current = true;
     setQuery(s.name);
     setOpen(false);
     setConfirmed(true);
@@ -450,6 +452,7 @@ function DrugSearchInput({
       }
     } catch { /* no-op */ }
     onSelect(s.name, genericName);
+    pickingRef.current = false;
   };
 
   return (
@@ -468,12 +471,15 @@ function DrugSearchInput({
           onChange={handleChange}
           onFocus={() => suggestions.length > 0 && setOpen(true)}
           onBlur={() => {
-            // Accept whatever is typed even if not picked from dropdown
-            if (query.trim() && !confirmed) {
-              setConfirmed(true);
-              onSelect(query.trim(), "");
-            }
-            setTimeout(() => setOpen(false), 150);
+            // Give mobile tap-picks time to complete before closing
+            setTimeout(() => {
+              if (pickingRef.current) return; // pick in progress — do nothing
+              if (query.trim() && !confirmed) {
+                setConfirmed(true);
+                onSelect(query.trim(), "");
+              }
+              setOpen(false);
+            }, 250);
           }}
           placeholder="Start typing a drug name…"
           className="h-8 text-sm pl-7"
