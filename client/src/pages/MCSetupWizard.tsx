@@ -35,7 +35,7 @@ type Step = "client-profile" | "care-team" | "done";
 
 const RELATIONSHIPS = [
   "Parent", "Spouse / Partner", "Sibling", "Grandparent",
-  "Child", "Relative", "Friend", "Other"
+  "Child", "Relative", "Friend", "Myself", "Other"
 ];
 
 // Progress: client-profile(1), care-team(2)
