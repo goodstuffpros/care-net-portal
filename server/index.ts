@@ -75,6 +75,24 @@ app.use((req, res, next) => {
     }
   } catch (e) { /* already gone or never existed */ }
 
+  // One-time fix: Madysen (user 57) signed up as caregiver but is secondary_family on client 24
+  // Also ensure userClientRelationships row exists for Care Home multi-portal support
+  try {
+    const mad = sqlite.prepare(`SELECT role, clientId FROM users WHERE id = 57`).get() as any;
+    if (mad) {
+      if (mad.role !== 'secondary_family') {
+        sqlite.prepare(`UPDATE users SET role = 'secondary_family' WHERE id = 57`).run();
+        console.log('[startup] Fixed Madysen (user 57) role -> secondary_family');
+      }
+      const relExists = sqlite.prepare(`SELECT id FROM user_client_relationships WHERE userId = 57 AND clientId = 24`).get();
+      if (!relExists) {
+        const relCount = (sqlite.prepare(`SELECT COUNT(*) as c FROM user_client_relationships WHERE userId = 57`).get() as any).c;
+        sqlite.prepare(`INSERT INTO user_client_relationships (userId, clientId, role, isPrimary, createdAt) VALUES (57, 24, 'secondary_family', ?, ?)`).run(relCount === 0 ? 1 : 0, new Date().toISOString());
+        console.log('[startup] Added userClientRelationships row for Madysen (user 57) -> client 24');
+      }
+    }
+  } catch (e) { console.error('[startup] Madysen fix error:', e); }
+
   // One-time fix: correct McKenzie (user 50) role from primary_family -> self_care
   // She arrived via self_care path but was stored incorrectly
   try {
