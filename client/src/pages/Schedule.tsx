@@ -79,7 +79,7 @@ function maxDateOneYear(): string {
 }
 
 export default function SchedulePage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, clientPermissionLevel, isTemporarilyElevated } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
   const { toast } = useToast();
@@ -90,8 +90,7 @@ export default function SchedulePage() {
   const [excuseNote, setExcuseNote] = useState("");
   const [excusedIds, setExcusedIds] = useState<Set<number>>(new Set());
   const [discussingId, setDiscussingId] = useState<number | null>(null);
-  const canEdit = activeUser.role === "caregiver";
-  const { isTemporarilyElevated } = useApp();
+  const canEdit = activeUser.role === "caregiver" || (activeUser.role === "self_care" && clientPermissionLevel === "self_care_mc");
   const isFamilyPrimary = activeUser.role === "primary_family" || isTemporarilyElevated;
 
   const [form, setForm] = useState({

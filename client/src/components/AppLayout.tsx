@@ -677,10 +677,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const CLIENT_NAV_ITEMS = [
     { path: "/", labelKey: "nav.dashboard" as TranslationKey, icon: LayoutDashboard },
     { path: "/schedule", labelKey: "nav.schedule" as TranslationKey, icon: CalendarDays },
+    { path: "/activity", labelKey: "nav.activity" as TranslationKey, icon: NotebookPen },
     { path: "/vitals", labelKey: "nav.vitals" as TranslationKey, icon: Activity },
     { path: "/medications", labelKey: "nav.medications" as TranslationKey, icon: Pill },
-    { path: "/activity", labelKey: "nav.activity" as TranslationKey, icon: NotebookPen },
+    { path: "/messages", labelKey: "nav.messages" as TranslationKey, icon: MessageSquare },
     { path: "/documents", labelKey: "nav.documents" as TranslationKey, icon: FolderOpen },
+    { path: "/media", labelKey: "nav.media" as TranslationKey, icon: Image },
+    { path: "/patterns", labelKey: "nav.patterns" as TranslationKey, icon: Sparkles },
+    { path: "/archive", labelKey: "nav.archive" as TranslationKey, icon: Archive },
+    { path: "/university", labelKey: "nav.university" as TranslationKey, icon: GraduationCap },
   ];
 
   const NAV_ITEMS = (() => {

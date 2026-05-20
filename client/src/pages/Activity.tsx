@@ -52,7 +52,7 @@ export default function ActivityPage() {
   const { activeUser, selectedClientId, isRealSession, clientPermissionLevel, isClientPortal } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
-  const isContributor = isClientPortal && clientPermissionLevel === "contributor";
+  const isContributor = isClientPortal && (clientPermissionLevel === "contributor" || clientPermissionLevel === "self_care_mc");
   const [addOpen, setAddOpen] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
 
