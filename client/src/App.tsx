@@ -184,6 +184,10 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   const [clientPermissionLevel, setClientPermissionLevel] = useState<'observer' | 'contributor' | 'self_care_mc' | null>(
     (realUser?.permissionLevel as 'observer' | 'contributor' | 'self_care_mc' | null) ?? null
   );
+  // Keep clientPermissionLevel in sync whenever realUser updates (e.g. after login)
+  useEffect(() => {
+    setClientPermissionLevel((realUser?.permissionLevel as 'observer' | 'contributor' | 'self_care_mc' | null) ?? null);
+  }, [realUser?.permissionLevel]);
   const [contributorWelcomeSeen, setContributorWelcomeSeen] = useState<boolean>(realUser?.contributorWelcomeSeen ?? false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
