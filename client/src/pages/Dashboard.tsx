@@ -58,7 +58,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil, isTemporarilyElevated } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -122,7 +122,6 @@ export default function DashboardPage() {
     mutationFn: () => apiRequest("POST", "/api/me/nudge-snooze"),
     onSuccess: () => setMultiPortalNudgeDismissedLocal(true),
   });
-  const { isTemporarilyElevated } = useApp();
   const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated;
   const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
   // Guard: hardcoded USER_BADGES are demo-only. Real users start with no earned badges.
