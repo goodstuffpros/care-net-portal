@@ -378,7 +378,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         onLogout: () => {
           clearAuthToken();
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-            .finally(() => { window.location.replace("/"); });
+            .finally(() => { window.location.replace("/#/login"); });
         },
       }}>
         <LangProvider>
