@@ -25,7 +25,7 @@ import {
   Clock, Globe, Star, Info, UserPlus, ChevronDown, Plus, ArrowRight
 } from "lucide-react";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
-import { THEME_CONFIG } from "@/pages/CareHome";
+import { THEME_CONFIG } from "@/lib/portalThemes";
 import type { User as UserType } from "@shared/schema";
 
 // ── Timezone options ─────────────────────────────────────────────────────────

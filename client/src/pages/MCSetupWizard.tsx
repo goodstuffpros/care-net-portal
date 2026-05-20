@@ -23,7 +23,7 @@ import { Label } from "@/components/ui/label";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { THEME_CONFIG } from "@/pages/CareHome";
+import { THEME_CONFIG } from "@/lib/portalThemes";
 
 interface MCSetupProps {
   name: string;
