@@ -1069,11 +1069,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
           }
         }
       } else if (invite.inviteType === "mc_to_client") {
-        // Sender is MC, acceptor is the care recipient — give them read-only access to their own record
-        // as a self_care Observer. This is Client Empowerment Phase 1.
+        // Sender is MC, acceptor is the care recipient — give them full self_care_mc access.
+        // All self_care users get the same permissions regardless of signup path.
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
-          db.update(users).set({ clientId, role: "self_care", permissionLevel: "observer" })
+          db.update(users).set({ clientId, role: "self_care", permissionLevel: "self_care_mc" })
             .where(eq(users.id, acceptingUser.id)).run();
           // Link the client record back to this user account
           storage.linkClientUser(clientId, acceptingUser.id);
