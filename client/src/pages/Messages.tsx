@@ -29,7 +29,7 @@ function formatMsgTime(iso: string) {
 }
 
 export default function MessagesPage() {
-  const { activeUser, selectedClientId, isPracticeClient } = useApp();
+  const { activeUser, selectedClientId, isPracticeClient, isTemporarilyElevated } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
@@ -335,7 +335,7 @@ export default function MessagesPage() {
               <Volume2 size={14} /> Listen
             </button>
             {/* Manage Members button — caregiver + primary_family only */}
-            {(activeUser.role === "caregiver" || activeUser.role === "primary_family") && activeThread?.isOpen && (
+            {(activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated) && activeThread?.isOpen && (
               <Button
                 variant="ghost" size="sm"
                 onClick={() => setManageMembersOpen(o => !o)}
@@ -375,7 +375,7 @@ export default function MessagesPage() {
                       const user = ALL_PORTAL_USERS.find(u => u.id === id);
                       if (!user) return null;
                       const isMe = id === activeUser.id;
-                      const canManagerRemove = (activeUser.role === "caregiver" || activeUser.role === "primary_family") && !isMe && memberIds.length > 1;
+                      const canManagerRemove = (activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated) && !isMe && memberIds.length > 1;
                       return (
                         <div key={id} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-full bg-background border border-border text-xs">
                           <div className="w-5 h-5 rounded-full bg-primary/15 flex items-center justify-center text-[9px] font-bold text-primary">{user.initials}</div>

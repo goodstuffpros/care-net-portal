@@ -102,6 +102,8 @@ interface AppContextType {
   triggerOnboarding: () => void;
   hasMultiplePortals: boolean;
   activeClientName: string;
+  isTemporarilyElevated: boolean;
+  elevationExpiresAt: string | null;
   returnToCareHome: () => void;
   switchPortal: (clientId: number, colorTheme: string) => void;
   multiPortalNudgeSnoozedUntil: string | null;
@@ -141,6 +143,7 @@ interface RealUser {
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
   multiPortalNudgeSnoozedUntil?: string | null;
+  elevatedUntil?: string | null;
 }
 
 function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals, goToDashboard }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean; goToDashboard?: boolean }) {
@@ -190,6 +193,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
   const [activeClientName, setActiveClientName] = useState<string>("");
+  const isTemporarilyElevated = realUser?.role === "secondary_family" && !!realUser?.elevatedUntil && new Date(realUser.elevatedUntil) > new Date();
+  const elevationExpiresAt = isTemporarilyElevated ? (realUser?.elevatedUntil ?? null) : null;
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", theme === "dark");
@@ -347,6 +352,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         triggerOnboarding,
         hasMultiplePortals: hasManyPortals ?? false,
         activeClientName,
+        isTemporarilyElevated,
+        elevationExpiresAt,
         returnToCareHome: onReturnToCareHome ?? (() => {}),
         switchPortal: onSwitchPortal ?? (() => {}),
         multiPortalNudgeSnoozedUntil: (realUser as any)?.multiPortalNudgeSnoozedUntil ?? null,

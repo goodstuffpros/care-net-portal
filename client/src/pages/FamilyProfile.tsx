@@ -139,7 +139,7 @@ function EditableField({
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function FamilyProfile() {
-  const { activeUser, isRealSession, hasMultiplePortals, returnToCareHome, switchPortal } = useApp();
+  const { activeUser, isRealSession, hasMultiplePortals, returnToCareHome, switchPortal, isTemporarilyElevated } = useApp();
   const { toast } = useToast();
 
   // ── Fetch user data ──────────────────────────────────────────────────────────
@@ -211,7 +211,29 @@ export default function FamilyProfile() {
   }
 
   const isMC = activeUser.role === "primary_family";
+  const isFamilyPrimary = isMC || isTemporarilyElevated;
   const [inviteOpen, setInviteOpen] = useState(false);
+
+  // ── Delegation UI state (MC only) ─────────────────────────────────────────
+  interface DelegateEntry { userId: number; name: string; email: string; elevatedUntil: string | null; }
+  const { data: delegates = [], refetch: refetchDelegates } = useQuery<DelegateEntry[]>({
+    queryKey: ["/api/me/delegates"],
+    queryFn: () => apiRequest("GET", "/api/me/delegates").then(r => r.json()),
+    enabled: isRealSession && isMC,
+  });
+  const [delegateExpiry, setDelegateExpiry] = useState<Record<number, string>>({});
+  const delegateMutation = useMutation({
+    mutationFn: ({ userId, until }: { userId: number; until: string }) =>
+      apiRequest("POST", "/api/me/delegate", { userId, elevatedUntil: until }).then(r => r.json()),
+    onSuccess: () => { refetchDelegates(); toast({ title: "Access granted", description: "Temporary access has been set." }); },
+    onError: () => toast({ title: "Could not save", description: "Please try again.", variant: "destructive" }),
+  });
+  const revokeMutation = useMutation({
+    mutationFn: (userId: number) =>
+      apiRequest("DELETE", `/api/me/delegate/${userId}`).then(r => r.json()),
+    onSuccess: () => { refetchDelegates(); toast({ title: "Access revoked", description: "Temporary access has been removed." }); },
+    onError: () => toast({ title: "Could not revoke", description: "Please try again.", variant: "destructive" }),
+  });
 
   // ── Language & Timezone ───────────────────────────────────────────────────
   const { lang, setLang } = useLang();
@@ -539,6 +561,98 @@ export default function FamilyProfile() {
                 <p className="text-xs text-muted-foreground mt-0.5">Caring for a parent, spouse, or sibling? Each person gets their own portal.</p>
               </div>
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delegate Access (MC only) ── */}
+      {isMC && isRealSession && (
+        <div className="rounded-2xl border border-border bg-card overflow-hidden">
+          <div className="px-5 py-4 border-b border-border bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Shield size={14} className="text-teal-600 shrink-0" />
+              <p className="text-sm font-semibold text-foreground">Temporary Access Delegation</p>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+              Grant a secondary family member temporary Main Contact access. They can manage schedules, care logs, and communications while you’re away. Access expires automatically. Maximum 90 days.
+            </p>
+          </div>
+          <div className="px-5 divide-y divide-border">
+            {delegates.length === 0 ? (
+              <div className="py-4 text-sm text-muted-foreground">No secondary family members connected to this portal yet.</div>
+            ) : (
+              delegates.map(d => {
+                const isActive = d.elevatedUntil && new Date(d.elevatedUntil) > new Date();
+                const expiryDisplay = d.elevatedUntil
+                  ? new Date(d.elevatedUntil).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })
+                  : null;
+                const initials = d.name.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2);
+                // Max date = today + 90 days
+                const maxDate = new Date();
+                maxDate.setDate(maxDate.getDate() + 90);
+                const maxDateStr = maxDate.toISOString().split("T")[0];
+                const todayStr = new Date().toISOString().split("T")[0];
+                return (
+                  <div key={d.userId} className="py-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/50 flex items-center justify-center text-teal-700 dark:text-teal-300 text-xs font-bold shrink-0">
+                        {initials}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-foreground truncate">{d.name}</p>
+                        <p className="text-xs text-muted-foreground truncate">{d.email}</p>
+                      </div>
+                      {isActive && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shrink-0">
+                          Active
+                        </span>
+                      )}
+                    </div>
+
+                    {isActive ? (
+                      <div className="mt-3 pl-12">
+                        <p className="text-xs text-muted-foreground mb-2">Access expires <span className="font-medium text-foreground">{expiryDisplay}</span></p>
+                        <button
+                          onClick={() => revokeMutation.mutate(d.userId)}
+                          disabled={revokeMutation.isPending}
+                          className="text-xs text-rose-600 hover:text-rose-700 font-medium flex items-center gap-1 transition-colors"
+                          data-testid={`revoke-delegate-${d.userId}`}
+                        >
+                          <X size={12} /> Revoke access
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="mt-3 pl-12">
+                        <label className="text-xs text-muted-foreground block mb-1.5">Set expiry date (up to 90 days)</label>
+                        <div className="flex items-center gap-2">
+                          <input
+                            type="date"
+                            min={todayStr}
+                            max={maxDateStr}
+                            value={delegateExpiry[d.userId] ?? ""}
+                            onChange={e => setDelegateExpiry(prev => ({ ...prev, [d.userId]: e.target.value }))}
+                            className="text-xs border border-border rounded-lg px-2 py-1.5 bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                            data-testid={`delegate-date-${d.userId}`}
+                          />
+                          <button
+                            onClick={() => {
+                              const until = delegateExpiry[d.userId];
+                              if (!until) { toast({ title: "Pick a date first", variant: "destructive" }); return; }
+                              delegateMutation.mutate({ userId: d.userId, until });
+                            }}
+                            disabled={delegateMutation.isPending || !delegateExpiry[d.userId]}
+                            className="text-xs font-semibold px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors disabled:opacity-50"
+                            data-testid={`grant-delegate-${d.userId}`}
+                          >
+                            Grant access
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
         </div>
       )}

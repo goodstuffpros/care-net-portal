@@ -91,7 +91,8 @@ export default function SchedulePage() {
   const [excusedIds, setExcusedIds] = useState<Set<number>>(new Set());
   const [discussingId, setDiscussingId] = useState<number | null>(null);
   const canEdit = activeUser.role === "caregiver";
-  const isFamilyPrimary = activeUser.role === "primary_family";
+  const { isTemporarilyElevated } = useApp();
+  const isFamilyPrimary = activeUser.role === "primary_family" || isTemporarilyElevated;
 
   const [form, setForm] = useState({
     title: "", type: "task", scheduledAt: "", notes: "", priority: "green",

@@ -178,7 +178,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -1590,6 +1590,80 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
     } catch (err: any) {
       res.status(500).json({ message: err?.message });
     }
+  });
+
+  // ── Temporary MC Elevation ─────────────────────────────────────────────────
+
+  // Helper: is this user currently elevated to MC authority?
+  function isEffectiveMC(user: any): boolean {
+    if (user.role === "primary_family") return true;
+    if (user.role === "secondary_family" && user.elevatedUntil) {
+      return new Date(user.elevatedUntil) > new Date();
+    }
+    return false;
+  }
+
+  // POST /api/me/delegate — MC sets temporary elevation on a secondary FM
+  // Body: { userId: number, elevatedUntil: string (ISO date) }
+  app.post("/api/me/delegate", requireAuth, (req: AuthRequest, res) => {
+    const authUserId = req.user?.id;
+    if (!authUserId) return res.status(401).json({ error: "Unauthorized" });
+    const authUser = db.select().from(users).where(eq(users.id, authUserId)).get();
+    if (!authUser || authUser.role !== "primary_family") {
+      return res.status(403).json({ error: "Only Main Contacts can delegate authority" });
+    }
+    const { userId, elevatedUntil } = req.body;
+    if (!userId || !elevatedUntil) {
+      return res.status(400).json({ error: "userId and elevatedUntil required" });
+    }
+    // Verify target user is secondary_family on same client
+    const target = db.select().from(users).where(eq(users.id, Number(userId))).get();
+    if (!target || target.role !== "secondary_family" || target.clientId !== authUser.clientId) {
+      return res.status(403).json({ error: "Target must be a Secondary Family Member on the same portal" });
+    }
+    // Validate date is in the future and not more than 90 days out
+    const until = new Date(elevatedUntil);
+    const now = new Date();
+    const maxDate = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+    if (until <= now) return res.status(400).json({ error: "Elevation end date must be in the future" });
+    if (until > maxDate) return res.status(400).json({ error: "Elevation cannot exceed 90 days" });
+    db.update(users).set({ elevatedUntil }).where(eq(users.id, Number(userId))).run();
+    console.log(`[delegate] User ${authUserId} elevated user ${userId} until ${elevatedUntil}`);
+    return res.json({ success: true, elevatedUntil });
+  });
+
+  // DELETE /api/me/delegate/:userId — MC revokes elevation early
+  app.delete("/api/me/delegate/:userId", requireAuth, (req: AuthRequest, res) => {
+    const authUserId = req.user?.id;
+    if (!authUserId) return res.status(401).json({ error: "Unauthorized" });
+    const authUser = db.select().from(users).where(eq(users.id, authUserId)).get();
+    if (!authUser || authUser.role !== "primary_family") {
+      return res.status(403).json({ error: "Only Main Contacts can revoke delegation" });
+    }
+    const targetId = Number(req.params.userId);
+    const target = db.select().from(users).where(eq(users.id, targetId)).get();
+    if (!target || target.clientId !== authUser.clientId) {
+      return res.status(403).json({ error: "Target not found on this portal" });
+    }
+    db.update(users).set({ elevatedUntil: null }).where(eq(users.id, targetId)).run();
+    console.log(`[delegate] User ${authUserId} revoked elevation for user ${targetId}`);
+    return res.json({ success: true });
+  });
+
+  // GET /api/me/delegates — MC fetches current delegations for their portal
+  app.get("/api/me/delegates", requireAuth, (req: AuthRequest, res) => {
+    const authUserId = req.user?.id;
+    if (!authUserId) return res.status(401).json({ error: "Unauthorized" });
+    const authUser = db.select().from(users).where(eq(users.id, authUserId)).get();
+    if (!authUser || authUser.role !== "primary_family") return res.json([]);
+    const secondaryMembers = db.select().from(users)
+      .where(and(eq(users.clientId, authUser.clientId!), eq(users.role, "secondary_family" as any)))
+      .all();
+    const now = new Date();
+    return res.json(secondaryMembers.map(u => ({
+      id: u.id, name: u.name, elevatedUntil: u.elevatedUntil ?? null,
+      isActive: !!(u.elevatedUntil && new Date(u.elevatedUntil) > now),
+    })));
   });
 
   // POST /api/me/nudge-snooze — snooze the multi-portal nudge card for 30 days

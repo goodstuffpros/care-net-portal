@@ -235,7 +235,7 @@ export default function CaregiversPage() {
           <div className="flex flex-wrap gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             {/* Emergency contact form — MC only. CGs cannot add anyone to the care team. */}
-            {activeUser.role === "primary_family" && (
+            {(activeUser.role === "primary_family" || isTemporarilyElevated) && (
             <DialogTrigger asChild>
               <Button size="sm" variant="outline" className="gap-2" data-testid="add-caregiver-btn">
                 <UserPlus size={15} /> Add Emergency Contact

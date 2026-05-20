@@ -111,7 +111,7 @@ export default function DashboardPage() {
   const nudgeSnoozedUntilDate = multiPortalNudgeSnoozedUntil ? new Date(multiPortalNudgeSnoozedUntil) : null;
   const nudgeSnoozed = nudgeSnoozedUntilDate ? nudgeSnoozedUntilDate > new Date() : false;
   const showMultiPortalNudge =
-    activeUser.role === "primary_family" &&
+    (activeUser.role === "primary_family" || isTemporarilyElevated) &&
     !hasMultiplePortals &&
     !nudgeSnoozed &&
     !multiPortalNudgeDismissedLocal &&
@@ -122,7 +122,8 @@ export default function DashboardPage() {
     mutationFn: () => apiRequest("POST", "/api/me/nudge-snooze"),
     onSuccess: () => setMultiPortalNudgeDismissedLocal(true),
   });
-  const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family";
+  const { isTemporarilyElevated } = useApp();
+  const canSeeFullView = activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated;
   const showBadges = activeUser.role === "caregiver" || activeUser.role === "multi_caregiver" || activeUser.role === "temp_caregiver";
   // Guard: hardcoded USER_BADGES are demo-only. Real users start with no earned badges.
   const earnedBadgeIds = isRealSession ? [] : (USER_BADGES[activeUser.id] || []);

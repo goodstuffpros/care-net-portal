@@ -248,9 +248,10 @@ export default function ClientPortalPage() {
   const redFlags = activeFlags.filter(f => f.flagType === "red");
   const excusedFlags = careFlags.filter(f => f.isExcused);
 
-  const isPrimaryFC = activeUser.role === "primary_family";
+  const { isTemporarilyElevated } = useApp();
+  const isPrimaryFC = activeUser.role === "primary_family" || isTemporarilyElevated;
   const canManageFlags = isPrimaryFC;
-  const isMCViewer = activeUser.role === "primary_family";
+  const isMCViewer = activeUser.role === "primary_family" || isTemporarilyElevated;
 
   const updateClientMutation = useMutation({
     mutationFn: (data: Partial<Client>) => apiRequest("PATCH", `/api/clients/${selectedClientId}`, data),

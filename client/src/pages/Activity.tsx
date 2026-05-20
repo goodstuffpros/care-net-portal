@@ -97,7 +97,8 @@ export default function ActivityPage() {
     return match ? match[0].trim() : text.slice(0, 80).trim() + (text.length > 80 ? "…" : "");
   };
   const canEdit = activeUser.role === "caregiver" || isContributor;
-  const isFamilyPrimary = activeUser.role === "primary_family";
+  const { isTemporarilyElevated } = useApp();
+  const isFamilyPrimary = activeUser.role === "primary_family" || isTemporarilyElevated;
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
   const [form, setForm] = useState({

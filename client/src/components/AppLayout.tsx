@@ -194,7 +194,7 @@ const TIMEZONES = [
 const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
-  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, activeClientName, returnToCareHome } = useApp();
+  const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, activeClientName, isTemporarilyElevated, elevationExpiresAt, returnToCareHome } = useApp();
   // Portal color stripe — solid color per theme for instant visual identification
   const PORTAL_COLORS: Record<string, string> = {
     teal: "#0d9488", sage: "#16a34a", slate: "#3b82f6",
@@ -1447,6 +1447,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
+        {/* Temporary Elevation Banner */}
+        {isTemporarilyElevated && elevationExpiresAt && (
+          <div className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-xs font-medium">
+            <Shield size={13} className="shrink-0" />
+            <span>You have temporary Main Contact access through {new Date(elevationExpiresAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}.</span>
+          </div>
+        )}
+
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-28" style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom, 0px))" }}>
           {/* BETA: prompt banners suspended — restore post-beta, redesign thinner + less frequent */}
@@ -1658,7 +1666,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
 
                 {/* MC only: alert CG toggle */}
-                {activeUser.role === 'primary_family' && (
+                {(activeUser.role === 'primary_family' || isTemporarilyElevated) && (
                   <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-3 mb-4">
                     <div className="flex items-center gap-2">
                       <MessageSquare size={14} className="text-muted-foreground flex-shrink-0" />
@@ -1708,7 +1716,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                         await apiRequest("POST", `/api/clients/${selectedClientId}/sos`, {
                           message: sosMessage.trim() || "Emergency — immediate attention needed",
                           smsToMc: true,
-                          smsToCg: activeUser.role === 'primary_family' ? sosAlertCg : false,
+                          smsToCg: (activeUser.role === 'primary_family' || isTemporarilyElevated) ? sosAlertCg : false,
                         });
                         queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] });
                         setSosSent(true);
