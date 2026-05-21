@@ -514,7 +514,7 @@ export default function DashboardPage() {
           {/* Options */}
           <div className="px-5 py-5 space-y-3">
             <button
-              onClick={() => { dismissMcInviteModal(); navigate("/client-profile"); }}
+              onClick={() => { dismissMcInviteModal(); navigate("/portal"); }}
               data-testid="btn-mc-invite-yes"
               className="w-full text-left rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-950/30 dark:border-teal-700 px-4 py-3.5 transition-colors hover:bg-teal-100 dark:hover:bg-teal-950/50"
             >
