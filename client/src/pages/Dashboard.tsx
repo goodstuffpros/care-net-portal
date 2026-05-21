@@ -104,8 +104,14 @@ export default function DashboardPage() {
   // Show MC invite popup once for self_care users who have not yet seen it and have no MC
   useEffect(() => {
     if (isClientPortal && clientPermissionLevel === "self_care_mc" && !hasSeenMcInvitePrompt) {
-      // Small delay so the dashboard renders first
-      const t = setTimeout(() => setMcInviteModalOpen(true), 1200);
+      const t = setTimeout(() => {
+        // Strip any query string (e.g. ?verified=1) before the modal opens
+        // so that wouter navigate() calls inside it work cleanly
+        if (window.location.search) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+        setMcInviteModalOpen(true);
+      }, 1200);
       return () => clearTimeout(t);
     }
   }, [isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt]);
@@ -505,7 +511,7 @@ export default function DashboardPage() {
           {/* Options */}
           <div className="px-5 py-5 space-y-3">
             <button
-              onClick={() => { dismissMcInviteModal(); window.history.replaceState(null, '', window.location.pathname); navigate("/client-profile"); }}
+              onClick={() => { dismissMcInviteModal(); navigate("/client-profile"); }}
               data-testid="btn-mc-invite-yes"
               className="w-full text-left rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-950/30 dark:border-teal-700 px-4 py-3.5 transition-colors hover:bg-teal-100 dark:hover:bg-teal-950/50"
             >
