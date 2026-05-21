@@ -104,14 +104,17 @@ export default function DashboardPage() {
   // Show MC invite popup once for self_care users who have not yet seen it and have no MC
   useEffect(() => {
     if (isClientPortal && clientPermissionLevel === "self_care_mc" && !hasSeenMcInvitePrompt) {
+      // Strip query string immediately (e.g. ?verified=1 from email verification link)
+      if (window.location.search) {
+        window.history.replaceState(null, '', window.location.pathname);
+      }
       const t = setTimeout(() => {
-        // Strip any query string (e.g. ?verified=1) before the modal opens
-        // so that wouter navigate() calls inside it work cleanly
+        // Double-check and strip again in case of race condition
         if (window.location.search) {
           window.history.replaceState(null, '', window.location.pathname);
         }
         setMcInviteModalOpen(true);
-      }, 1200);
+      }, 2000);
       return () => clearTimeout(t);
     }
   }, [isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt]);
