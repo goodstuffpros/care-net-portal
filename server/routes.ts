@@ -763,7 +763,8 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const user = db.select().from(users).where(eq(users.id, userId)).get();
       if (!user) return res.status(404).json({ message: "User not found" });
 
-      const { invitedEmail, inviteType } = req.body;
+      const { invitedEmail: _invitedEmail, recipientEmail, inviteType } = req.body;
+      const invitedEmail = _invitedEmail || recipientEmail; // accept both field names
       // inviteType: 'mc_to_caregiver' | 'caregiver_to_mc' | 'mc_to_family' | 'mc_to_self_cg' | 'self_care_to_mc'
       const validTypes = ["mc_to_caregiver", "caregiver_to_mc", "mc_to_family", "mc_to_client", "mc_to_self_cg", "self_care_to_mc"];
       if (!inviteType || !validTypes.includes(inviteType)) {
