@@ -178,7 +178,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -2225,6 +2225,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/users/me/contributor-welcome-seen", requireAuth, (req: AuthRequest, res) => {
     const updated = storage.updateUser(req.authUserId!, { contributorWelcomeSeen: true });
     res.json({ success: true, contributorWelcomeSeen: updated?.contributorWelcomeSeen });
+  });
+
+  app.patch("/api/users/me/seen-mc-invite", requireAuth, (req: AuthRequest, res) => {
+    const updated = storage.updateUser(req.authUserId!, { hasSeenMcInvitePrompt: true });
+    res.json({ success: true, hasSeenMcInvitePrompt: updated?.hasSeenMcInvitePrompt });
   });
 
   // ── Phase 3: Transfer of Care ────────────────────────────────────────────────

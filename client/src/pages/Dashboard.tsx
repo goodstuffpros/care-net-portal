@@ -1,5 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useApp, isCaregiverRole } from "@/App";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
@@ -13,7 +14,7 @@ import {
   AlertTriangle, Rocket, Calendar, ClipboardCheck, Heart, MessageSquare, X,
   Activity, CheckCircle2, Clock, ChevronRight, User, Pill, Stethoscope, Dumbbell, Volume2,
   Trophy, Star, BookOpen, Users, UserPlus, Bell, LayoutDashboard, NotebookPen, CalendarDays,
-  Home, Plus
+  Home, Plus, UserCheck
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
@@ -58,7 +59,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil, isTemporarilyElevated } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil, isTemporarilyElevated, isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -98,6 +99,26 @@ export default function DashboardPage() {
   const [sampleNudgeDismissed, setSampleNudgeDismissed] = useState(false);
   const [sampleModalOpen, setSampleModalOpen] = useState(false);
   const [multiPortalNudgeDismissedLocal, setMultiPortalNudgeDismissedLocal] = useState(false);
+  const [mcInviteModalOpen, setMcInviteModalOpen] = useState(false);
+
+  // Show MC invite popup once for self_care users who have not yet seen it and have no MC
+  useEffect(() => {
+    if (isClientPortal && clientPermissionLevel === "self_care_mc" && !hasSeenMcInvitePrompt) {
+      // Small delay so the dashboard renders first
+      const t = setTimeout(() => setMcInviteModalOpen(true), 1200);
+      return () => clearTimeout(t);
+    }
+  }, [isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt]);
+
+  const seenMcInviteMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/users/me/seen-mc-invite"),
+    onSuccess: () => setHasSeenMcInvitePrompt(true),
+  });
+
+  function dismissMcInviteModal() {
+    setMcInviteModalOpen(false);
+    seenMcInviteMutation.mutate();
+  }
 
   // Nudge: show for CGs who have no sample and no real client
   const showSampleNudge =
@@ -468,6 +489,41 @@ export default function DashboardPage() {
           window.location.reload();
         }}
       />
+
+      {/* ── Self-care MC invite popup — one-time, post-signup ── */}
+      <Dialog open={mcInviteModalOpen} onOpenChange={(open) => { if (!open) dismissMcInviteModal(); }}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" data-testid="dialog-mc-invite">
+          {/* Header */}
+          <div className="bg-teal-600 px-6 pt-6 pb-5 text-white">
+            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <UserCheck className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-base font-semibold leading-snug">Want someone to help coordinate or monitor your care?</h2>
+            <p className="text-sm text-teal-100 mt-1 leading-relaxed">A Main Contact can stay informed, communicate with your caregivers, and step in when you need them.</p>
+          </div>
+
+          {/* Options */}
+          <div className="px-5 py-5 space-y-3">
+            <button
+              onClick={() => { dismissMcInviteModal(); navigate("/client-profile"); }}
+              data-testid="btn-mc-invite-yes"
+              className="w-full text-left rounded-xl border-2 border-teal-500 bg-teal-50 dark:bg-teal-950/30 dark:border-teal-700 px-4 py-3.5 transition-colors hover:bg-teal-100 dark:hover:bg-teal-950/50"
+            >
+              <p className="text-sm font-semibold text-teal-700 dark:text-teal-300">Yes, invite someone now</p>
+              <p className="text-xs text-teal-600 dark:text-teal-400 mt-0.5">Takes you to your Client Profile to send the invite.</p>
+            </button>
+
+            <button
+              onClick={dismissMcInviteModal}
+              data-testid="btn-mc-invite-skip"
+              className="w-full text-left rounded-xl border border-border bg-muted/30 px-4 py-3.5 transition-colors hover:bg-muted/60"
+            >
+              <p className="text-sm font-semibold text-foreground">I've got this for now</p>
+              <p className="text-xs text-muted-foreground mt-0.5">You can always invite a Main Contact later from your Client Profile.</p>
+            </button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

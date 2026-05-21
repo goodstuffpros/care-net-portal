@@ -121,6 +121,8 @@ interface AppContextType {
   clientPermissionLevel: 'observer' | 'contributor' | 'self_care_mc' | null; // self_care users only
   contributorWelcomeSeen: boolean; // Phase 2: whether graduation banner has been dismissed
   setContributorWelcomeSeen: (seen: boolean) => void; // called after banner dismissal
+  hasSeenMcInvitePrompt: boolean; // self_care only — one-time post-signup MC invite popup
+  setHasSeenMcInvitePrompt: (seen: boolean) => void;
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
@@ -144,6 +146,7 @@ interface RealUser {
   carePathChoice?: string | null;
   multiPortalNudgeSnoozedUntil?: string | null;
   elevatedUntil?: string | null;
+  hasSeenMcInvitePrompt?: boolean;
 }
 
 function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals, goToDashboard }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean; goToDashboard?: boolean }) {
@@ -189,6 +192,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     setClientPermissionLevel((realUser?.permissionLevel as 'observer' | 'contributor' | 'self_care_mc' | null) ?? null);
   }, [realUser?.permissionLevel]);
   const [contributorWelcomeSeen, setContributorWelcomeSeen] = useState<boolean>(realUser?.contributorWelcomeSeen ?? false);
+  const [hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt] = useState<boolean>(realUser?.hasSeenMcInvitePrompt ?? false);
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -376,6 +380,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         clientPermissionLevel,
         contributorWelcomeSeen,
         setContributorWelcomeSeen,
+        hasSeenMcInvitePrompt,
+        setHasSeenMcInvitePrompt,
         navOverlayOpen,
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",
