@@ -111,7 +111,7 @@ const ROLE_COLORS: Record<string, string> = {
 };
 
 export default function ClientPortalPage() {
-  const { activeUser, selectedClientId, isPracticeClient, isShowcaseMode } = useApp();
+  const { activeUser, selectedClientId, isPracticeClient, isShowcaseMode, clientPermissionLevel, isRealSession, isTemporarilyElevated } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   // ── Invite Family Member sheet (MC only) ──────────────────────────────────────
@@ -248,7 +248,6 @@ export default function ClientPortalPage() {
   const redFlags = activeFlags.filter(f => f.flagType === "red");
   const excusedFlags = careFlags.filter(f => f.isExcused);
 
-  const { isTemporarilyElevated } = useApp();
   const isPrimaryFC = activeUser.role === "primary_family" || isTemporarilyElevated;
   const canManageFlags = isPrimaryFC;
   const isMCViewer = activeUser.role === "primary_family" || isTemporarilyElevated;
@@ -399,6 +398,11 @@ export default function ClientPortalPage() {
       {/* ════════════════════════════════ OVERVIEW TAB ═══════════════════════ */}
       {activeTab === 'overview' && (
         <div className="space-y-6">
+
+      {/* ── MC Invite (self_care_mc only) ─────────────────────────────────── */}
+      {activeUser.role === 'self_care' && clientPermissionLevel === 'self_care_mc' && isRealSession && (
+        <SelfCareMCInviteSection clientId={selectedClientId!} />
+      )}
 
       {/* Client Info Card */}
       <Card className="border-border">
@@ -1870,6 +1874,99 @@ export default function ClientPortalPage() {
           </Card>
         </div>
       )}
+    </div>
+  );
+}
+
+// ── Self-Care MC Invite Section ─────────────────────────────────────────────
+function SelfCareMCInviteSection({ clientId }: { clientId: number }) {
+  const { toast } = useToast();
+  const [email, setEmail] = useState("");
+  const [sent, setSent] = useState(false);
+
+  // Fetch existing MC for this client
+  const { data: allUsers = [] } = useQuery<User[]>({
+    queryKey: ["/api/clients", clientId, "users"],
+    queryFn: () => apiRequest("GET", `/api/clients/${clientId}/users`).then(r => r.json()),
+    enabled: !!clientId,
+  });
+  const existingMC = allUsers.find(u => u.role === "primary_family");
+
+  const inviteMutation = useMutation({
+    mutationFn: (email: string) =>
+      apiRequest("POST", "/api/invite/create", {
+        inviteType: "self_care_to_mc",
+        recipientEmail: email,
+        clientId,
+      }).then(r => r.json()),
+    onSuccess: () => {
+      setSent(true);
+      setEmail("");
+      toast({ title: "Invitation sent", description: "They will receive an email with instructions to join." });
+    },
+    onError: (e: any) => {
+      toast({ title: "Could not send invite", description: e?.message ?? "Please try again.", variant: "destructive" });
+    },
+  });
+
+  return (
+    <div className="rounded-2xl border border-border bg-card overflow-hidden">
+      <div className="px-5 py-4 border-b border-border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Shield size={14} className="text-teal-600 shrink-0" />
+          <p className="text-sm font-semibold text-foreground">My Main Contact</p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+          Invite a trusted person — a parent, spouse, or advocate — to monitor your portal. They can view your record and communicate with your care team, but you stay in control.
+        </p>
+      </div>
+      <div className="px-5 py-4">
+        {existingMC ? (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-teal-100 dark:bg-teal-950/50 flex items-center justify-center text-teal-700 dark:text-teal-300 text-xs font-bold shrink-0">
+              {existingMC.name?.split(" ").map((w: string) => w[0]).join("").toUpperCase().slice(0, 2)}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{existingMC.name}</p>
+              <p className="text-xs text-muted-foreground">Main Contact</p>
+            </div>
+            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-950/50 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 shrink-0">Connected</span>
+          </div>
+        ) : sent ? (
+          <div className="flex items-center gap-2 text-sm text-teal-600 dark:text-teal-400">
+            <CheckCircle2 size={15} />
+            <span>Invitation sent — waiting for them to accept.</span>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Mail size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                <input
+                  type="email"
+                  placeholder="Their email address"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter" && email.trim()) inviteMutation.mutate(email.trim()); }}
+                  className="w-full h-9 pl-8 pr-3 text-sm border border-border rounded-lg bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                  data-testid="mc-invite-email"
+                />
+              </div>
+              <button
+                onClick={() => { if (email.trim()) inviteMutation.mutate(email.trim()); }}
+                disabled={inviteMutation.isPending || !email.trim()}
+                className="h-9 px-4 text-xs font-semibold rounded-lg bg-teal-600 hover:bg-teal-700 text-white transition-colors disabled:opacity-50 shrink-0"
+                data-testid="mc-invite-send"
+              >
+                {inviteMutation.isPending ? "Sending…" : "Send invite"}
+              </button>
+            </div>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">
+              If they already have a Care Net Portal account, they will be connected immediately. If not, they will receive an email to create one.
+            </p>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
