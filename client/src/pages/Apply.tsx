@@ -167,11 +167,10 @@ export default function ApplyPage() {
   }
 
   const isSelfManaged = selectedRole === "self_managed";
-  const valid = isInvited
-    ? form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality
-    : isSelfManaged
-      ? form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality
-      : form.name.trim() && form.email.trim() && form.password.length >= 8 && form.role && form.intent.trim() && form.agreedToConfidentiality;
+  const baseValid = !!(form.name.trim() && form.email.trim() && form.password.length >= 8 && form.agreedToConfidentiality);
+  const valid = isInvited || isSelfManaged || form.role === "self_managed"
+    ? baseValid
+    : baseValid && !!(form.role && form.intent.trim());
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
