@@ -686,6 +686,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { path: "/patterns", labelKey: "nav.patterns" as TranslationKey, icon: Sparkles },
     { path: "/archive", labelKey: "nav.archive" as TranslationKey, icon: Archive },
     { path: "/university", labelKey: "nav.university" as TranslationKey, icon: GraduationCap },
+    { path: "/portal", labelKey: "nav.portal" as TranslationKey, icon: User },
+    { path: "/caregivers", labelKey: "nav.caregivers" as TranslationKey, icon: Users },
   ];
 
   const NAV_ITEMS = (() => {
@@ -1000,12 +1002,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             )}
             {/* Profile page — role-aware */}
             <DropdownMenuItem
-              onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")}
+              onClick={() => navigate(isClientPortal ? "/portal" : isFamily ? "/my-profile-family" : "/my-profile")}
               className="cursor-pointer text-muted-foreground"
               data-testid="nav-my-profile"
             >
               <User size={14} className="mr-2" />
-              My Profile
+              {isClientPortal ? "My Care Record" : "My Profile"}
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")}
@@ -1354,9 +1356,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 </div>
                 <DropdownMenuSeparator />
                 {/* Profile + Pricing */}
-                <DropdownMenuItem onClick={() => navigate(isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
+                <DropdownMenuItem onClick={() => navigate(isClientPortal ? "/portal" : isFamily ? "/my-profile-family" : "/my-profile")} className="cursor-pointer text-muted-foreground" data-testid="nav-my-profile-mobile">
                   <User size={14} className="mr-2" />
-                  My Profile
+                  {isClientPortal ? "My Care Record" : "My Profile"}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => navigate(isFamily ? "/family-pricing" : "/pricing")} className="cursor-pointer text-muted-foreground" data-testid="nav-pricing-mobile">
                   <Sparkles size={14} className="mr-2" />
