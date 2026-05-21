@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Loader2, Heart, Mail, Eye, EyeOff, Users, ArrowRight, Briefcase, CheckCircle2, UserCog, AlertTriangle } from "lucide-react";
+import { Loader2, Heart, Mail, Eye, EyeOff, Users, ArrowRight, Briefcase, CheckCircle2, UserCog, AlertTriangle, ChevronLeft } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InviteContext {
@@ -104,6 +104,35 @@ export default function ApplyPage() {
 
   const [stage, setStage] = useState<"role" | "form" | "check-email">("role");
   const [selectedRole, setSelectedRole] = useState<SignupRole | null>(null);
+
+  // ── Decision tree state ───────────────────────────────────────────────────
+  type TreeScreen = "welcome" | "q1" | "q2_family" | "q2_self" | "done";
+  const [treeScreen, setTreeScreen] = useState<TreeScreen>("welcome");
+  const [treeHistory, setTreeHistory] = useState<TreeScreen[]>([]);
+
+  function goTo(next: TreeScreen) {
+    setTreeHistory(h => [...h, treeScreen]);
+    setTreeScreen(next);
+  }
+  function goBack() {
+    const prev = treeHistory[treeHistory.length - 1];
+    if (prev) {
+      setTreeHistory(h => h.slice(0, -1));
+      setTreeScreen(prev);
+    }
+  }
+  function pickRole(role: SignupRole) {
+    setSelectedRole(role);
+    setForm(f => ({ ...f, role }));
+    setStage("form");
+  }
+
+  // Total screens per path (for progress bar)
+  const TREE_TOTAL: Record<TreeScreen, number> = {
+    welcome: 0, q1: 1, q2_family: 2, q2_self: 2, done: 3,
+  };
+  const treeStep = TREE_TOTAL[treeScreen] ?? 0;
+  const treeTotal = 3;
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
@@ -223,109 +252,159 @@ export default function ApplyPage() {
     );
   }
 
-  // ── Role selection screen ────────────────────────────────────────────────────
+  // ── Decision tree role selection ────────────────────────────────────────────
   if (stage === "role") {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-12">
-        <div className="w-full max-w-lg">
 
-          {/* Sign in — top of page */}
-          <button
-            onClick={() => navigate("/login")}
-            className="w-full mb-6 py-3.5 rounded-xl border-2 border-teal-500 text-teal-600 dark:text-teal-400 font-semibold text-sm hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors"
-            data-testid="link-login-prominent"
-          >
+    // Shared shell for every tree screen
+    const TreeShell = ({ children, showBack = false }: { children: React.ReactNode; showBack?: boolean }) => (
+      <div className="min-h-screen flex items-center justify-center bg-background px-4 py-10">
+        <div className="w-full max-w-md">
+          {/* Already have account */}
+          <button onClick={() => navigate("/login")}
+            className="w-full mb-5 py-3 rounded-xl border-2 border-teal-500 text-teal-600 dark:text-teal-400 font-semibold text-sm hover:bg-teal-50 dark:hover:bg-teal-950/30 transition-colors"
+            data-testid="link-login-prominent">
             Already have an account? Sign in
           </button>
 
-          {/* Header */}
-          <div className="text-center mb-10">
-            <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-primary/10 mb-4">
-              <Heart className="w-6 h-6 text-primary" />
-            </div>
-            <h1 className="text-xl font-bold text-foreground">Welcome to Care Net Portal</h1>
-            <p className="text-sm text-muted-foreground mt-1.5 max-w-sm mx-auto">
-              Before we get started — which best describes you?
-            </p>
-          </div>
-
-          {/* Role cards */}
-          <div className="space-y-4 mb-8">
-            {SIGNUP_ROLES.map((r) => {
-              const isSelected = selectedRole === r.value;
-              return (
-                <button
-                  key={r.value}
-                  onClick={() => handleRoleSelect(r.value)}
-                  data-testid={`role-card-${r.value}`}
-                  className={cn(
-                    "w-full text-left rounded-2xl border-2 p-5 transition-all duration-200",
-                    isSelected ? r.checkedColor : r.color
-                  )}
-                >
-                  <div className="flex items-start gap-4">
-                    <div className={cn(
-                      "w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0",
-                      r.value === "caregiver"
-                        ? isSelected ? "bg-teal-600 text-white" : "bg-muted text-muted-foreground"
-                        : r.value === "self_managed"
-                          ? isSelected ? "bg-emerald-600 text-white" : "bg-muted text-muted-foreground"
-                          : isSelected ? "bg-rose-500 text-white" : "bg-muted text-muted-foreground"
-                    )}>
-                      {r.icon}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <p className="font-semibold text-foreground text-base">{r.label}</p>
-                          <p className={cn(
-                            "text-xs font-medium mt-0.5",
-                            r.value === "caregiver"
-                              ? isSelected ? "text-teal-600" : "text-muted-foreground"
-                              : r.value === "self_managed"
-                                ? isSelected ? "text-emerald-600" : "text-muted-foreground"
-                                : isSelected ? "text-rose-500" : "text-muted-foreground"
-                          )}>{r.subtitle}</p>
-                        </div>
-                        {isSelected && (
-                          <CheckCircle2 className={cn(
-                            "w-5 h-5 flex-shrink-0 mt-0.5",
-                            r.value === "caregiver" ? "text-teal-600" : r.value === "self_managed" ? "text-emerald-600" : "text-rose-500"
-                          )} />
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">{r.description}</p>
-                    </div>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Self-managed without invite — block cold signup */}
-          {selectedRole === "self_managed" && !inviteToken && (
-            <div className="flex items-start gap-3 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3 mb-4">
-              <AlertTriangle className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-amber-800 dark:text-amber-300 leading-relaxed">
-                <span className="font-semibold">An invitation link is required.</span> If your Main Contact has already set up a portal for you, ask them to send you an invite from their Care Team page. Opening that link will bring you right here with everything connected.
-              </p>
+          {/* Progress bar (hidden on welcome) */}
+          {treeScreen !== "welcome" && (
+            <div className="mb-6">
+              <div className="flex items-center justify-between mb-1.5">
+                {showBack && (
+                  <button onClick={goBack} className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                    <ChevronLeft size={14} /> Back
+                  </button>
+                )}
+                <span className="text-xs text-muted-foreground ml-auto">Step {treeStep} of {treeTotal}</span>
+              </div>
+              <div className="h-1.5 rounded-full bg-muted overflow-hidden">
+                <div className="h-full bg-teal-500 rounded-full transition-all duration-300" style={{ width: `${(treeStep / treeTotal) * 100}%` }} />
+              </div>
             </div>
           )}
 
-          {/* Family member note */}
-          {!(selectedRole === "self_managed" && !inviteToken) && (
-            <div className="flex items-start gap-3 rounded-xl border border-border bg-muted/30 px-4 py-3 mb-8">
-              <Users className="w-4 h-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-              <p className="text-xs text-muted-foreground leading-relaxed">
-                <span className="font-medium text-foreground">Secondary family members</span> are invited by the Main Contact from inside the portal — no sign-up needed until then.
-              </p>
-            </div>
-          )}
-
-
+          {children}
         </div>
       </div>
     );
+
+    // ── WELCOME screen ──────────────────────────────────────────────────────
+    if (treeScreen === "welcome") return (
+      <TreeShell>
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-teal-500/10 mb-5">
+            <Heart className="w-7 h-7 text-teal-600" />
+          </div>
+          <h1 className="text-xl font-bold text-foreground mb-3">You're already doing the hard work.</h1>
+          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto">
+            Caring for someone you love — or doing it professionally — takes more out of you than most people know. Care Net Portal was built to carry some of that weight with you.
+          </p>
+        </div>
+        <div className="rounded-2xl border border-border bg-muted/20 px-5 py-4 mb-6 text-center">
+          <p className="text-sm text-foreground leading-relaxed">
+            Before we get you set up, we have a few quick questions. Your answers help us build the right experience for your situation.
+          </p>
+          <p className="text-xs text-muted-foreground mt-2">About 2 minutes — and it's the most tedious part of the whole app. Everything after this gets easier.</p>
+        </div>
+        <button onClick={() => goTo("q1")}
+          className="w-full py-4 rounded-2xl bg-teal-600 hover:bg-teal-700 text-white font-semibold text-sm transition-colors flex items-center justify-center gap-2"
+          data-testid="btn-get-started">
+          Let's get started <ArrowRight size={16} />
+        </button>
+        <p className="text-center text-xs text-muted-foreground mt-4">You can always change your settings later.</p>
+      </TreeShell>
+    );
+
+    // ── Q1: Professional caregiver? ─────────────────────────────────────────
+    if (treeScreen === "q1") return (
+      <TreeShell showBack>
+        <div className="mb-7">
+          <h2 className="text-lg font-bold text-foreground mb-1.5">Who are you here for?</h2>
+          <p className="text-sm text-muted-foreground">This helps us set up the right experience before you create your account.</p>
+        </div>
+        <div className="space-y-3">
+          <button onClick={() => pickRole("family")}
+            className="w-full text-left rounded-2xl border-2 border-border hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 p-5 transition-all duration-200 group"
+            data-testid="q1-family">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-muted group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40 flex items-center justify-center shrink-0 transition-colors">
+                <Heart className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">A family member or loved one I care for</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I coordinate or manage care for someone in my family — with or without a hired caregiver.</p>
+              </div>
+            </div>
+          </button>
+
+          <button onClick={() => goTo("q2_self")}
+            className="w-full text-left rounded-2xl border-2 border-border hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 p-5 transition-all duration-200 group"
+            data-testid="q1-self">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-muted group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40 flex items-center justify-center shrink-0 transition-colors">
+                <UserCog className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">Myself — I manage my own care</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I manage my own health and daily care and want one place to track it all.</p>
+              </div>
+            </div>
+          </button>
+
+          <button onClick={() => pickRole("caregiver")}
+            className="w-full text-left rounded-2xl border-2 border-border hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 p-5 transition-all duration-200 group"
+            data-testid="q1-cg">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-muted group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40 flex items-center justify-center shrink-0 transition-colors">
+                <Briefcase className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">A client I was hired to care for</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I am a professional caregiver engaged by a family.</p>
+              </div>
+            </div>
+          </button>
+        </div>
+      </TreeShell>
+    );
+
+    // ── Q2 Self: invite required or self-signup ─────────────────────────────
+    if (treeScreen === "q2_self") return (
+      <TreeShell showBack>
+        <div className="mb-7">
+          <h2 className="text-lg font-bold text-foreground mb-1.5">How are you arriving?</h2>
+          <p className="text-sm text-muted-foreground">Were you invited by someone, or are you setting this up on your own?</p>
+        </div>
+        <div className="space-y-3">
+          <button onClick={() => pickRole("self_managed")}
+            className="w-full text-left rounded-2xl border-2 border-border hover:border-teal-400 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 p-5 transition-all duration-200 group"
+            data-testid="q2-self-own">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-muted group-hover:bg-teal-100 dark:group-hover:bg-teal-900/40 flex items-center justify-center shrink-0 transition-colors">
+                <UserCog className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">I'm setting up my own portal</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I'll create my care profile and optionally invite a trusted person to monitor it.</p>
+              </div>
+            </div>
+          </button>
+
+          <div className="rounded-2xl border-2 border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-5">
+            <div className="flex items-start gap-4">
+              <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+                <AlertTriangle className="w-5 h-5 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-semibold text-foreground text-sm">I was invited by my Main Contact</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">If someone has already set up a portal for you, use the invitation link they sent — it will bring you here with everything already connected.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </TreeShell>
+    );
+
   }
 
   // ── Application form ────────────────────────────────────────────────────────
@@ -426,7 +505,7 @@ export default function ApplyPage() {
               <p className="text-xs text-muted-foreground">{roleInfo.subtitle}</p>
             </div>
             <button
-              onClick={() => setStage("role")}
+              onClick={() => { setStage("role"); setTreeScreen("q1"); }}
               className="text-xs text-muted-foreground hover:text-foreground underline"
             >
               Change
