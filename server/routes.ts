@@ -233,9 +233,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (!app_) return res.status(400).json({ message: "Application not found" });
 
     // Map application role to portal role
+    const isSelfManagedApp = app_.role === "self_managed";
     const portalRole = app_.role === "caregiver" ? "caregiver"
       : app_.role === "family" ? "primary_family"
       : app_.role === "both" ? "caregiver"
+      : isSelfManagedApp ? "self_care"
       : "primary_family";
 
     // Create portal user
@@ -246,6 +248,13 @@ export function registerRoutes(httpServer: Server, app: Express) {
       avatarInitials: app_.name.split(" ").map((n: string) => n[0]).join("").toUpperCase().substring(0, 2),
       isActive: true,
     }).returning().get();
+
+    // Self-managed signup: create client record, set self_care_mc, mark onboarding done
+    if (isSelfManagedApp) {
+      storage.createSelfCareClient(newUser.id, app_.name, null, null);
+      db.update(users).set({ onboardingCompletedAt: new Date().toISOString() })
+        .where(eq(users.id, newUser.id)).run();
+    }
 
     // Link account to user
     db.update(authAccounts).set({
