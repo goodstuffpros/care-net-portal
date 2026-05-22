@@ -318,7 +318,7 @@ export default function ApplyPage() {
     if (treeScreen === "q1") return (
       <TreeShell showBack>
         <div className="mb-7">
-          <h2 className="text-lg font-bold text-foreground mb-1.5">Who are you here for?</h2>
+          <h2 className="text-lg font-bold text-foreground mb-1.5">Which best describes you?</h2>
           <p className="text-sm text-muted-foreground">This helps us set up the right experience before you create your account.</p>
         </div>
         <div className="space-y-3">
@@ -330,8 +330,8 @@ export default function ApplyPage() {
                 <Heart className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
               </div>
               <div>
-                <p className="font-semibold text-foreground text-sm">A family member or loved one I care for</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I coordinate or manage care for someone in my family — with or without a hired caregiver.</p>
+                <p className="font-semibold text-foreground text-sm">I coordinate care for a loved one</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Family member or primary contact</p>
               </div>
             </div>
           </button>
@@ -344,8 +344,8 @@ export default function ApplyPage() {
                 <UserCog className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
               </div>
               <div>
-                <p className="font-semibold text-foreground text-sm">Myself — I manage my own care</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I manage my own health and daily care and want one place to track it all.</p>
+                <p className="font-semibold text-foreground text-sm">I manage my own health and care</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Self-directed care</p>
               </div>
             </div>
           </button>
@@ -358,8 +358,8 @@ export default function ApplyPage() {
                 <Briefcase className="w-5 h-5 text-muted-foreground group-hover:text-teal-600 transition-colors" />
               </div>
               <div>
-                <p className="font-semibold text-foreground text-sm">A client I was hired to care for</p>
-                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">I am a professional caregiver engaged by a family.</p>
+                <p className="font-semibold text-foreground text-sm">I'm a professional caregiver</p>
+                <p className="text-xs text-muted-foreground mt-1 leading-relaxed">Hired by a family</p>
               </div>
             </div>
           </button>
