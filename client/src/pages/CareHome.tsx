@@ -38,6 +38,9 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
   const [showAddForm, setShowAddForm] = useState(false);
   const [newClientName, setNewClientName] = useState("");
   const [newClientTheme, setNewClientTheme] = useState("sage");
+  const [newClientDob, setNewClientDob] = useState("");
+  const [newClientCondition, setNewClientCondition] = useState("");
+  const [newClientRelationship, setNewClientRelationship] = useState("");
 
   const { data: portals = [], isLoading } = useQuery<Portal[]>({
     queryKey: ["/api/me/portals"],
@@ -50,13 +53,16 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
   });
 
   const addClientMutation = useMutation({
-    mutationFn: (data: { clientName: string; colorTheme: string }) =>
+    mutationFn: (data: { clientName: string; colorTheme: string; clientDob?: string; clientCondition?: string }) =>
       apiRequest("POST", "/api/me/portals/add-client", data).then(r => r.json()),
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["/api/me/portals"] });
       setShowAddForm(false);
       setNewClientName("");
-      toast({ title: `${data.clientName}'s portal created`, description: "Complete their profile when you enter." });
+      setNewClientDob("");
+      setNewClientCondition("");
+      setNewClientRelationship("");
+      toast({ title: `${data.clientName}'s portal created` });
       // Enter the new portal right away so MC can complete setup
       onEnterPortal(data.clientId, data.colorTheme || "sage");
     },
@@ -217,14 +223,15 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
 
         {/* Add client form */}
         {isMC && showAddForm && (
-          <div className="rounded-2xl border-2 border-border p-4 space-y-4">
+          <div className="rounded-2xl border-2 border-border p-5 space-y-4">
             <p className="font-semibold text-sm">Add Another Portal</p>
 
+            {/* Name */}
             <div className="space-y-1">
-              <label className="text-xs text-muted-foreground">Their name</label>
+              <label className="text-xs text-muted-foreground">Their name <span className="text-destructive">*</span></label>
               <input
                 className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                placeholder="e.g. Robert Johnson"
+                placeholder="e.g. Margaret Johnson"
                 value={newClientName}
                 onChange={e => setNewClientName(e.target.value)}
                 autoFocus
@@ -232,6 +239,54 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
               />
             </div>
 
+            {/* Relationship */}
+            <div className="space-y-2">
+              <label className="text-xs text-muted-foreground">Your relationship to them</label>
+              <div className="flex flex-wrap gap-2">
+                {["Parent", "Spouse", "Sibling", "Grandparent", "Friend", "Other"].map(r => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setNewClientRelationship(r)}
+                    className={cn(
+                      "px-3 py-1.5 rounded-full border text-xs font-medium transition-colors",
+                      newClientRelationship === r
+                        ? "bg-primary/10 border-primary text-primary"
+                        : "border-border text-muted-foreground hover:text-foreground"
+                    )}
+                    data-testid={`relationship-${r.toLowerCase()}`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Date of birth */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Date of birth <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <input
+                type="date"
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                value={newClientDob}
+                onChange={e => setNewClientDob(e.target.value)}
+                data-testid="new-client-dob-input"
+              />
+            </div>
+
+            {/* Primary condition */}
+            <div className="space-y-1">
+              <label className="text-xs text-muted-foreground">Primary condition or care need <span className="text-muted-foreground font-normal">(optional)</span></label>
+              <input
+                className="w-full text-sm border border-border rounded-lg px-3 py-2 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                placeholder="e.g. Dementia, post-surgery recovery"
+                value={newClientCondition}
+                onChange={e => setNewClientCondition(e.target.value)}
+                data-testid="new-client-condition-input"
+              />
+            </div>
+
+            {/* Portal color */}
             <div className="space-y-2">
               <label className="text-xs text-muted-foreground">Portal color</label>
               <div className="flex gap-2 flex-wrap">
@@ -257,13 +312,24 @@ export default function CareHome({ onEnterPortal, onAddClient, userName, userRol
               <Button
                 size="sm"
                 disabled={!newClientName.trim() || addClientMutation.isPending}
-                onClick={() => addClientMutation.mutate({ clientName: newClientName.trim(), colorTheme: newClientTheme })}
+                onClick={() => addClientMutation.mutate({
+                  clientName: newClientName.trim(),
+                  colorTheme: newClientTheme,
+                  clientDob: newClientDob || undefined,
+                  clientCondition: newClientCondition.trim() || undefined,
+                })}
                 className="bg-primary text-primary-foreground"
                 data-testid="create-portal-btn"
               >
-                Create Portal
+                {addClientMutation.isPending ? "Creating..." : "Create Portal"}
               </Button>
-              <Button size="sm" variant="ghost" onClick={() => { setShowAddForm(false); setNewClientName(""); }}>
+              <Button size="sm" variant="ghost" onClick={() => {
+                setShowAddForm(false);
+                setNewClientName("");
+                setNewClientDob("");
+                setNewClientCondition("");
+                setNewClientRelationship("");
+              }}>
                 Cancel
               </Button>
             </div>

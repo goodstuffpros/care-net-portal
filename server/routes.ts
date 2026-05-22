@@ -1583,7 +1583,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
       const userId = req.authUserId!;
       const user = db.select().from(users).where(eq(users.id, userId)).get();
       if (!user) return res.status(404).json({ message: 'User not found' });
-      const { clientName, colorTheme } = req.body;
+      const { clientName, colorTheme, clientDob, clientCondition } = req.body;
       if (!clientName) return res.status(400).json({ message: 'clientName required' });
       // Create the new client record
       const newClient = db.insert(clients).values({
@@ -1592,6 +1592,8 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         primaryContactId: userId,
         colorTheme: colorTheme || 'sage',
         isActive: true,
+        dateOfBirth: clientDob || null,
+        primaryCondition: clientCondition || null,
       }).returning().get();
       // Add junction row
       db.insert(userClientRelationships).values({
