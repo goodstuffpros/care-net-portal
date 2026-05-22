@@ -7,6 +7,7 @@ import { apiRequest } from "@/lib/queryClient";
 import type { Client, ScheduleEvent, ActivityLog, Notification } from "@shared/schema";
 import { PriorityBadge } from "@/components/AppLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useLocation } from "wouter";
@@ -59,7 +60,7 @@ const USER_BADGES: Record<number, string[]> = {
 };
 
 export default function DashboardPage() {
-  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil, isTemporarilyElevated, isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt } = useApp();
+  const { activeUser, selectedClientId, portalMode, isRealSession, isPracticeClient, sampleClientId, isPreConnection, hasMultiplePortals, returnToCareHome, multiPortalNudgeSnoozedUntil, isTemporarilyElevated, isClientPortal, clientPermissionLevel, hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt, loginCount, hasSeenHighFive, setHasSeenHighFive, hasSeenOpenHand, setHasSeenOpenHand } = useApp();
   const isFamilyPortal = portalMode === "family";
   const { t } = useLang();
 
@@ -128,6 +129,55 @@ export default function DashboardPage() {
     setMcInviteModalOpen(false);
     seenMcInviteMutation.mutate();
   }
+
+  // ── Feedback cards (high-five + open-hand) ───────────────────────────────
+  const [feedbackCardOpen, setFeedbackCardOpen] = useState<"high-five" | "open-hand" | null>(null);
+  const [feedbackText, setFeedbackText] = useState("");
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  // High-five: show on 5th+ login for active users with care data, once only
+  // Open-hand: show on 8th+ login for users who haven't submitted high-five feedback, once only
+  const showHighFive = !hasSeenHighFive && loginCount >= 5 && activityLogs.length >= 1 && isRealSession;
+  const showOpenHand = !hasSeenOpenHand && !showHighFive && loginCount >= 8 && isRealSession;
+
+  const seenHighFiveMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/users/me/seen-high-five"),
+    onSuccess: () => setHasSeenHighFive(true),
+  });
+  const seenOpenHandMutation = useMutation({
+    mutationFn: () => apiRequest("PATCH", "/api/users/me/seen-open-hand"),
+    onSuccess: () => setHasSeenOpenHand(true),
+  });
+  const submitFeedbackMutation = useMutation({
+    mutationFn: (payload: { message: string; triggerType: string }) =>
+      apiRequest("POST", "/api/admin/feedback", payload),
+    onSuccess: () => {
+      setFeedbackSubmitted(true);
+      setTimeout(() => {
+        setFeedbackCardOpen(null);
+        setFeedbackText("");
+        setFeedbackSubmitted(false);
+        if (feedbackCardOpen === "high-five") seenHighFiveMutation.mutate();
+        else seenOpenHandMutation.mutate();
+      }, 1800);
+    },
+  });
+
+  function dismissFeedbackCard() {
+    if (feedbackCardOpen === "high-five") seenHighFiveMutation.mutate();
+    else seenOpenHandMutation.mutate();
+    setFeedbackCardOpen(null);
+    setFeedbackText("");
+  }
+
+  // Auto-open feedback card after 3s (only one, high-five takes priority)
+  useEffect(() => {
+    if (!showHighFive && !showOpenHand) return;
+    const t = setTimeout(() => {
+      setFeedbackCardOpen(showHighFive ? "high-five" : "open-hand");
+    }, 3000);
+    return () => clearTimeout(t);
+  }, [showHighFive, showOpenHand]);
 
   // Nudge: show for CGs who have no sample and no real client
   const showSampleNudge =
@@ -498,6 +548,117 @@ export default function DashboardPage() {
           window.location.reload();
         }}
       />
+
+      {/* ── Feedback cards: high-five + open-hand — one-time, personal ── */}
+      <Dialog open={feedbackCardOpen === "high-five"} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" data-testid="dialog-feedback-highfive">
+          {/* Header */}
+          <div className="bg-teal-600 px-6 pt-6 pb-5 text-white">
+            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <Trophy className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-base font-semibold leading-snug">You've been putting Care Net Portal to work.</h2>
+            <p className="text-sm text-teal-100 mt-1 leading-relaxed">We'd love to know what's working for you.</p>
+          </div>
+          {/* Body */}
+          <div className="px-5 py-5 space-y-3">
+            {feedbackSubmitted ? (
+              <div className="flex flex-col items-center gap-2 py-4">
+                <CheckCircle2 className="w-8 h-8 text-teal-500" />
+                <p className="text-sm font-medium text-foreground text-center">Thank you — we appreciate you.</p>
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="What's been helpful? What could be better?"
+                  className="resize-none text-sm min-h-[90px]"
+                  data-testid="textarea-feedback-highfive"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (feedbackText.trim()) {
+                        submitFeedbackMutation.mutate({ message: feedbackText.trim(), triggerType: "high-five" });
+                      } else {
+                        dismissFeedbackCard();
+                      }
+                    }}
+                    disabled={submitFeedbackMutation.isPending}
+                    data-testid="btn-feedback-highfive-submit"
+                    className="flex-1 rounded-xl bg-teal-600 hover:bg-teal-500 disabled:opacity-50 text-white text-sm font-semibold py-2.5 transition-colors"
+                  >
+                    {feedbackText.trim() ? "Share feedback" : "Thanks, got it"}
+                  </button>
+                  <button
+                    onClick={dismissFeedbackCard}
+                    data-testid="btn-feedback-highfive-later"
+                    className="px-4 rounded-xl border border-border bg-muted/30 text-sm text-muted-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    Maybe later
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={feedbackCardOpen === "open-hand"} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
+        <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" data-testid="dialog-feedback-openhand">
+          {/* Header */}
+          <div className="bg-slate-700 px-6 pt-6 pb-5 text-white">
+            <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center mb-3">
+              <Heart className="w-6 h-6 text-white" />
+            </div>
+            <h2 className="text-base font-semibold leading-snug">Care Net Portal should be making your life easier.</h2>
+            <p className="text-sm text-slate-300 mt-1 leading-relaxed">If it's not, we want to know why — and we want to fix it.</p>
+          </div>
+          {/* Body */}
+          <div className="px-5 py-5 space-y-3">
+            {feedbackSubmitted ? (
+              <div className="flex flex-col items-center gap-2 py-4">
+                <CheckCircle2 className="w-8 h-8 text-teal-500" />
+                <p className="text-sm font-medium text-foreground text-center">Heard. We'll look into it.</p>
+              </div>
+            ) : (
+              <>
+                <Textarea
+                  value={feedbackText}
+                  onChange={e => setFeedbackText(e.target.value)}
+                  placeholder="Tell us what's missing or what isn't working..."
+                  className="resize-none text-sm min-h-[90px]"
+                  data-testid="textarea-feedback-openhand"
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => {
+                      if (feedbackText.trim()) {
+                        submitFeedbackMutation.mutate({ message: feedbackText.trim(), triggerType: "open-hand" });
+                      } else {
+                        dismissFeedbackCard();
+                      }
+                    }}
+                    disabled={submitFeedbackMutation.isPending}
+                    data-testid="btn-feedback-openhand-submit"
+                    className="flex-1 rounded-xl bg-slate-600 hover:bg-slate-500 disabled:opacity-50 text-white text-sm font-semibold py-2.5 transition-colors"
+                  >
+                    {feedbackText.trim() ? "Tell us what's missing" : "We're good for now"}
+                  </button>
+                  <button
+                    onClick={dismissFeedbackCard}
+                    data-testid="btn-feedback-openhand-close"
+                    className="px-4 rounded-xl border border-border bg-muted/30 text-sm text-muted-foreground hover:bg-muted/60 transition-colors"
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* ── Self-care MC invite popup — one-time, post-signup ── */}
       <Dialog open={mcInviteModalOpen} onOpenChange={(open) => { if (!open) dismissMcInviteModal(); }}>

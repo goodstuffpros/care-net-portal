@@ -766,6 +766,270 @@ function RolePill({ role }: { role: string }) {
   );
 }
 
+// ── Engagement Tab ───────────────────────────────────────────────────────────────────
+
+interface EngagementUser {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  tier: "active" | "moderate" | "quiet";
+  daysSinceLogin: number | null;
+  daysSinceActivity: number | null;
+  lastLoginAt: string | null;
+  lastActivityAt: string | null;
+  totalEntries: number;
+}
+
+interface FeedbackEntry {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  triggerType: string;
+  message: string;
+  readAt: string | null;
+  createdAt: string;
+}
+
+function EngagementTab() {
+  const { toast } = useToast();
+  const [view, setView] = useState<"users" | "feedback">("users");
+
+  const { data: engData, isLoading: engLoading, refetch: refetchEng } = useQuery<EngagementUser[]>({
+    queryKey: ["/api/admin/engagement"],
+    queryFn: () => apiRequest("GET", "/api/admin/engagement").then(r => r.json()),
+    staleTime: 30000,
+  });
+
+  const { data: fbData, isLoading: fbLoading, refetch: refetchFb } = useQuery<FeedbackEntry[]>({
+    queryKey: ["/api/admin/feedback"],
+    queryFn: () => apiRequest("GET", "/api/admin/feedback").then(r => r.json()),
+    staleTime: 30000,
+  });
+
+  const markReadMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/admin/feedback/${id}/read`),
+    onSuccess: () => {
+      refetchFb();
+      toast({ title: "Marked as read" });
+    },
+  });
+
+  const users: EngagementUser[] = Array.isArray(engData) ? engData : [];
+  const feedback: FeedbackEntry[] = Array.isArray(fbData) ? fbData : [];
+
+  const unreadCount = feedback.filter(f => !f.readAt).length;
+
+  function tierBadge(tier: string) {
+    if (tier === "active") return "bg-teal-900/40 border-teal-700/50 text-teal-300";
+    if (tier === "moderate") return "bg-amber-900/30 border-amber-700/40 text-amber-300";
+    return "bg-white/5 border-white/15 text-white/40";
+  }
+
+  function tierLabel(tier: string) {
+    if (tier === "active") return "Active";
+    if (tier === "moderate") return "Moderate";
+    return "Quiet";
+  }
+
+  function roleColor(role: string) {
+    if (role === "caregiver" || role === "multi_caregiver") return "text-teal-400";
+    if (role === "primary_family") return "text-blue-400";
+    if (role === "secondary_family") return "text-slate-400";
+    if (role === "self_care") return "text-rose-400";
+    return "text-white/50";
+  }
+
+  function roleLabel(role: string) {
+    const map: Record<string, string> = {
+      caregiver: "CG",
+      multi_caregiver: "CG",
+      primary_family: "MC",
+      secondary_family: "Family",
+      self_care: "Self Care",
+    };
+    return map[role] ?? role;
+  }
+
+  function daysAgo(n: number | null) {
+    if (n === null) return "never";
+    if (n === 0) return "today";
+    if (n === 1) return "1 day ago";
+    return `${n}d ago`;
+  }
+
+  function formatTs(iso: string | null) {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", hour: "numeric", minute: "2-digit" });
+  }
+
+  const activeCount = users.filter(u => u.tier === "active").length;
+  const moderateCount = users.filter(u => u.tier === "moderate").length;
+  const quietCount = users.filter(u => u.tier === "quiet").length;
+
+  return (
+    <div className="space-y-5">
+      {/* Sub-nav */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setView("users")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border",
+            view === "users"
+              ? "bg-rose-600/30 text-rose-300 border-rose-600/40"
+              : "bg-white/5 border-white/10 text-white/40 hover:text-white/70"
+          )}
+        >
+          <Activity size={13} /> User Activity
+        </button>
+        <button
+          onClick={() => setView("feedback")}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all border relative",
+            view === "feedback"
+              ? "bg-rose-600/30 text-rose-300 border-rose-600/40"
+              : "bg-white/5 border-white/10 text-white/40 hover:text-white/70"
+          )}
+        >
+          <MessageCircleHeart size={13} /> Feedback
+          {unreadCount > 0 && (
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-rose-600 text-white text-[10px] font-bold">{unreadCount}</span>
+          )}
+        </button>
+        <button
+          onClick={() => { refetchEng(); refetchFb(); toast({ title: "Refreshed" }); }}
+          className="ml-auto flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs border bg-white/5 border-white/10 text-white/40 hover:text-white/70 transition-all"
+        >
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
+
+      {/* ── User Activity view ── */}
+      {view === "users" && (
+        <div className="space-y-4">
+          {/* Tier summary */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-teal-900/20 border border-teal-700/30 p-3 text-center">
+              <div className="text-teal-300 text-lg font-bold">{activeCount}</div>
+              <div className="text-teal-500/60 text-[10px] mt-0.5">Active</div>
+            </div>
+            <div className="rounded-xl bg-amber-900/20 border border-amber-700/30 p-3 text-center">
+              <div className="text-amber-300 text-lg font-bold">{moderateCount}</div>
+              <div className="text-amber-500/60 text-[10px] mt-0.5">Moderate</div>
+            </div>
+            <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
+              <div className="text-white/50 text-lg font-bold">{quietCount}</div>
+              <div className="text-white/30 text-[10px] mt-0.5">Quiet</div>
+            </div>
+          </div>
+
+          {engLoading ? (
+            <div className="space-y-2">
+              {[...Array(4)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />)}
+            </div>
+          ) : users.length === 0 ? (
+            <div className="text-center py-10 text-white/30 text-sm">No users yet.</div>
+          ) : (
+            <div className="space-y-2">
+              {users.map(u => (
+                <div key={u.id} className="rounded-xl border border-white/10 bg-white/4 px-4 py-3 flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white text-sm font-medium truncate">{u.name}</span>
+                      <span className={cn("text-[10px] font-medium", roleColor(u.role))}>{roleLabel(u.role)}</span>
+                    </div>
+                    <div className="text-white/35 text-xs mt-0.5 truncate">{u.email}</div>
+                    <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                      <span className="text-white/40 text-[11px]">
+                        <span className="text-white/25">Login: </span>{daysAgo(u.daysSinceLogin)}
+                      </span>
+                      <span className="text-white/40 text-[11px]">
+                        <span className="text-white/25">Activity: </span>{daysAgo(u.daysSinceActivity)}
+                      </span>
+                      {u.totalEntries > 0 && (
+                        <span className="text-white/40 text-[11px]">
+                          <span className="text-white/25">Entries: </span>{u.totalEntries}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <span className={cn(
+                    "flex-shrink-0 text-[10px] font-semibold px-2 py-0.5 rounded-full border mt-0.5",
+                    tierBadge(u.tier)
+                  )}>
+                    {tierLabel(u.tier)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Feedback view ── */}
+      {view === "feedback" && (
+        <div className="space-y-3">
+          {fbLoading ? (
+            <div className="space-y-2">
+              {[...Array(3)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-white/5 animate-pulse" />)}
+            </div>
+          ) : feedback.length === 0 ? (
+            <div className="text-center py-12 text-white/30 text-sm">No feedback submitted yet.</div>
+          ) : (
+            feedback.map(f => (
+              <div
+                key={f.id}
+                className={cn(
+                  "rounded-xl border p-4 space-y-2 transition-all",
+                  f.readAt ? "bg-white/3 border-white/8 opacity-60" : "bg-white/5 border-white/15"
+                )}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-white text-sm font-medium">{f.userName}</span>
+                      <span className={cn("text-[10px] font-medium", roleColor(f.userRole))}>{roleLabel(f.userRole)}</span>
+                      <span className={cn(
+                        "text-[10px] px-1.5 py-0.5 rounded-full border font-medium",
+                        f.triggerType === "high-five"
+                          ? "bg-teal-900/30 border-teal-700/40 text-teal-300"
+                          : "bg-slate-800/40 border-slate-600/40 text-slate-300"
+                      )}>
+                        {f.triggerType === "high-five" ? "High Five" : "Open Hand"}
+                      </span>
+                      {!f.readAt && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-rose-900/30 border border-rose-700/40 text-rose-300 font-medium">Unread</span>
+                      )}
+                    </div>
+                    <div className="text-white/40 text-xs mt-0.5">{f.userEmail} &middot; {formatTs(f.createdAt)}</div>
+                  </div>
+                  {!f.readAt && (
+                    <button
+                      onClick={() => markReadMutation.mutate(f.id)}
+                      disabled={markReadMutation.isPending}
+                      className="flex-shrink-0 text-xs text-white/30 hover:text-emerald-400 transition-colors flex items-center gap-1"
+                    >
+                      <CheckCircle2 size={13} /> Read
+                    </button>
+                  )}
+                </div>
+                <div className="rounded-lg bg-black/20 border border-white/8 px-3 py-2.5 text-white/75 text-sm leading-relaxed">
+                  {f.message}
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Beta Cleanup Tab ─────────────────────────────────────────────────────────────────
+
 function BetaCleanupTab() {
   const { toast } = useToast();
   const [selectedUser, setSelectedUser] = useState<CleanupUser | null>(null);
@@ -1300,7 +1564,7 @@ function IdeasTab() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas">("library");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement">("library");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
 
@@ -1361,6 +1625,7 @@ export default function BeckyAdminPage() {
             {([
               { key: "library",      icon: <BookHeart size={14} />,           label: "Library" },
               { key: "applications", icon: <Users size={14} />,               label: "Users" },
+              { key: "engagement",   icon: <Activity size={14} />,            label: "Engagement" },
               { key: "helpdesk",     icon: <MessageCircleHeart size={14} />,  label: "Help Desk" },
               { key: "cleanup",      icon: <Eraser size={14} />,              label: "Cleanup" },
               { key: "ideas",        icon: <Lightbulb size={14} />,           label: "Ideas" },
@@ -1384,6 +1649,9 @@ export default function BeckyAdminPage() {
 
         {/* Applications tab */}
         {activeTab === "applications" && <ApplicationsTab />}
+
+        {/* Engagement tab */}
+        {activeTab === "engagement" && <EngagementTab />}
 
         {/* Help Desk tab */}
         {activeTab === "helpdesk" && <HelpdeskTab />}

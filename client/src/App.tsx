@@ -123,6 +123,11 @@ interface AppContextType {
   setContributorWelcomeSeen: (seen: boolean) => void; // called after banner dismissal
   hasSeenMcInvitePrompt: boolean; // self_care only — one-time post-signup MC invite popup
   setHasSeenMcInvitePrompt: (seen: boolean) => void;
+  loginCount: number;
+  hasSeenHighFive: boolean;
+  setHasSeenHighFive: (seen: boolean) => void;
+  hasSeenOpenHand: boolean;
+  setHasSeenOpenHand: (seen: boolean) => void;
   navOverlayOpen: boolean;
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
@@ -147,6 +152,9 @@ interface RealUser {
   multiPortalNudgeSnoozedUntil?: string | null;
   elevatedUntil?: string | null;
   hasSeenMcInvitePrompt?: boolean;
+  loginCount?: number;
+  hasSeenHighFive?: boolean;
+  hasSeenOpenHand?: boolean;
 }
 
 function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePortals: hasManyPortals, goToDashboard }: { realUser?: RealUser | null; onReturnToCareHome?: () => void; onSwitchPortal?: (clientId: number, colorTheme: string) => void; hasMultiplePortals?: boolean; goToDashboard?: boolean }) {
@@ -193,6 +201,9 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   }, [realUser?.permissionLevel]);
   const [contributorWelcomeSeen, setContributorWelcomeSeen] = useState<boolean>(realUser?.contributorWelcomeSeen ?? false);
   const [hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt] = useState<boolean>(realUser?.hasSeenMcInvitePrompt ?? false);
+  const [hasSeenHighFive, setHasSeenHighFive] = useState<boolean>(realUser?.hasSeenHighFive ?? false);
+  const [hasSeenOpenHand, setHasSeenOpenHand] = useState<boolean>(realUser?.hasSeenOpenHand ?? false);
+  const loginCount = realUser?.loginCount ?? 0;
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
@@ -382,6 +393,11 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         setContributorWelcomeSeen,
         hasSeenMcInvitePrompt,
         setHasSeenMcInvitePrompt,
+        loginCount,
+        hasSeenHighFive,
+        setHasSeenHighFive,
+        hasSeenOpenHand,
+        setHasSeenOpenHand,
         navOverlayOpen,
         setNavOverlayOpen,
         realUserEmail: realUser?.email ?? "",
@@ -663,6 +679,10 @@ function RealAuthGate() {
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,
             multiPortalNudgeSnoozedUntil: data.multiPortalNudgeSnoozedUntil ?? null,
+            hasSeenMcInvitePrompt: data.hasSeenMcInvitePrompt ?? false,
+            loginCount: data.loginCount ?? 0,
+            hasSeenHighFive: data.hasSeenHighFive ?? false,
+            hasSeenOpenHand: data.hasSeenOpenHand ?? false,
           };
           setRealUser(user);
           if (data.onboardingCompletedAt) setOnboardingDone(true);

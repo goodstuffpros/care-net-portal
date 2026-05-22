@@ -123,6 +123,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const valid = await verifyPassword(password, account.passwordHash);
     if (!valid) return res.status(401).json({ message: "Invalid email or password" });
 
+    // Stamp last login time and increment login count
+    sqlite.prepare(`UPDATE auth_accounts SET last_login_at = ?, login_count = COALESCE(login_count, 0) + 1 WHERE id = ?`).run(new Date().toISOString(), account.id);
+
     const token = await createSession(account.id, req);
     setSessionCookie(res, token); // keep cookie for server-side fallback
 
@@ -178,7 +181,9 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
     }
 
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false });
+    const acctExtras = sqlite.prepare(`SELECT login_count FROM auth_accounts WHERE id = ?`).get(account.id) as any;
+    const userExtras = sqlite.prepare(`SELECT has_seen_high_five, has_seen_open_hand FROM users WHERE id = ?`).get(user.id) as any;
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false, loginCount: acctExtras?.login_count ?? 0, hasSeenHighFive: userExtras?.has_seen_high_five ?? false, hasSeenOpenHand: userExtras?.has_seen_open_hand ?? false });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -1689,6 +1694,90 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // ══════════════════════════════════════════════════════════════════════════
+  // ENGAGEMENT ADMIN ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/admin/engagement — all real users with last login, last activity, total entries
+  app.get("/api/admin/engagement", (req, res) => {
+    try {
+      const allUsers = db.select().from(users).all();
+      const realUsers = allUsers.filter(u => u.id > 5);
+      const DEMO_EMAILS = ['cnpdemo@carenetportal.com', 'democg@carenetportal.com'];
+      const nonDemoUsers = realUsers.filter(u => !DEMO_EMAILS.includes((u.email || '').toLowerCase()));
+
+      const result = nonDemoUsers.map(u => {
+        const clientId = u.clientId;
+        const account = sqlite.prepare(`SELECT last_login_at, created_at FROM auth_accounts WHERE user_id = ?`).get(u.id) as any;
+
+        // Last activity = most recent timestamp across all care data for this user
+        const lastActivityRows = [
+          clientId ? sqlite.prepare(`SELECT logged_at as ts FROM activity_logs WHERE logged_by_user_id = ? ORDER BY logged_at DESC LIMIT 1`).get(u.id) as any : null,
+          clientId ? sqlite.prepare(`SELECT created_at as ts FROM schedule_events WHERE client_id = ? ORDER BY created_at DESC LIMIT 1`).get(clientId) as any : null,
+          clientId ? sqlite.prepare(`SELECT recorded_at as ts FROM vitals WHERE client_id = ? ORDER BY recorded_at DESC LIMIT 1`).get(clientId) as any : null,
+          sqlite.prepare(`SELECT sent_at as ts FROM messages WHERE sender_id = ? ORDER BY sent_at DESC LIMIT 1`).get(u.id) as any,
+        ].filter(Boolean).map(r => r?.ts).filter(Boolean);
+        const lastActivityAt = lastActivityRows.length > 0 ? lastActivityRows.sort().reverse()[0] : null;
+
+        // Total care data entries
+        const totalEntries = [
+          clientId ? (sqlite.prepare(`SELECT COUNT(*) as c FROM activity_logs WHERE logged_by_user_id = ?`).get(u.id) as any)?.c ?? 0 : 0,
+          clientId ? (sqlite.prepare(`SELECT COUNT(*) as c FROM schedule_events WHERE client_id = ?`).get(clientId) as any)?.c ?? 0 : 0,
+          clientId ? (sqlite.prepare(`SELECT COUNT(*) as c FROM vitals WHERE client_id = ?`).get(clientId) as any)?.c ?? 0 : 0,
+          clientId ? (sqlite.prepare(`SELECT COUNT(*) as c FROM medications WHERE client_id = ?`).get(clientId) as any)?.c ?? 0 : 0,
+        ].reduce((a, b) => a + b, 0);
+
+        // Tier: active = logged in within 7 days, moderate = 8-30, quiet = 30+
+        const lastLogin = account?.last_login_at ?? null;
+        const daysSinceLogin = lastLogin ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000) : 999;
+        const tier = daysSinceLogin <= 7 ? 'active' : daysSinceLogin <= 30 ? 'moderate' : 'quiet';
+
+        return {
+          id: u.id,
+          name: u.name,
+          email: u.email,
+          role: u.role,
+          clientId,
+          lastLoginAt: lastLogin,
+          lastActivityAt,
+          totalEntries,
+          daysSinceLogin,
+          tier,
+          joinedAt: account?.created_at ?? null,
+        };
+      });
+
+      // Sort by most active first (fewest days since login)
+      result.sort((a, b) => a.daysSinceLogin - b.daysSinceLogin);
+      res.json(result);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
+  // POST /api/admin/feedback — user submits in-app feedback
+  app.post("/api/admin/feedback", requireAuth, (req: AuthRequest, res) => {
+    const user = req.user!;
+    const { message, triggerType } = req.body;
+    if (!message?.trim()) return res.status(400).json({ message: "Message required" });
+    const account = db.select().from(authAccounts).where(eq(authAccounts.userId, user.id)).get();
+    sqlite.prepare(
+      `INSERT INTO user_feedback (user_id, user_name, user_email, user_role, trigger_type, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    ).run(user.id, user.name, account?.email ?? '', user.role, triggerType ?? 'general', message.trim(), new Date().toISOString());
+    res.json({ success: true });
+  });
+
+  // GET /api/admin/feedback — all feedback for admin panel
+  app.get("/api/admin/feedback", (req, res) => {
+    const rows = sqlite.prepare(`SELECT * FROM user_feedback ORDER BY created_at DESC`).all();
+    res.json(rows);
+  });
+
+  // PATCH /api/admin/feedback/:id/read — mark as read
+  app.patch("/api/admin/feedback/:id/read", (req, res) => {
+    sqlite.prepare(`UPDATE user_feedback SET read_at = ? WHERE id = ?`).run(new Date().toISOString(), Number(req.params.id));
+    res.json({ success: true });
+  });
+
   // BETA CLEANUP ADMIN ROUTES
   // ══════════════════════════════════════════════════════════════════════════
 
@@ -2240,6 +2329,16 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/users/me/seen-mc-invite", requireAuth, (req: AuthRequest, res) => {
     const updated = storage.updateUser(req.authUserId!, { hasSeenMcInvitePrompt: true });
     res.json({ success: true, hasSeenMcInvitePrompt: updated?.hasSeenMcInvitePrompt });
+  });
+
+  app.patch("/api/users/me/seen-high-five", requireAuth, (req: AuthRequest, res) => {
+    sqlite.prepare(`UPDATE users SET has_seen_high_five = 1 WHERE id = ?`).run(req.authUserId!);
+    res.json({ success: true });
+  });
+
+  app.patch("/api/users/me/seen-open-hand", requireAuth, (req: AuthRequest, res) => {
+    sqlite.prepare(`UPDATE users SET has_seen_open_hand = 1 WHERE id = ?`).run(req.authUserId!);
+    res.json({ success: true });
   });
 
   // ── Phase 3: Transfer of Care ────────────────────────────────────────────────
