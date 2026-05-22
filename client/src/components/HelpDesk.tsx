@@ -354,19 +354,14 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
           wakeWordActive ? "bg-green-500" : accentColor,
           "text-white"
         )}
-        aria-label="App Help"
+        aria-label="Help"
       >
         {wakeWordActive
           ? <Mic className="w-5 h-5 animate-pulse" />
           : open
-          ? <ChevronDown className="w-4 h-4" />
-          : <MessageCircleHeart className="w-4 h-4" />
+          ? <ChevronDown className="w-5 h-5" />
+          : <span className="text-xl font-bold leading-none">?</span>
         }
-        {!wakeWordActive && (
-          <span className="text-[8px] font-semibold leading-none tracking-wide opacity-90">
-            {open ? "Close" : "App Help"}
-          </span>
-        )}
       </button>
 
       {/* Wake word hint — hidden on mobile to avoid button overlap; show md+ */}
