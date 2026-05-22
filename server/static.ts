@@ -13,6 +13,11 @@ export function serveStatic(app: Express) {
 
   app.use(express.static(distPath));
 
+  // Redirect bare /apply path to hash-based route
+  app.get("/apply", (_req, res) => {
+    res.redirect(301, "/#/apply");
+  });
+
   // fall through to index.html if the file doesn't exist
   app.use("/{*path}", (_req, res) => {
     res.sendFile(path.resolve(distPath, "index.html"));
