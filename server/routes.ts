@@ -466,6 +466,21 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true });
   });
 
+
+  // POST /api/admin/users/deactivate — deactivate a user account by email (admin only)
+  app.post("/api/admin/users/deactivate", (req, res) => {
+    const { email } = req.body;
+    if (!email) return res.status(400).json({ message: "email required" });
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
+    if (!account) return res.status(404).json({ message: "Account not found" });
+    db.update(authAccounts).set({ isActive: false }).where(eq(authAccounts.email, email.toLowerCase())).run();
+    const user = db.select().from(users).where(eq(users.email, email.toLowerCase())).get();
+    if (user) {
+      db.update(users).set({ isActive: false }).where(eq(users.email, email.toLowerCase())).run();
+    }
+    res.json({ success: true, message: `${email} deactivated` });
+  });
+
   // ── Onboarding ─────────────────────────────────────────────────────────────
 
   // POST /api/onboarding/profile — save profile data + create user row for real auth users

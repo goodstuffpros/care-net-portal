@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart, Lightbulb, Tag, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, UserX, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart, Lightbulb, Tag, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -330,6 +330,51 @@ const CARE_LABELS: Record<string, string> = {
   soon: "Starting soon",
 };
 
+function DeactivateUserButton({ email, onRefresh }: { email: string; onRefresh: () => void }) {
+  const { toast } = useToast();
+  const [confirming, setConfirming] = useState(false);
+
+  const deactivateMutation = useMutation({
+    mutationFn: () => apiRequest("POST", "/api/admin/users/deactivate", { email }).then(r => r.json()),
+    onSuccess: () => {
+      toast({ title: "Account deactivated", description: `${email} can no longer sign in.` });
+      setConfirming(false);
+      onRefresh();
+    },
+    onError: (err: any) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  if (confirming) {
+    return (
+      <div className="flex items-center gap-2">
+        <span className="text-white/40 text-[10px]">Deactivate?</span>
+        <button
+          onClick={() => deactivateMutation.mutate()}
+          disabled={deactivateMutation.isPending}
+          className="text-[10px] px-2 py-1 rounded-lg bg-red-900/40 border border-red-700/40 text-red-300 hover:bg-red-900/60 transition-colors"
+        >
+          {deactivateMutation.isPending ? "..." : "Yes"}
+        </button>
+        <button
+          onClick={() => setConfirming(false)}
+          className="text-[10px] px-2 py-1 rounded-lg bg-white/5 border border-white/10 text-white/40 hover:text-white/70 transition-colors"
+        >
+          No
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => setConfirming(true)}
+      className="text-[10px] text-white/25 hover:text-red-400 transition-colors flex items-center gap-1"
+    >
+      <UserX size={11} /> Deactivate
+    </button>
+  );
+}
+
 function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: () => void }) {
   const { toast } = useToast();
   const [expanded, setExpanded] = useState(app.status === "pending");
@@ -398,8 +443,8 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
               <div className="text-white/80 text-sm">{ROLE_LABELS[app.role] || app.role}</div>
             </div>
             <div>
-              <div className="text-white/40 text-[10px] uppercase tracking-wide mb-0.5">Care Status</div>
-              <div className="text-white/80 text-sm">{CARE_LABELS[app.currentlyInCare] || app.currentlyInCare}</div>
+              <div className="text-white/40 text-[10px] uppercase tracking-wide mb-0.5">Joined</div>
+              <div className="text-white/80 text-sm">{new Date(app.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</div>
             </div>
           </div>
           <div>
@@ -435,9 +480,12 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
           )}
 
           {app.status === "approved" && (
-            <div className="flex items-center gap-2 text-emerald-400 text-xs pt-1">
-              <CheckCircle2 size={12} />
-              {app.emailVerified ? "Email verified — account active" : "Auto-approved — waiting for email verification"}
+            <div className="flex items-start justify-between gap-2 pt-1">
+              <div className="flex items-center gap-2 text-emerald-400 text-xs">
+                <CheckCircle2 size={12} />
+                {app.emailVerified ? "Email verified — account active" : "Auto-approved — waiting for email verification"}
+              </div>
+              <DeactivateUserButton email={app.email} onRefresh={onRefresh} />
             </div>
           )}
           {app.status === "denied" && (
