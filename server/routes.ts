@@ -1201,7 +1201,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ── Help Desk ────────────────────────────────────────────────────────────
 
   // POST /api/helpdesk/chat — AI-powered support chat (Gemini 1.5 Flash)
-  app.post("/api/helpdesk/chat", async (req, res) => {
+  app.post("/api/helpdesk/chat", requireAuth, async (req: AuthRequest, res) => {
     const { message, context, history = [], sessionId } = req.body;
     if (!message) return res.status(400).json({ message: "No message provided" });
 
@@ -1277,7 +1277,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/helpdesk/escalate — store escalation + send email to support
-  app.post("/api/helpdesk/escalate", async (req, res) => {
+  app.post("/api/helpdesk/escalate", requireAuth, async (req: AuthRequest, res) => {
     const { sessionId, userName, userRole, currentPage, history = [] } = req.body;
 
     try {
@@ -1475,7 +1475,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   // ══════════════════════════════════════════════════════════════════════════
 
   // GET /api/clients/:clientId/health-history — all entries, sorted newest year first
-  app.get("/api/clients/:clientId/health-history", requireAuth, (req: AuthRequest, res) => {
+  app.get("/api/clients/:clientId/health-history", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const clientId = Number(req.params.clientId);
       const entries = db.select().from(healthHistoryEntries)
@@ -1493,7 +1493,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // POST /api/clients/:clientId/health-history — add new entry
-  app.post("/api/clients/:clientId/health-history", requireAuth, (req: AuthRequest, res) => {
+  app.post("/api/clients/:clientId/health-history", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const clientId = Number(req.params.clientId);
       const userId = req.authUserId!;
@@ -1522,7 +1522,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // DELETE /api/clients/:clientId/health-history/:entryId
-  app.delete("/api/clients/:clientId/health-history/:entryId", requireAuth, (req: AuthRequest, res) => {
+  app.delete("/api/clients/:clientId/health-history/:entryId", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const entryId = Number(req.params.entryId);
       db.delete(healthHistoryEntries).where(eq(healthHistoryEntries.id, entryId)).run();
@@ -2100,14 +2100,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
   });
-  app.get("/api/clients/:clientId/family", (req, res) => {
+  app.get("/api/clients/:clientId/family", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getUsersByClientId(Number(req.params.clientId)));
   });
-  app.post("/api/users", (req, res) => {
+  app.post("/api/users", requireAuth, (req: AuthRequest, res) => {
     const user = storage.createUser(req.body);
     res.status(201).json(user);
   });
-  app.patch("/api/users/:id", (req, res) => {
+  app.patch("/api/users/:id", requireAuth, (req: AuthRequest, res) => {
     const user = storage.updateUser(Number(req.params.id), req.body);
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
@@ -2120,7 +2120,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!client) return res.status(404).json({ message: "Client not found" });
     res.json(client);
   });
-  app.post("/api/clients", (req, res) => {
+  app.post("/api/clients", requireAuth, (req: AuthRequest, res) => {
     const client = storage.createClient(req.body);
     res.status(201).json(client);
   });
@@ -2748,12 +2748,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.status(201).json(event);
   });
-  app.patch("/api/schedule/:id", (req, res) => {
+  app.patch("/api/schedule/:id", requireAuth, (req: AuthRequest, res) => {
     const event = storage.updateScheduleEvent(Number(req.params.id), req.body);
     if (!event) return res.status(404).json({ message: "Event not found" });
     res.json(event);
   });
-  app.delete("/api/schedule/:id", (req, res) => {
+  app.delete("/api/schedule/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteScheduleEvent(Number(req.params.id));
     res.json({ success: true });
   });
@@ -2765,7 +2765,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // GET /api/clients/:clientId/activity/search?q=fall
   // Full-text search across title, description, notes, category, emergencyType
-  app.get("/api/clients/:clientId/activity/search", (req: AuthRequest, res) => {
+  app.get("/api/clients/:clientId/activity/search", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const q = ((req.query.q as string) || "").trim().toLowerCase();
     if (!q || q.length < 2) return res.json([]);
@@ -2907,19 +2907,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.status(201).json(log);
   });
-  app.patch("/api/activity/:id", (req, res) => {
+  app.patch("/api/activity/:id", requireAuth, (req: AuthRequest, res) => {
     const log = storage.updateActivityLog(Number(req.params.id), req.body);
     if (!log) return res.status(404).json({ message: "Log not found" });
     res.json(log);
   });
-  app.post("/api/activity/:id/excuse", (req, res) => {
+  app.post("/api/activity/:id/excuse", requireAuth, (req: AuthRequest, res) => {
     const { excuseNote, excusedByUserId } = req.body;
     if (!excuseNote || !excusedByUserId) return res.status(400).json({ message: "excuseNote and excusedByUserId required" });
     const log = storage.excuseActivityLog(Number(req.params.id), excuseNote, Number(excusedByUserId));
     if (!log) return res.status(404).json({ message: "Log not found" });
     res.json(log);
   });
-  app.delete("/api/activity/:id", (req, res) => {
+  app.delete("/api/activity/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteActivityLog(Number(req.params.id));
     res.json({ success: true });
   });
@@ -2932,14 +2932,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const thread = storage.createChatThread({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(thread);
   });
-  app.patch("/api/threads/:id", (req, res) => {
+  app.patch("/api/threads/:id", requireAuth, (req: AuthRequest, res) => {
     const thread = storage.updateChatThread(Number(req.params.id), req.body);
     if (!thread) return res.status(404).json({ message: "Thread not found" });
     res.json(thread);
   });
 
   // Thread member management
-  app.patch("/api/threads/:id/members/add", (req, res) => {
+  app.patch("/api/threads/:id/members/add", requireAuth, (req: AuthRequest, res) => {
     const thread = storage.getChatThreadById(Number(req.params.id));
     if (!thread) return res.status(404).json({ message: "Thread not found" });
     const current: number[] = JSON.parse(thread.members || "[]");
@@ -2949,7 +2949,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(updated);
   });
 
-  app.patch("/api/threads/:id/members/remove", (req, res) => {
+  app.patch("/api/threads/:id/members/remove", requireAuth, (req: AuthRequest, res) => {
     const thread = storage.getChatThreadById(Number(req.params.id));
     if (!thread) return res.status(404).json({ message: "Thread not found" });
     const current: number[] = JSON.parse(thread.members || "[]");
@@ -2966,7 +2966,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const msg = storage.createMessage({ ...req.body, threadId: Number(req.params.threadId) });
     res.status(201).json(msg);
   });
-  app.patch("/api/messages/:id/read", (req, res) => {
+  app.patch("/api/messages/:id/read", requireAuth, (req: AuthRequest, res) => {
     const { userId } = req.body;
     const msg = storage.markMessageRead(Number(req.params.id), userId);
     if (!msg) return res.status(404).json({ message: "Message not found" });
@@ -2974,32 +2974,32 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Caregiver profiles
-  app.get("/api/clients/:clientId/caregivers", (req, res) => {
+  app.get("/api/clients/:clientId/caregivers", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getCaregiversByClientId(Number(req.params.clientId)));
   });
 
   // Media
-  app.get("/api/clients/:clientId/media", (req, res) => {
+  app.get("/api/clients/:clientId/media", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getMediaByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/media", (req, res) => {
+  app.post("/api/clients/:clientId/media", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const item = storage.createMediaItem({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(item);
   });
-  app.delete("/api/media/:id", (req, res) => {
+  app.delete("/api/media/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteMediaItem(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Notifications
-  app.get("/api/users/:userId/notifications", (req, res) => {
+  app.get("/api/users/:userId/notifications", requireAuth, (req: AuthRequest, res) => {
     res.json(storage.getNotificationsByUser(Number(req.params.userId)));
   });
-  app.patch("/api/notifications/:id/read", (req, res) => {
+  app.patch("/api/notifications/:id/read", requireAuth, (req: AuthRequest, res) => {
     storage.markNotificationRead(Number(req.params.id));
     res.json({ success: true });
   });
-  app.patch("/api/users/:userId/notifications/read-all", (req, res) => {
+  app.patch("/api/users/:userId/notifications/read-all", requireAuth, (req: AuthRequest, res) => {
     storage.markAllNotificationsRead(Number(req.params.userId));
     res.json({ success: true });
   });
@@ -3136,28 +3136,28 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Archive Summaries
-  app.get("/api/clients/:clientId/archive", (req, res) => {
+  app.get("/api/clients/:clientId/archive", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getArchiveSummariesByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/archive", (req, res) => {
+  app.post("/api/clients/:clientId/archive", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const summary = storage.createArchiveSummary({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(summary);
   });
 
   // Misc Notes
-  app.get("/api/clients/:clientId/notes", (req, res) => {
+  app.get("/api/clients/:clientId/notes", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getMiscNotesByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/notes", (req, res) => {
+  app.post("/api/clients/:clientId/notes", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const note = storage.createMiscNote({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(note);
   });
-  app.patch("/api/notes/:id", (req, res) => {
+  app.patch("/api/notes/:id", requireAuth, (req: AuthRequest, res) => {
     const note = storage.updateMiscNote(Number(req.params.id), req.body);
     if (!note) return res.status(404).json({ message: "Note not found" });
     res.json(note);
   });
-  app.delete("/api/notes/:id", (req, res) => {
+  app.delete("/api/notes/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteMiscNote(Number(req.params.id));
     res.json({ success: true });
   });
@@ -3170,12 +3170,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const doc = storage.createDocument({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(doc);
   });
-  app.delete("/api/documents/:id", (req, res) => {
+  app.delete("/api/documents/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteDocument(Number(req.params.id));
     res.json({ success: true });
   });
   // Update CG access level for a document (MC only)
-  app.patch("/api/documents/:id/access", (req, res) => {
+  app.patch("/api/documents/:id/access", requireAuth, (req: AuthRequest, res) => {
     const { cgAccess } = req.body as { cgAccess: string };
     if (!["none", "read", "full"].includes(cgAccess)) {
       return res.status(400).json({ error: "Invalid cgAccess value" });
@@ -3295,25 +3295,25 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Outings
-  app.get("/api/clients/:clientId/outings", (req, res) => {
+  app.get("/api/clients/:clientId/outings", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getOutingsByClient(Number(req.params.clientId)));
   });
-  app.get("/api/clients/:clientId/outings/active", (req, res) => {
+  app.get("/api/clients/:clientId/outings/active", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const active = storage.getActiveOutingByClient(Number(req.params.clientId));
     res.json(active || null);
   });
-  app.post("/api/clients/:clientId/outings", (req, res) => {
+  app.post("/api/clients/:clientId/outings", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const outing = storage.createOuting({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(outing);
   });
-  app.patch("/api/outings/:id", (req, res) => {
+  app.patch("/api/outings/:id", requireAuth, (req: AuthRequest, res) => {
     const outing = storage.updateOuting(Number(req.params.id), req.body);
     if (!outing) return res.status(404).json({ message: "Outing not found" });
     res.json(outing);
   });
 
   // Notifications (create)
-  app.post("/api/notifications", (req, res) => {
+  app.post("/api/notifications", requireAuth, (req: AuthRequest, res) => {
     const notification = storage.createNotification(req.body);
     res.status(201).json(notification);
   });
@@ -3326,14 +3326,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const shift = storage.getActiveShift(Number(req.params.caregiverId), Number(req.params.clientId));
     res.json(shift || null);
   });
-  app.post("/api/caregivers/:caregiverId/clients/:clientId/shift/clockin", (req, res) => {
+  app.post("/api/caregivers/:caregiverId/clients/:clientId/shift/clockin", requireAuth, (req: AuthRequest, res) => {
     // Prevent double clock-in
     const existing = storage.getActiveShift(Number(req.params.caregiverId), Number(req.params.clientId));
     if (existing) return res.status(409).json({ message: "Already clocked in", shift: existing });
     const shift = storage.clockIn(Number(req.params.caregiverId), Number(req.params.clientId));
     res.status(201).json(shift);
   });
-  app.post("/api/shifts/:shiftId/clockout", (req, res) => {
+  app.post("/api/shifts/:shiftId/clockout", requireAuth, (req: AuthRequest, res) => {
     const shift = storage.clockOut(Number(req.params.shiftId));
     if (!shift) return res.status(404).json({ message: "Shift not found" });
     res.json(shift);
@@ -3410,13 +3410,13 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Care Flags
-  app.get("/api/clients/:clientId/flags", (req, res) => {
+  app.get("/api/clients/:clientId/flags", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getCareFlagsByClient(Number(req.params.clientId)));
   });
-  app.get("/api/clients/:clientId/caregivers/:caregiverId/flags", (req, res) => {
+  app.get("/api/clients/:clientId/caregivers/:caregiverId/flags", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getCareFlagsByCaregiver(Number(req.params.caregiverId), Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/flags", (req, res) => {
+  app.post("/api/clients/:clientId/flags", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const flag = storage.createCareFlag({ ...req.body, clientId: Number(req.params.clientId) });
     // After creating a yellow flag, check if it triggers a red flag (3 unexcused yellows in same category in 30 days)
     if (flag.flagType === 'yellow') {
@@ -3437,7 +3437,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
     res.status(201).json(flag);
   });
-  app.post("/api/flags/:id/excuse", (req, res) => {
+  app.post("/api/flags/:id/excuse", requireAuth, (req: AuthRequest, res) => {
     const { excuseNote, excusedByUserId } = req.body;
     if (!excuseNote || !excusedByUserId) return res.status(400).json({ message: "excuseNote and excusedByUserId required" });
     const flag = storage.excuseCareFlag(Number(req.params.id), excuseNote, Number(excusedByUserId));
@@ -3459,7 +3459,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!m) return res.status(404).json({ error: "Not found" });
     res.json(m);
   });
-  app.post("/api/clients/:clientId/medications", (req, res) => {
+  app.post("/api/clients/:clientId/medications", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const now = new Date().toISOString();
     const data = { ...req.body, clientId, createdAt: now, updatedAt: now };
@@ -3515,7 +3515,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.json(result);
   });
-  app.post("/api/medications/:id/discontinue", (req, res) => {
+  app.post("/api/medications/:id/discontinue", requireAuth, (req: AuthRequest, res) => {
     const { reason, note, date, changedByUserId } = req.body;
     const result = storage.discontinueMedication(Number(req.params.id), reason, note, date, changedByUserId);
     if (!result) return res.status(404).json({ error: "Not found" });
@@ -3531,7 +3531,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.get("/api/medications/:id/logs", (req, res) => {
     res.json(storage.getMedicationLogsByMed(Number(req.params.id)));
   });
-  app.post("/api/clients/:clientId/medication-logs", (req, res) => {
+  app.post("/api/clients/:clientId/medication-logs", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const data = { ...req.body, clientId: Number(req.params.clientId) };
     res.status(201).json(storage.createMedicationLog(data));
   });
@@ -3545,7 +3545,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const v = storage.getLatestVitals(Number(req.params.clientId));
     res.json(v ?? null);
   });
-  app.post("/api/clients/:clientId/vitals", (req, res) => {
+  app.post("/api/clients/:clientId/vitals", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const data = { ...req.body, clientId };
     // Phase 2: self_care contributor — set pendingReview if minor client has approval on
@@ -3616,11 +3616,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // ── A Collection of Thoughts ──────────────────────────────────────────────
 
-  app.get("/api/clients/:clientId/thoughts", (req, res) => {
+  app.get("/api/clients/:clientId/thoughts", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getThoughtsByClient(Number(req.params.clientId)));
   });
 
-  app.post("/api/clients/:clientId/thoughts", (req, res) => {
+  app.post("/api/clients/:clientId/thoughts", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const data = {
       ...req.body,
       clientId: Number(req.params.clientId),
@@ -3629,19 +3629,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(storage.createThought(data));
   });
 
-  app.patch("/api/thoughts/:id", (req, res) => {
+  app.patch("/api/thoughts/:id", requireAuth, (req: AuthRequest, res) => {
     const thought = storage.updateThought(Number(req.params.id), req.body);
     if (!thought) return res.status(404).json({ message: "Entry not found" });
     res.json(thought);
   });
 
-  app.delete("/api/thoughts/:id", (req, res) => {
+  app.delete("/api/thoughts/:id", requireAuth, (req: AuthRequest, res) => {
     storage.deleteThought(Number(req.params.id));
     res.json({ success: true });
   });
 
   // Unlock entire collection (caregiver-initiated, end of care)
-  app.post("/api/clients/:clientId/thoughts/unlock", (req, res) => {
+  app.post("/api/clients/:clientId/thoughts/unlock", requireAuth, (req: AuthRequest, res) => {
     const { unlockedByUserId, unlockNote } = req.body;
     storage.unlockAllThoughts(Number(req.params.clientId), unlockedByUserId, unlockNote);
     res.json({ success: true, unlockedAt: new Date().toISOString() });
@@ -3669,7 +3669,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(profile ?? null);
   });
 
-  app.put("/api/caregivers/:userId/profile", (req, res) => {
+  app.put("/api/caregivers/:userId/profile", requireAuth, (req: AuthRequest, res) => {
     const profile = storage.upsertCaregiverProfile(Number(req.params.userId), req.body);
     res.json(profile);
   });
@@ -3703,7 +3703,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PUT update scope (Primary FC only — enforcement is client-side for demo)
-  app.put("/api/scope/:clientId/:caregiverId", (req, res) => {
+  app.put("/api/scope/:clientId/:caregiverId", requireAuth, (req: AuthRequest, res) => {
     const { updatedByUserId, ...data } = req.body;
     const scope = storage.upsertCareScope(
       Number(req.params.clientId),
@@ -3715,7 +3715,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // POST caregiver requests a scope change (awaits family approval)
-  app.post("/api/scope/:clientId/:caregiverId/request", (req, res) => {
+  app.post("/api/scope/:clientId/:caregiverId/request", requireAuth, (req: AuthRequest, res) => {
     const { module, requestedState, reason, caregiverId } = req.body;
     const pendingRequest = JSON.stringify({ module, requestedState, reason, requestedAt: new Date().toISOString() });
     const scope = storage.upsertCareScope(
@@ -3748,7 +3748,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PUT update flag control (Primary FC only — enforcement client-side for demo)
-  app.put("/api/flag-control/:clientId/:caregiverId", (req, res) => {
+  app.put("/api/flag-control/:clientId/:caregiverId", requireAuth, (req: AuthRequest, res) => {
     const { updatedByUserId, ...data } = req.body;
     const fc = storage.upsertFlagControl(
       Number(req.params.clientId),
@@ -3762,7 +3762,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Wellbeing Routes ──────────────────────────────────────────────────────
 
   // POST — submit a check-in (creates DB record + returns AI response)
-  app.post("/api/wellbeing/checkin", (req, res) => {
+  app.post("/api/wellbeing/checkin", requireAuth, (req: AuthRequest, res) => {
     const { userId, clientId, caregiverMessage, moodRating, triggerType } = req.body;
     if (!userId || !caregiverMessage) return res.status(400).json({ error: "Missing required fields" });
 
@@ -3888,19 +3888,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // GET — history of check-ins for a user
-  app.get("/api/wellbeing/history/:userId", (req, res) => {
+  app.get("/api/wellbeing/history/:userId", requireAuth, (req: AuthRequest, res) => {
     const history = storage.getWellbeingCheckIns(Number(req.params.userId), 50);
     res.json(history);
   });
 
   // GET — streak info for a user
-  app.get("/api/wellbeing/streak/:userId", (req, res) => {
+  app.get("/api/wellbeing/streak/:userId", requireAuth, (req: AuthRequest, res) => {
     const streak = storage.getWellbeingStreak(Number(req.params.userId));
     res.json(streak || { currentStreak: 0, longestStreak: 0, totalCheckIns: 0, earnedBadges: "[]" });
   });
 
   // GET — check if proactive nudge should fire (high urgency in last 72h)
-  app.get("/api/wellbeing/nudge/:userId/client/:clientId", (req, res) => {
+  app.get("/api/wellbeing/nudge/:userId/client/:clientId", requireAuth, (req: AuthRequest, res) => {
     const count = storage.getRecentUrgentFlagCount(Number(req.params.userId), Number(req.params.clientId), 72);
     res.json({ shouldNudge: count >= 3, urgentCount: count });
   });
@@ -4029,7 +4029,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Pattern Recognition Engine ─────────────────────────────────────────────
 
   // GET all active patterns for a client
-  app.get("/api/clients/:clientId/patterns", (req, res) => {
+  app.get("/api/clients/:clientId/patterns", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4060,7 +4060,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // POST run pattern engine on demand
-  app.post("/api/clients/:clientId/patterns/run", async (req, res) => {
+  app.post("/api/clients/:clientId/patterns/run", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), async (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     try {
       resurfaceDismissedPatterns(clientId);
