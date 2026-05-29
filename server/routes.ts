@@ -15,7 +15,7 @@ import {
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
   emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate,
-  requireAuth, requireAuthAccount, requireReAuth, type AuthRequest
+  requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, type AuthRequest
 } from "./auth";
 
 export function registerRoutes(httpServer: Server, app: Express) {
@@ -405,7 +405,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // ── Admin: Beta Application Management ──────────────────────────────────
 
   // GET /api/admin/applications — list all beta applications with email verified status
-  app.get("/api/admin/applications", async (req: AuthRequest, res) => {
+  app.get("/api/admin/applications", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const apps = db.select().from(betaApplications).all();
     // Attach emailVerified from authAccounts
     const enriched = apps.map(app => {
@@ -416,7 +416,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/admin/applications/:id/approve
-  app.post("/api/admin/applications/:id/approve", async (req: AuthRequest, res) => {
+  app.post("/api/admin/applications/:id/approve", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id);
     const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
     if (!app_) return res.status(404).json({ message: "Application not found" });
@@ -445,7 +445,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/admin/applications/:id/deny
-  app.post("/api/admin/applications/:id/deny", async (req: AuthRequest, res) => {
+  app.post("/api/admin/applications/:id/deny", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id);
     const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
     if (!app_) return res.status(404).json({ message: "Application not found" });
@@ -468,7 +468,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
 
   // POST /api/admin/users/deactivate — deactivate a user account by email (admin only)
-  app.post("/api/admin/users/deactivate", (req, res) => {
+  app.post("/api/admin/users/deactivate", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "email required" });
     const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
@@ -1329,7 +1329,7 @@ Please follow up with this user. The conversation above contains everything need
   });
 
   // GET /api/admin/helpdesk — list escalations for Becky Admin
-  app.get("/api/admin/helpdesk", async (req, res) => {
+  app.get("/api/admin/helpdesk", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const escalations = db.select().from(helpdeskEscalations)
         .orderBy(helpdeskEscalations.createdAt)
@@ -1342,7 +1342,7 @@ Please follow up with this user. The conversation above contains everything need
   });
 
   // PATCH /api/admin/helpdesk/:id — mark resolved + add resolution note
-  app.patch("/api/admin/helpdesk/:id", async (req, res) => {
+  app.patch("/api/admin/helpdesk/:id", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id);
     const { resolved, resolution } = req.body;
     try {
@@ -1446,7 +1446,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // GET /api/admin/ideas — all ideas grouped by cluster (admin only)
-  app.get("/api/admin/ideas", async (req, res) => {
+  app.get("/api/admin/ideas", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     try {
       const clusters = storage.getIdeasByCluster();
       res.json(clusters);
@@ -1456,7 +1456,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // PATCH /api/admin/ideas/:id — update status or admin note
-  app.patch("/api/admin/ideas/:id", async (req, res) => {
+  app.patch("/api/admin/ideas/:id", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const id = parseInt(req.params.id);
     const { status, adminNote } = req.body;
     try {
@@ -1715,7 +1715,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   // ══════════════════════════════════════════════════════════════════════════
 
   // GET /api/admin/engagement — all real users with last login, last activity, total entries
-  app.get("/api/admin/engagement", (req, res) => {
+  app.get("/api/admin/engagement", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     try {
       const allUsers = db.select().from(users).all();
       const realUsers = allUsers.filter(u => u.id > 5);
@@ -1772,7 +1772,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // POST /api/admin/feedback — user submits in-app feedback
-  app.post("/api/admin/feedback", requireAuth, (req: AuthRequest, res) => {
+  app.post("/api/admin/feedback", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const user = req.user!;
     const { message, triggerType } = req.body;
     if (!message?.trim()) return res.status(400).json({ message: "Message required" });
@@ -1784,13 +1784,13 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // GET /api/admin/feedback — all feedback for admin panel
-  app.get("/api/admin/feedback", (req, res) => {
+  app.get("/api/admin/feedback", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const rows = sqlite.prepare(`SELECT * FROM user_feedback ORDER BY created_at DESC`).all();
     res.json(rows);
   });
 
   // PATCH /api/admin/feedback/:id/read — mark as read
-  app.patch("/api/admin/feedback/:id/read", (req, res) => {
+  app.patch("/api/admin/feedback/:id/read", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     sqlite.prepare(`UPDATE user_feedback SET read_at = ? WHERE id = ?`).run(new Date().toISOString(), Number(req.params.id));
     res.json({ success: true });
   });
@@ -1799,7 +1799,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   // ══════════════════════════════════════════════════════════════════════════
 
   // GET /api/admin/beta-cleanup/users — all real (non-demo) users with entry counts
-  app.get("/api/admin/beta-cleanup/users", (req, res) => {
+  app.get("/api/admin/beta-cleanup/users", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     try {
       const allUsers = db.select().from(users).all();
       // Exclude demo users (id 1-5) by default — they're seed data, not beta testers
@@ -1827,7 +1827,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   // POST /api/admin/beta-cleanup/wipe — selective wipe for a user
   // Body: { userId, clientId, categories: string[] }
   // categories: 'careLogs' | 'scheduleEvents' | 'vitals' | 'medications' | 'thoughts' | 'media' | 'documents'
-  app.post("/api/admin/beta-cleanup/wipe", (req, res) => {
+  app.post("/api/admin/beta-cleanup/wipe", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const { userId, clientId, categories } = req.body as { userId: number; clientId: number; categories: string[] };
     if (!userId || !clientId || !categories?.length) {
       return res.status(400).json({ message: "userId, clientId, and categories required" });
@@ -2095,7 +2095,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     } catch (_) { /* ignore */ }
     return res.status(401).json({ message: "Not authenticated" });
   });
-  app.get("/api/users/:id", (req, res) => {
+  app.get("/api/users/:id", requireAuth, (req: AuthRequest, res) => {
     const user = storage.getUserById(Number(req.params.id));
     if (!user) return res.status(404).json({ message: "User not found" });
     res.json(user);
@@ -2114,8 +2114,8 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Clients
-  app.get("/api/clients", (_, res) => res.json(storage.getClients()));
-  app.get("/api/clients/:id", (req, res) => {
+  app.get("/api/clients", requireAuth, (_req: AuthRequest, res) => res.json(storage.getClients()));
+  app.get("/api/clients/:id", requireAuth, requirePortalAccess(r => Number(r.params.id)), (req: AuthRequest, res) => {
     const client = storage.getClientById(Number(req.params.id));
     if (!client) return res.status(404).json({ message: "Client not found" });
     res.json(client);
@@ -2718,10 +2718,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   }
 
   // Schedule Events
-  app.get("/api/clients/:clientId/schedule", (req, res) => {
+  app.get("/api/clients/:clientId/schedule", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getScheduleEventsByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/schedule", (req, res) => {
+  app.post("/api/clients/:clientId/schedule", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const event = storage.createScheduleEvent({ ...req.body, clientId });
 
@@ -2759,7 +2759,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Activity Logs
-  app.get("/api/clients/:clientId/activity", (req, res) => {
+  app.get("/api/clients/:clientId/activity", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getActivityLogsByClient(Number(req.params.clientId)));
   });
 
@@ -2791,7 +2791,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.json(enriched);
   });
-  app.post("/api/clients/:clientId/activity", async (req, res) => {
+  app.post("/api/clients/:clientId/activity", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), async (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const data = { ...req.body, clientId };
 
@@ -2925,10 +2925,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Chat Threads
-  app.get("/api/clients/:clientId/threads", (req, res) => {
+  app.get("/api/clients/:clientId/threads", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getChatThreadsByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/threads", (req, res) => {
+  app.post("/api/clients/:clientId/threads", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const thread = storage.createChatThread({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(thread);
   });
@@ -2959,10 +2959,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Messages
-  app.get("/api/threads/:threadId/messages", (req, res) => {
+  app.get("/api/threads/:threadId/messages", requireAuth, (req: AuthRequest, res) => {
     res.json(storage.getMessagesByThread(Number(req.params.threadId)));
   });
-  app.post("/api/threads/:threadId/messages", (req, res) => {
+  app.post("/api/threads/:threadId/messages", requireAuth, (req: AuthRequest, res) => {
     const msg = storage.createMessage({ ...req.body, threadId: Number(req.params.threadId) });
     res.status(201).json(msg);
   });
@@ -3163,10 +3163,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Documents
-  app.get("/api/clients/:clientId/documents", (req, res) => {
+  app.get("/api/clients/:clientId/documents", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getDocumentsByClient(Number(req.params.clientId)));
   });
-  app.post("/api/clients/:clientId/documents", (req, res) => {
+  app.post("/api/clients/:clientId/documents", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const doc = storage.createDocument({ ...req.body, clientId: Number(req.params.clientId) });
     res.status(201).json(doc);
   });
@@ -3222,7 +3222,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // POST /api/admin/users/:id/set-password — force-set password for any real user (admin only)
-  app.post("/api/admin/users/:id/set-password", async (req, res) => {
+  app.post("/api/admin/users/:id/set-password", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const userId = Number(req.params.id);
     const { password } = req.body;
     if (!userId || userId <= 5) return res.status(400).json({ message: "Cannot modify demo/seed users." });
@@ -3243,7 +3243,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // Removes: users row, auth_accounts, auth_sessions, notifications, badge data,
   // connection invites, beta application — leaves client-side care data intact
   // (use /api/admin/beta-cleanup/wipe first if you want care data gone too)
-  app.delete("/api/admin/users/:id", (req, res) => {
+  app.delete("/api/admin/users/:id", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const userId = Number(req.params.id);
     if (!userId || userId <= 5) {
       return res.status(400).json({ message: "Cannot delete demo/seed users (id 1–5)." });
@@ -3450,11 +3450,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Medications
-  app.get("/api/clients/:clientId/medications", (req, res) => {
+  app.get("/api/clients/:clientId/medications", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const status = req.query.status as string | undefined;
     res.json(storage.getMedicationsByClient(Number(req.params.clientId), status));
   });
-  app.get("/api/medications/:id", (req, res) => {
+  app.get("/api/medications/:id", requireAuth, (req: AuthRequest, res) => {
     const m = storage.getMedicationById(Number(req.params.id));
     if (!m) return res.status(404).json({ error: "Not found" });
     res.json(m);
@@ -3537,11 +3537,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Vitals & Bodily Functions
-  app.get("/api/clients/:clientId/vitals", (req, res) => {
+  app.get("/api/clients/:clientId/vitals", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 50;
     res.json(storage.getVitalsByClient(Number(req.params.clientId), limit));
   });
-  app.get("/api/clients/:clientId/vitals/latest", (req, res) => {
+  app.get("/api/clients/:clientId/vitals/latest", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const v = storage.getLatestVitals(Number(req.params.clientId));
     res.json(v ?? null);
   });
@@ -4190,7 +4190,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   const DEMO_PASSWORD = "DemoPassword2026";
   const DEMO_ADMIN_KEY = "cnp-demo-reset-2026";
 
-  app.post("/api/admin/demo/seed", async (req, res) => {
+  app.post("/api/admin/demo/seed", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const key = req.headers["x-demo-key"];
     if (key !== DEMO_ADMIN_KEY) return res.status(403).json({ message: "Unauthorized" });
 

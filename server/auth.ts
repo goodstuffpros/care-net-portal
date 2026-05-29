@@ -9,8 +9,13 @@ import bcrypt from "bcryptjs";
 import { SignJWT, jwtVerify } from "jose";
 import crypto from "crypto";
 import { db } from "./db";
-import { authAccounts, authSessions, users } from "../shared/schema";
+import { authAccounts, authSessions, users, userClientRelationships } from "../shared/schema";
 import { eq, and, gt } from "drizzle-orm";
+
+// ── Admin identity ─────────────────────────────────────────────────────────
+// David (user 12) and Becky (user 11) are the only admins.
+// Auth checks by user ID — not email — to avoid spoofing.
+const ADMIN_USER_IDS = new Set([11, 12]);
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
@@ -209,11 +214,81 @@ export async function requireAuth(
     return;
   }
 
+  // Enforce isActive — deactivated users cannot use any authenticated route
+  if (user.isActive === false) {
+    clearSessionCookie(res);
+    res.status(403).json({ message: "Account has been deactivated" });
+    return;
+  }
+
   req.authAccountId = payload.authAccountId;
   req.authJti = payload.jti;
   req.authUserId = user.id;
   req.authUserRole = user.role;
   next();
+}
+
+/**
+ * requireAdmin — blocks anyone who is not David (12) or Becky (11).
+ * Must be used after requireAuth so req.authUserId is populated.
+ */
+export function requireAdmin(
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+): void {
+  if (!req.authUserId || !ADMIN_USER_IDS.has(req.authUserId)) {
+    res.status(403).json({ message: "Admin access required" });
+    return;
+  }
+  next();
+}
+
+/**
+ * requirePortalAccess — verifies the authenticated user belongs to the
+ * portal identified by clientId (from req.params or req.body).
+ * Checks user_client_relationships OR users.clientId for legacy compatibility.
+ * MCs, caregivers, and family members all pass if they have a relationship row.
+ * Admins always pass.
+ */
+export function requirePortalAccess(getClientId: (req: AuthRequest) => number | undefined) {
+  return function (
+    req: AuthRequest,
+    res: Response,
+    next: NextFunction
+  ): void {
+    // Admins bypass portal access checks
+    if (req.authUserId && ADMIN_USER_IDS.has(req.authUserId)) {
+      return next();
+    }
+
+    const clientId = getClientId(req);
+    if (!clientId || isNaN(clientId)) {
+      res.status(400).json({ message: "Invalid portal identifier" });
+      return;
+    }
+
+    if (!req.authUserId) {
+      res.status(401).json({ message: "Not authenticated" });
+      return;
+    }
+
+    // Check user_client_relationships first (authoritative)
+    const rel = db.select().from(userClientRelationships)
+      .where(and(
+        eq(userClientRelationships.userId, req.authUserId),
+        eq(userClientRelationships.clientId, clientId)
+      ))
+      .get();
+
+    if (rel) return next();
+
+    // Fallback: legacy users.clientId
+    const user = db.select().from(users).where(eq(users.id, req.authUserId)).get();
+    if (user?.clientId === clientId) return next();
+
+    res.status(403).json({ message: "Access to this portal is not authorized" });
+  };
 }
 
 /**
