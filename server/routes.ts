@@ -15,7 +15,7 @@ import {
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
   emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate,
-  requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, type AuthRequest
+  requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, checkPortalAccess, type AuthRequest
 } from "./auth";
 
 export function registerRoutes(httpServer: Server, app: Express) {
@@ -1578,7 +1578,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // PATCH /api/clients/:clientId/color-theme — MC sets portal color
-  app.patch("/api/clients/:clientId/color-theme", requireAuth, (req: AuthRequest, res) => {
+  app.patch("/api/clients/:clientId/color-theme", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const clientId = Number(req.params.clientId);
       const { colorTheme } = req.body;
@@ -2748,12 +2748,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
     res.status(201).json(event);
   });
-  app.patch("/api/schedule/:id", requireAuth, (req: AuthRequest, res) => {
+  app.patch("/api/schedule/:id", requireAuth, async (req: AuthRequest, res) => {
+    const existing = storage.getScheduleEventById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Event not found" });
+    const allowed = await checkPortalAccess(req, existing.clientId);
+    if (!allowed) return res.status(403).json({ message: "Access denied" });
     const event = storage.updateScheduleEvent(Number(req.params.id), req.body);
-    if (!event) return res.status(404).json({ message: "Event not found" });
     res.json(event);
   });
-  app.delete("/api/schedule/:id", requireAuth, (req: AuthRequest, res) => {
+  app.delete("/api/schedule/:id", requireAuth, async (req: AuthRequest, res) => {
+    const existing = storage.getScheduleEventById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Event not found" });
+    const allowed = await checkPortalAccess(req, existing.clientId);
+    if (!allowed) return res.status(403).json({ message: "Access denied" });
     storage.deleteScheduleEvent(Number(req.params.id));
     res.json({ success: true });
   });
@@ -2908,8 +2915,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(log);
   });
   app.patch("/api/activity/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getActivityLogById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Log not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const log = storage.updateActivityLog(Number(req.params.id), req.body);
-    if (!log) return res.status(404).json({ message: "Log not found" });
     res.json(log);
   });
   app.post("/api/activity/:id/excuse", requireAuth, (req: AuthRequest, res) => {
@@ -2920,6 +2929,9 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(log);
   });
   app.delete("/api/activity/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getActivityLogById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Log not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     storage.deleteActivityLog(Number(req.params.id));
     res.json({ success: true });
   });
@@ -2933,8 +2945,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(thread);
   });
   app.patch("/api/threads/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getChatThreadById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Thread not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const thread = storage.updateChatThread(Number(req.params.id), req.body);
-    if (!thread) return res.status(404).json({ message: "Thread not found" });
     res.json(thread);
   });
 
@@ -2942,6 +2956,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/threads/:id/members/add", requireAuth, (req: AuthRequest, res) => {
     const thread = storage.getChatThreadById(Number(req.params.id));
     if (!thread) return res.status(404).json({ message: "Thread not found" });
+    if (!checkPortalAccess(req, thread.clientId)) return res.status(403).json({ message: "Access denied" });
     const current: number[] = JSON.parse(thread.members || "[]");
     const { userId } = req.body;
     if (!current.includes(userId)) current.push(userId);
@@ -2952,6 +2967,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/threads/:id/members/remove", requireAuth, (req: AuthRequest, res) => {
     const thread = storage.getChatThreadById(Number(req.params.id));
     if (!thread) return res.status(404).json({ message: "Thread not found" });
+    if (!checkPortalAccess(req, thread.clientId)) return res.status(403).json({ message: "Access denied" });
     const current: number[] = JSON.parse(thread.members || "[]");
     const { userId } = req.body;
     const updated = storage.updateChatThread(Number(req.params.id), { members: JSON.stringify(current.filter(id => id !== userId)) });
@@ -2967,6 +2983,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(msg);
   });
   app.patch("/api/messages/:id/read", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getMessageById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Message not found" });
+    const thread = storage.getChatThreadById(existing.threadId);
+    if (!thread) return res.status(404).json({ message: "Thread not found" });
+    if (!checkPortalAccess(req, thread.clientId)) return res.status(403).json({ message: "Access denied" });
     const { userId } = req.body;
     const msg = storage.markMessageRead(Number(req.params.id), userId);
     if (!msg) return res.status(404).json({ message: "Message not found" });
@@ -2987,6 +3008,9 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(item);
   });
   app.delete("/api/media/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getMediaItemById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Media not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     storage.deleteMediaItem(Number(req.params.id));
     res.json({ success: true });
   });
@@ -3007,7 +3031,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Emergency SOS ──────────────────────────────────────────────────────────
   // POST /api/clients/:clientId/sos — trigger an emergency alert
   // smsToMc / smsToCg: whether to (stub) send SMS. In-app bell always fires for both.
-  app.post("/api/clients/:clientId/sos", requireAuth, (req: AuthRequest, res) => {
+  app.post("/api/clients/:clientId/sos", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const clientId = Number(req.params.clientId);
       const { message = "Emergency — immediate attention needed", smsToMc = true, smsToCg = false } = req.body;
@@ -3088,7 +3112,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // GET /api/clients/:clientId/sos — get emergency alert history
-  app.get("/api/clients/:clientId/sos", requireAuth, (req: AuthRequest, res) => {
+  app.get("/api/clients/:clientId/sos", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const alerts = storage.getEmergencyAlertsByClient(Number(req.params.clientId));
     res.json(alerts);
   });
@@ -3153,11 +3177,16 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(note);
   });
   app.patch("/api/notes/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getMiscNoteById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Note not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const note = storage.updateMiscNote(Number(req.params.id), req.body);
-    if (!note) return res.status(404).json({ message: "Note not found" });
     res.json(note);
   });
   app.delete("/api/notes/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getMiscNoteById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Note not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     storage.deleteMiscNote(Number(req.params.id));
     res.json({ success: true });
   });
@@ -3171,17 +3200,22 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(doc);
   });
   app.delete("/api/documents/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getDocumentById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Document not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     storage.deleteDocument(Number(req.params.id));
     res.json({ success: true });
   });
   // Update CG access level for a document (MC only)
   app.patch("/api/documents/:id/access", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getDocumentById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ error: "Document not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const { cgAccess } = req.body as { cgAccess: string };
     if (!["none", "read", "full"].includes(cgAccess)) {
       return res.status(400).json({ error: "Invalid cgAccess value" });
     }
     const updated = storage.updateDocumentAccess(Number(req.params.id), cgAccess);
-    if (!updated) return res.status(404).json({ error: "Document not found" });
     res.json(updated);
   });
   // Log a CG access event and notify MC
@@ -3307,8 +3341,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.status(201).json(outing);
   });
   app.patch("/api/outings/:id", requireAuth, (req: AuthRequest, res) => {
+    const existing = storage.getOutingById(Number(req.params.id));
+    if (!existing) return res.status(404).json({ message: "Outing not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const outing = storage.updateOuting(Number(req.params.id), req.body);
-    if (!outing) return res.status(404).json({ message: "Outing not found" });
     res.json(outing);
   });
 
@@ -3341,7 +3377,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // ── Care Directory ─────────────────────────────────────────────────────────
   // GET all entries for a client
-  app.get("/api/clients/:clientId/directory", requireAuth, (req: AuthRequest, res) => {
+  app.get("/api/clients/:clientId/directory", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const entries = db.select().from(careDirectoryEntries)
       .where(eq(careDirectoryEntries.clientId, clientId))
@@ -3489,6 +3525,8 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     const { changedByUserId, changeNote, ...data } = req.body;
     const medId = Number(req.params.id);
     const existing = storage.getMedicationById(medId);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+    if (!checkPortalAccess(req, existing.clientId)) return res.status(403).json({ message: "Access denied" });
     const result = storage.updateMedication(medId, data, changedByUserId, changeNote);
     if (!result) return res.status(404).json({ error: "Not found" });
 
@@ -3954,7 +3992,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       return res.status(400).json({ message: "text is required" });
     }
     const VOICE_ID = "XDqLnI3WPivoF2kaTztW";
-    const API_KEY = "6c6b21bb8595ec3e933523b6484399e5a3bfbbcd9e170d235f61b96d2d90fc2c";
+    const API_KEY = process.env.ELEVENLABS_API_KEY;
+    if (!API_KEY) {
+      return res.status(503).json({ message: "TTS not configured" });
+    }
     try {
       const response = await fetch(
         `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`,

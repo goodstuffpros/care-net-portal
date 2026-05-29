@@ -19,8 +19,13 @@ const ADMIN_USER_IDS = new Set([11, 12]);
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
+const JWT_SECRET_RAW = process.env.JWT_SECRET;
+if (!JWT_SECRET_RAW && process.env.NODE_ENV === "production") {
+  console.error("[FATAL] JWT_SECRET environment variable is not set. Refusing to start in production.");
+  process.exit(1);
+}
 const JWT_SECRET = new TextEncoder().encode(
-  process.env.JWT_SECRET || "care-net-dev-secret-change-in-production-min-32-chars"
+  JWT_SECRET_RAW || "care-net-dev-secret-change-in-production-min-32-chars"
 );
 const SESSION_DAYS = 30;
 const BCRYPT_ROUNDS = 12;
@@ -289,6 +294,31 @@ export function requirePortalAccess(getClientId: (req: AuthRequest) => number | 
 
     res.status(403).json({ message: "Access to this portal is not authorized" });
   };
+}
+
+/**
+ * checkPortalAccess — imperative (non-middleware) version of requirePortalAccess.
+ * Use inside route handlers when the clientId is derived from a loaded record,
+ * not directly from req.params.
+ * Returns true if the user is allowed to access the portal, false otherwise.
+ */
+export function checkPortalAccess(req: AuthRequest, clientId: number): boolean {
+  if (!req.authUserId) return false;
+  // Admins always pass
+  if (ADMIN_USER_IDS.has(req.authUserId)) return true;
+
+  // Check relationship table
+  const rel = db.select().from(userClientRelationships)
+    .where(and(
+      eq(userClientRelationships.userId, req.authUserId),
+      eq(userClientRelationships.clientId, clientId)
+    ))
+    .get();
+  if (rel) return true;
+
+  // Legacy fallback
+  const user = db.select().from(users).where(eq(users.id, req.authUserId)).get();
+  return user?.clientId === clientId;
 }
 
 /**

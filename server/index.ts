@@ -55,6 +55,12 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // ── One-time data migrations (dev-only guard) ────────────────────────────
+  // These patches have already been applied to the production database.
+  // They are kept here for reference but are skipped in production.
+  // To re-run a migration: remove the NODE_ENV guard and redeploy once, then restore it.
+  if (process.env.NODE_ENV !== "production") {
+
   // One-time cleanup: delete orphaned client 23 (Donielle/McKenzie ghost portal)
   try {
     const usersOnClient23 = sqlite.prepare(`SELECT id FROM users WHERE client_id = 23`).all();
@@ -136,6 +142,8 @@ app.use((req, res, next) => {
       }
     }
   } catch (e) { console.log('[startup] +mc2 seed skipped:', e); }
+
+  } // end dev-only migration guard
 
   await registerRoutes(httpServer, app);
 

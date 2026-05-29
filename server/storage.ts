@@ -768,11 +768,13 @@ export interface IStorage {
 
   // Messages
   getMessagesByThread(threadId: number): Message[];
+  getMessageById(id: number): Message | undefined;
   createMessage(data: InsertMessage): Message;
   markMessageRead(messageId: number, userId: number): Message | undefined;
 
   // Media
   getMediaByClient(clientId: number): MediaItem[];
+  getMediaItemById(id: number): MediaItem | undefined;
   createMediaItem(data: InsertMediaItem): MediaItem;
   deleteMediaItem(id: number): void;
 
@@ -791,12 +793,14 @@ export interface IStorage {
 
   // Misc Notes
   getMiscNotesByClient(clientId: number): MiscNote[];
+  getMiscNoteById(id: number): MiscNote | undefined;
   createMiscNote(data: InsertMiscNote): MiscNote;
   updateMiscNote(id: number, data: Partial<InsertMiscNote>): MiscNote | undefined;
   deleteMiscNote(id: number): void;
 
   // Documents
   getDocumentsByClient(clientId: number): Document[];
+  getDocumentById(id: number): Document | undefined;
   createDocument(data: InsertDocument): Document;
   deleteDocument(id: number): void;
   updateDocumentAccess(id: number, cgAccess: string): Document | undefined;
@@ -805,6 +809,7 @@ export interface IStorage {
 
   // Outings
   getOutingsByClient(clientId: number): Outing[];
+  getOutingById(id: number): Outing | undefined;
   getActiveOutingByClient(clientId: number): Outing | undefined;
   createOuting(data: InsertOuting): Outing;
   updateOuting(id: number, data: Partial<InsertOuting>): Outing | undefined;
@@ -1073,6 +1078,7 @@ export const storage: IStorage = {
 
   // Messages
   getMessagesByThread: (threadId) => db.select().from(messages).where(eq(messages.threadId, threadId)).orderBy(asc(messages.sentAt)).all(),
+  getMessageById: (id) => db.select().from(messages).where(eq(messages.id, id)).get(),
   createMessage: (data) => db.insert(messages).values(data).returning().get(),
   markMessageRead: (messageId, userId) => {
     const msg = db.select().from(messages).where(eq(messages.id, messageId)).get();
@@ -1087,6 +1093,7 @@ export const storage: IStorage = {
 
   // Media
   getMediaByClient: (clientId) => db.select().from(mediaItems).where(eq(mediaItems.clientId, clientId)).orderBy(desc(mediaItems.uploadedAt)).all(),
+  getMediaItemById: (id) => db.select().from(mediaItems).where(eq(mediaItems.id, id)).get(),
   createMediaItem: (data) => db.insert(mediaItems).values(data).returning().get(),
   deleteMediaItem: (id) => { db.delete(mediaItems).where(eq(mediaItems.id, id)).run(); },
 
@@ -1108,12 +1115,14 @@ export const storage: IStorage = {
 
   // Misc Notes
   getMiscNotesByClient: (clientId) => db.select().from(miscNotes).where(eq(miscNotes.clientId, clientId)).orderBy(desc(miscNotes.createdAt)).all(),
+  getMiscNoteById: (id) => db.select().from(miscNotes).where(eq(miscNotes.id, id)).get(),
   createMiscNote: (data) => db.insert(miscNotes).values(data).returning().get(),
   updateMiscNote: (id, data) => db.update(miscNotes).set(data).where(eq(miscNotes.id, id)).returning().get(),
   deleteMiscNote: (id) => { db.delete(miscNotes).where(eq(miscNotes.id, id)).run(); },
 
   // Documents
   getDocumentsByClient: (clientId) => db.select().from(documents).where(eq(documents.clientId, clientId)).orderBy(desc(documents.uploadedAt)).all(),
+  getDocumentById: (id) => db.select().from(documents).where(eq(documents.id, id)).get(),
   createDocument: (data) => db.insert(documents).values(data).returning().get(),
   deleteDocument: (id) => { db.delete(documents).where(eq(documents.id, id)).run(); },
   updateDocumentAccess: (id, cgAccess) => db.update(documents).set({ cgAccess }).where(eq(documents.id, id)).returning().get(),
@@ -1122,6 +1131,7 @@ export const storage: IStorage = {
 
   // Outings
   getOutingsByClient: (clientId) => db.select().from(outings).where(eq(outings.clientId, clientId)).orderBy(desc(outings.startedAt)).all(),
+  getOutingById: (id) => db.select().from(outings).where(eq(outings.id, id)).get(),
   getActiveOutingByClient: (clientId) => db.select().from(outings).where(and(eq(outings.clientId, clientId), eq(outings.status, "active"))).get(),
   createOuting: (data) => db.insert(outings).values(data).returning().get(),
   updateOuting: (id, data) => db.update(outings).set(data).where(eq(outings.id, id)).returning().get(),
