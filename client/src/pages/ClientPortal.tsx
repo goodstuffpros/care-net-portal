@@ -25,6 +25,7 @@ const DIR_TITLES = [
   // Medical / Clinical
   "Primary Care Doctor (GP)",
   "Specialist",
+  "Doctor / Physician",
   "Eye Doctor",
   "Dentist",
   "Mental Health / Therapist",
