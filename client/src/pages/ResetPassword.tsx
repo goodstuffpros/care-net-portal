@@ -54,7 +54,7 @@ export default function ResetPasswordPage() {
     }
     setLoading(true);
     try {
-      const res = await apiRequest("POST", "/api/auth/reset-password", { token, newPassword: password });
+      const res = await apiRequest("POST", "/api/auth/reset-password", { token, password });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error(body.message || "Reset failed");
