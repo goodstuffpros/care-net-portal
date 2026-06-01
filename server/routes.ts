@@ -1718,9 +1718,9 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   app.get("/api/admin/engagement", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     try {
       const allUsers = db.select().from(users).all();
-      const realUsers = allUsers.filter(u => u.id > 5);
+      // Show all users except demo accounts — includes test accounts. Admins need full visibility.
       const DEMO_EMAILS = ['cnpdemo@carenetportal.com', 'democg@carenetportal.com'];
-      const nonDemoUsers = realUsers.filter(u => !DEMO_EMAILS.includes((u.email || '').toLowerCase()));
+      const nonDemoUsers = allUsers.filter(u => !DEMO_EMAILS.includes((u.email || '').toLowerCase()));
 
       const result = nonDemoUsers.map(u => {
         const clientId = u.clientId;
