@@ -145,6 +145,16 @@ app.use((req, res, next) => {
 
   } // end dev-only migration guard
 
+  // ── Production patches (run once, idempotent) ──────────────────────────────
+  // McKenzie (user 50) — permissionLevel was null; self_care users must have self_care_mc
+  try {
+    const mck = sqlite.prepare(`SELECT id, permission_level FROM users WHERE id = 50`).get() as any;
+    if (mck && !mck.permission_level) {
+      sqlite.prepare(`UPDATE users SET permission_level = 'self_care_mc' WHERE id = 50`).run();
+      console.log("[startup] Fixed McKenzie (user 50) permissionLevel → self_care_mc");
+    }
+  } catch (e) { console.log("[startup] McKenzie permission fix skipped:", e); }
+
   await registerRoutes(httpServer, app);
 
   app.use((err: any, _req: Request, res: Response, next: NextFunction) => {
