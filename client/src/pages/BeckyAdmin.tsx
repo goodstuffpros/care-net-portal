@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -1767,16 +1767,14 @@ export default function BeckyAdminPage() {
   const { toast } = useToast();
 
   // On mount, check if already authenticated as admin
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const [_init] = useState(() => {
+  useEffect(() => {
     fetch("/api/admin/engagement", { credentials: "include" })
       .then(r => {
-        if (r.status !== 403) setIsAuthenticated(true);
+        if (r.ok) setIsAuthenticated(true);
       })
       .catch(() => {})
       .finally(() => setCheckingAuth(false));
-    return null;
-  });
+  }, []);
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["/api/becky-library", activeTheme],
