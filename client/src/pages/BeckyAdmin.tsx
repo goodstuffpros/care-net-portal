@@ -390,6 +390,7 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
 
   const denyMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/admin/applications/${app.id}/deny`).then(r => r.json()),
+    onError: () => toast({ title: "Deny failed", description: "You may need to sign in again.", variant: "destructive" }),
     onSuccess: () => {
       toast({ title: "Denied", description: `Denial email sent to ${app.email}` });
       onRefresh();
