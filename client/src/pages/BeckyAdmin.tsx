@@ -1664,10 +1664,119 @@ function IdeasTab() {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
+// ── Admin Login Gate ─────────────────────────────────────────────────────────
+function AdminLoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.message || "Login failed");
+        return;
+      }
+      // Verify admin access
+      const meRes = await fetch("/api/auth/me", { credentials: "include" });
+      const me = await meRes.json();
+      if (!me?.id) {
+        setError("Could not verify session.");
+        return;
+      }
+      // Try an admin-only endpoint to confirm admin access
+      const testRes = await fetch("/api/admin/engagement", { credentials: "include" });
+      if (testRes.status === 403) {
+        setError("This account does not have admin access.");
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+        return;
+      }
+      onAuthenticated();
+    } catch {
+      setError("Network error. Try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "hsl(345 18% 5%)" }}>
+      <div className="w-full max-w-sm">
+        <div className="flex items-center gap-3 mb-8 justify-center">
+          <div className="w-10 h-10 rounded-xl bg-rose-500/20 flex items-center justify-center">
+            <BookHeart size={18} className="text-rose-400" />
+          </div>
+          <div>
+            <div className="text-white font-bold text-base" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Becky Admin</div>
+            <div className="text-white/50 text-xs">Care Net Portal — Private</div>
+          </div>
+        </div>
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="text-white/60 text-xs mb-1.5 block">Email</label>
+            <Input
+              type="email"
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              placeholder="admin@carenetportal.com"
+              required
+              autoFocus
+              className="bg-white/5 border-white/15 text-white placeholder:text-white/25"
+            />
+          </div>
+          <div>
+            <label className="text-white/60 text-xs mb-1.5 block">Password</label>
+            <Input
+              type="password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="••••••••"
+              required
+              className="bg-white/5 border-white/15 text-white placeholder:text-white/25"
+            />
+          </div>
+          {error && <p className="text-rose-400 text-sm">{error}</p>}
+          <Button
+            type="submit"
+            disabled={loading}
+            className="w-full bg-rose-600 hover:bg-rose-500 text-white"
+          >
+            {loading ? "Signing in…" : "Sign In"}
+          </Button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement">("library");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement">("applications");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
+
+  // On mount, check if already authenticated as admin
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const [_init] = useState(() => {
+    fetch("/api/admin/engagement", { credentials: "include" })
+      .then(r => {
+        if (r.status !== 403) setIsAuthenticated(true);
+      })
+      .catch(() => {})
+      .finally(() => setCheckingAuth(false));
+    return null;
+  });
 
   const { data, isLoading, refetch } = useQuery({
     queryKey: ["/api/becky-library", activeTheme],
@@ -1705,6 +1814,18 @@ export default function BeckyAdminPage() {
     }
   };
 
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "hsl(345 18% 5%)" }}>
+        <div className="text-white/40 text-sm">Checking access…</div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <AdminLoginGate onAuthenticated={() => setIsAuthenticated(true)} />;
+  }
+
   return (
     <div className="min-h-screen bg-background" style={{ background: "hsl(345 18% 5%)" }}>
       {/* Header */}
@@ -1723,7 +1844,7 @@ export default function BeckyAdminPage() {
             <button
               onClick={() => {
                 fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                  .finally(() => { window.location.href = "/"; });
+                  .finally(() => { window.location.href = "/#/becky-admin"; });
               }}
               className="text-white/30 hover:text-white/70 text-xs px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-all"
             >
