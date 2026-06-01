@@ -20,9 +20,11 @@ const ADMIN_USER_IDS = new Set([11, 12]);
 // ── Constants ─────────────────────────────────────────────────────────────
 
 const JWT_SECRET_RAW = process.env.JWT_SECRET;
+// Warn loudly if missing in production, but do not exit at module load time.
+// Railway injects env vars before the server starts, but process.exit() at
+// module scope can fire before the runtime is fully initialised.
 if (!JWT_SECRET_RAW && process.env.NODE_ENV === "production") {
-  console.error("[FATAL] JWT_SECRET environment variable is not set. Refusing to start in production.");
-  process.exit(1);
+  console.error("[FATAL] JWT_SECRET environment variable is not set in production. All token operations will fail.");
 }
 const JWT_SECRET = new TextEncoder().encode(
   JWT_SECRET_RAW || "care-net-dev-secret-change-in-production-min-32-chars"
