@@ -3,7 +3,7 @@ import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ActivityLog, Client } from "@shared/schema";
+import type { ActivityLog, ActivityLogAddendum, Client } from "@shared/schema";
 import { PriorityBadge } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect, useRef } from "react";
-import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2, Search, X, Trash2} from "lucide-react";
+import { Plus, CheckCircle2, Circle, ClipboardList, Mic, MicOff, Pill, Utensils, Heart, Activity, Stethoscope, Eye, Loader2, Clock, CheckCheck, AlertTriangle, Siren, UserRound, Volume2, Search, X, Trash2, FilePenLine, ChevronDown, ChevronUp } from "lucide-react";
 import { speakBecky } from "@/lib/ttsUtils";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
@@ -46,6 +46,112 @@ function formatTime(iso: string) {
     return d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + " today";
   }
   return d.toLocaleDateString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+}
+
+const ADDENDUM_TAG_LABELS: Record<string, string> = {
+  typo: "Typo / Spelling",
+  incomplete: "Incomplete Entry",
+  wrong_data: "Wrong Data",
+  additional_detail: "Additional Detail",
+  timing_correction: "Timing Correction",
+};
+
+function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number; currentUserId: number; logAuthorId: number }) {
+  const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [tag, setTag] = useState("");
+  const [note, setNote] = useState("");
+  const isAuthor = currentUserId === logAuthorId;
+
+  const { data: addendums = [], refetch } = useQuery<ActivityLogAddendum[]>({
+    queryKey: ["/api/activity/addendums", logId],
+    queryFn: () => apiRequest("GET", `/api/activity/${logId}/addendums`).then(r => r.json()),
+    enabled: open,
+    staleTime: 30000,
+  });
+
+  const submitMutation = useMutation({
+    mutationFn: () => apiRequest("POST", `/api/activity/${logId}/addendums`, { tag, note }),
+    onSuccess: () => {
+      setNote(""); setTag(""); setShowForm(false);
+      refetch();
+      toast({ title: "Addendum saved" });
+    },
+    onError: () => toast({ title: "Failed to save addendum", variant: "destructive" }),
+  });
+
+  return (
+    <div className="mt-2 border-t border-border/30 pt-2">
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <FilePenLine size={11} />
+        {open ? <><ChevronUp size={11} /> Hide addendums</> : <><ChevronDown size={11} /> {addendums.length > 0 ? `${addendums.length} addendum${addendums.length > 1 ? "s" : ""}` : "Addendums"}</>}
+      </button>
+
+      {open && (
+        <div className="mt-2 space-y-2">
+          {/* Existing addendums */}
+          {addendums.map(a => (
+            <div key={a.id} className="ml-3 pl-3 border-l-2 border-amber-400/40 space-y-0.5">
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                {ADDENDUM_TAG_LABELS[a.tag] ?? a.tag}
+              </span>
+              <p className="text-xs text-muted-foreground leading-relaxed">{a.note}</p>
+              <p className="text-[10px] text-muted-foreground/60">{new Date(a.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+            </div>
+          ))}
+
+          {/* Add Note button — original author only */}
+          {isAuthor && !showForm && (
+            <button
+              onClick={() => setShowForm(true)}
+              className="ml-3 text-xs text-primary hover:underline flex items-center gap-1"
+            >
+              <Plus size={11} /> Add note
+            </button>
+          )}
+
+          {/* Addendum form */}
+          {isAuthor && showForm && (
+            <div className="ml-3 space-y-2 pt-1">
+              <Select value={tag} onValueChange={setTag}>
+                <SelectTrigger className="h-8 text-xs">
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  {Object.entries(ADDENDUM_TAG_LABELS).map(([val, label]) => (
+                    <SelectItem key={val} value={val} className="text-xs">{label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Textarea
+                value={note}
+                onChange={e => setNote(e.target.value)}
+                placeholder="Add your note here…"
+                className="text-xs min-h-[64px]"
+              />
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="h-7 text-xs"
+                  disabled={!tag || !note.trim() || submitMutation.isPending}
+                  onClick={() => submitMutation.mutate()}
+                >
+                  {submitMutation.isPending ? "Saving…" : "Save"}
+                </Button>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowForm(false); setTag(""); setNote(""); }}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function ActivityPage() {
@@ -821,6 +927,13 @@ export default function ActivityPage() {
                     )}
                   </div>
                 </div>
+
+                {/* Addendum section — visible to anyone with portal access */}
+                <AddendumSection
+                  logId={log.id}
+                  currentUserId={activeUser.id}
+                  logAuthorId={log.loggedByUserId}
+                />
 
                 {/* Bottom action row — family and CG */}
                 {(isFamily || isCaregiverRole(activeUser.role)) && (

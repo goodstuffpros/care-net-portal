@@ -2,12 +2,13 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import Database from "better-sqlite3";
 import { eq, and, desc, asc } from "drizzle-orm";
 import {
-  users, clients, scheduleEvents, activityLogs, chatThreads,
+  users, clients, scheduleEvents, activityLogs, activityLogAddendums, chatThreads,
   messages, mediaItems, notifications, archiveSummaries, miscNotes,
   documents, outings, shifts, careFlags, vitals,
   medications, medicationHistory, medicationLogs,
   badgeSurveys, badgeScores,
   thoughtEntries, caregiverProfiles, careScopes, flagControls,
+  type ActivityLogAddendum,
   wellbeingCheckIns, wellbeingStreaks, universityProgress, beckyResponses,
   type WellbeingCheckIn, type InsertWellbeingCheckIn,
   type WellbeingStreak, type InsertWellbeingStreak,
@@ -103,6 +104,14 @@ sqlite.exec(`
     voice_note_url TEXT,
     is_checked INTEGER DEFAULT 0,
     schedule_event_id INTEGER
+  );
+  CREATE TABLE IF NOT EXISTS activity_log_addendums (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    activity_log_id INTEGER NOT NULL,
+    author_user_id INTEGER NOT NULL,
+    tag TEXT NOT NULL,
+    note TEXT NOT NULL,
+    created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS chat_threads (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -1069,6 +1078,11 @@ export const storage: IStorage = {
   updateActivityLog: (id, data) => db.update(activityLogs).set(data).where(eq(activityLogs.id, id)).returning().get(),
   deleteActivityLog: (id) => { db.delete(activityLogs).where(eq(activityLogs.id, id)).run(); },
   excuseActivityLog: (id, excuseNote, excusedByUserId) => db.update(activityLogs).set({ isExcused: true, excuseNote, excusedByUserId }).where(eq(activityLogs.id, id)).returning().get(),
+  // Addendums
+  getAddendumsByActivityLog: (activityLogId: number): ActivityLogAddendum[] =>
+    db.select().from(activityLogAddendums).where(eq(activityLogAddendums.activityLogId, activityLogId)).orderBy(asc(activityLogAddendums.createdAt)).all(),
+  createAddendum: (data: { activityLogId: number; authorUserId: number; tag: string; note: string; createdAt: string }): ActivityLogAddendum =>
+    db.insert(activityLogAddendums).values(data).returning().get(),
 
   // Chat Threads
   getChatThreadsByClient: (clientId) => db.select().from(chatThreads).where(eq(chatThreads.clientId, clientId)).all(),

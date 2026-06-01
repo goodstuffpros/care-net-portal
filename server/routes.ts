@@ -2936,6 +2936,34 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true });
   });
 
+  // Care Log Addendums
+  app.get("/api/activity/:id/addendums", requireAuth, (req: AuthRequest, res) => {
+    const log = storage.getActivityLogById(Number(req.params.id));
+    if (!log) return res.status(404).json({ message: "Log not found" });
+    if (!checkPortalAccess(req, log.clientId)) return res.status(403).json({ message: "Access denied" });
+    res.json(storage.getAddendumsByActivityLog(Number(req.params.id)));
+  });
+
+  app.post("/api/activity/:id/addendums", requireAuth, (req: AuthRequest, res) => {
+    const log = storage.getActivityLogById(Number(req.params.id));
+    if (!log) return res.status(404).json({ message: "Log not found" });
+    if (!checkPortalAccess(req, log.clientId)) return res.status(403).json({ message: "Access denied" });
+    // Only the original author can add an addendum
+    if (log.loggedByUserId !== req.authUserId) return res.status(403).json({ message: "Only the original author can add an addendum" });
+    const { tag, note } = req.body;
+    if (!tag || !note?.trim()) return res.status(400).json({ message: "tag and note are required" });
+    const VALID_TAGS = ["typo", "incomplete", "wrong_data", "additional_detail", "timing_correction"];
+    if (!VALID_TAGS.includes(tag)) return res.status(400).json({ message: "Invalid tag" });
+    const addendum = storage.createAddendum({
+      activityLogId: Number(req.params.id),
+      authorUserId: req.authUserId!,
+      tag,
+      note: note.trim(),
+      createdAt: new Date().toISOString(),
+    });
+    res.status(201).json(addendum);
+  });
+
   // Chat Threads
   app.get("/api/clients/:clientId/threads", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getChatThreadsByClient(Number(req.params.clientId)));

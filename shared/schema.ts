@@ -129,6 +129,17 @@ export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ i
 export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
 export type ActivityLog = typeof activityLogs.$inferSelect;
 
+// Care Log Addendums — threaded notes attached to an activity log entry
+export const activityLogAddendums = sqliteTable("activity_log_addendums", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  activityLogId: integer("activity_log_id").notNull(), // parent entry
+  authorUserId: integer("author_user_id").notNull(),   // must match original loggedByUserId
+  tag: text("tag").notNull(),                          // 'typo' | 'incomplete' | 'wrong_data' | 'additional_detail' | 'timing_correction'
+  note: text("note").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+export type ActivityLogAddendum = typeof activityLogAddendums.$inferSelect;
+
 // Chat threads / groups
 export const chatThreads = sqliteTable("chat_threads", {
   id: integer("id").primaryKey({ autoIncrement: true }),
