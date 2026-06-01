@@ -508,63 +508,116 @@ function ApplicationsTab() {
     staleTime: 15000,
   });
 
-  // API returns array directly
+  const { data: allUsersData, isLoading: allUsersLoading } = useQuery({
+    queryKey: ["/api/admin/engagement"],
+    queryFn: () => apiRequest("GET", "/api/admin/engagement").then(r => r.json()),
+    staleTime: 30000,
+  });
+
   const apps: BetaApplication[] = Array.isArray(data) ? data : (data?.applications ?? []);
   const filtered = statusFilter === "all" ? apps : apps.filter(a => a.status === statusFilter);
   const pendingCount = apps.filter(a => a.status === "pending").length;
+  const allUsers: EngagementUser[] = Array.isArray(allUsersData) ? allUsersData : [];
+
+  function roleLabel(role: string) {
+    const map: Record<string, string> = {
+      caregiver: "Caregiver", multi_caregiver: "Caregiver",
+      primary_family: "Main Contact", secondary_family: "Family",
+      self_care: "Self Care",
+    };
+    return map[role] ?? role;
+  }
+
+  function roleColor(role: string) {
+    if (role === "caregiver" || role === "multi_caregiver") return "text-teal-400";
+    if (role === "primary_family") return "text-blue-400";
+    if (role === "secondary_family") return "text-slate-400";
+    if (role === "self_care") return "text-rose-400";
+    return "text-white/50";
+  }
 
   return (
-    <div className="space-y-5">
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-xl bg-white/5 border border-white/10 p-3 text-center">
-          <div className="text-white text-lg font-bold">{apps.length}</div>
-          <div className="text-white/40 text-[10px] mt-0.5">Total</div>
+    <div className="space-y-6">
+
+      {/* ALL CURRENT USERS */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-white/70 text-xs font-semibold uppercase tracking-wider">All Current Users</div>
+          <div className="text-white/40 text-xs">{allUsers.length} users</div>
         </div>
-        <div className="rounded-xl bg-amber-900/20 border border-amber-700/30 p-3 text-center">
-          <div className="text-amber-400 text-lg font-bold">{pendingCount}</div>
-          <div className="text-amber-500/60 text-[10px] mt-0.5">Pending</div>
-        </div>
-        <div className="rounded-xl bg-emerald-900/20 border border-emerald-700/30 p-3 text-center">
-          <div className="text-emerald-400 text-lg font-bold">{apps.filter(a => a.status === "approved").length}</div>
-          <div className="text-emerald-500/60 text-[10px] mt-0.5">Approved</div>
-        </div>
+        {allUsersLoading ? (
+          <div className="space-y-2">
+            {[...Array(4)].map((_, i) => <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" />)}
+          </div>
+        ) : allUsers.length === 0 ? (
+          <div className="text-center py-6 text-white/30 text-sm">No users found.</div>
+        ) : (
+          <div className="space-y-2">
+            {allUsers.map(u => (
+              <div key={u.id} className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="text-white text-sm font-medium truncate">{u.name}</div>
+                  <div className="text-white/40 text-xs truncate">{u.email}</div>
+                </div>
+                <div className="flex-shrink-0 text-right">
+                  <div className={cn("text-xs font-medium", roleColor(u.role))}>{roleLabel(u.role)}</div>
+                  <div className="text-white/30 text-[10px]">
+                    {u.lastLoginAt ? `Last login: ${new Date(u.lastLoginAt).toLocaleDateString()}` : "Never logged in"}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Filter tabs */}
-      <div className="flex gap-2">
-        {(["pending", "approved", "denied", "all"] as const).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            className={cn(
-              "px-3 py-1.5 rounded-full text-xs font-medium transition-all border capitalize",
-              statusFilter === s
-                ? "bg-rose-600 border-rose-500 text-white"
-                : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10"
-            )}
-          >
-            {s}{s === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
-          </button>
-        ))}
-      </div>
+      {/* DIVIDER */}
+      <div className="border-t border-white/10" />
 
-      {/* List */}
-      {isLoading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />)}
+      {/* PUBLIC SIGNUP QUEUE (for future use) */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div className="text-white/70 text-xs font-semibold uppercase tracking-wider">Public Signup Queue</div>
+          {pendingCount > 0 && (
+            <div className="bg-amber-500/20 text-amber-400 text-xs px-2 py-0.5 rounded-full border border-amber-500/30">
+              {pendingCount} pending
+            </div>
+          )}
         </div>
-      ) : filtered.length === 0 ? (
-        <div className="text-center py-12 text-white/30 text-sm">
-          {statusFilter === "pending" ? "No pending applications." : `No ${statusFilter} applications.`}
-        </div>
-      ) : (
-        <div className="space-y-3">
-          {filtered.map(app => (
-            <ApplicationCard key={app.id} app={app} onRefresh={refetch} />
+
+        <div className="flex gap-2 mb-3">
+          {(["pending", "approved", "denied", "all"] as const).map(s => (
+            <button
+              key={s}
+              onClick={() => setStatusFilter(s)}
+              className={cn(
+                "px-3 py-1.5 rounded-full text-xs font-medium transition-all border capitalize",
+                statusFilter === s
+                  ? "bg-rose-600 border-rose-500 text-white"
+                  : "bg-white/5 border-white/10 text-white/50 hover:text-white hover:bg-white/10"
+              )}
+            >
+              {s}{s === "pending" && pendingCount > 0 ? ` (${pendingCount})` : ""}
+            </button>
           ))}
         </div>
-      )}
+
+        {isLoading ? (
+          <div className="space-y-3">
+            {[...Array(2)].map((_, i) => <div key={i} className="h-16 rounded-xl bg-white/5 animate-pulse" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-6 text-white/30 text-sm">
+            {statusFilter === "pending" ? "No pending applications." : `No ${statusFilter} applications.`}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {filtered.map(app => (
+              <ApplicationCard key={app.id} app={app} onRefresh={refetch} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -1667,6 +1720,15 @@ export default function BeckyAdminPage() {
               </div>
               <div className="text-white/50 text-xs">Care Net Portal — Private</div>
             </div>
+            <button
+              onClick={() => {
+                fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                  .finally(() => { window.location.href = "/"; });
+              }}
+              className="text-white/30 hover:text-white/70 text-xs px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-all"
+            >
+              Sign Out
+            </button>
           </div>
           {/* Tab bar — horizontally scrollable on mobile */}
           <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none -mx-1 px-1">
