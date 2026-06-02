@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { setAuthToken, clearAuthToken } from "@/lib/queryClient";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
@@ -1688,17 +1689,13 @@ function AdminLoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         setError(data.message || "Login failed");
         return;
       }
+      // Store the token so apiRequest sends it as Bearer
+      if (data.token) setAuthToken(data.token);
       // Verify admin access
-      const meRes = await fetch("/api/auth/me", { credentials: "include" });
-      const me = await meRes.json();
-      if (!me?.id) {
-        setError("Could not verify session.");
-        return;
-      }
-      // Try an admin-only endpoint to confirm admin access
-      const testRes = await fetch("/api/admin/engagement", { credentials: "include" });
-      if (testRes.status === 403) {
+      const testRes = await fetch("/api/admin/engagement", { credentials: "include", headers: data.token ? { Authorization: `Bearer ${data.token}` } : {} });
+      if (!testRes.ok) {
         setError("This account does not have admin access.");
+        clearAuthToken();
         await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
         return;
       }
@@ -1769,12 +1766,14 @@ export default function BeckyAdminPage() {
 
   // On mount, check if already authenticated as admin
   useEffect(() => {
-    fetch("/api/admin/engagement", { credentials: "include" })
-      .then(r => {
-        if (r.ok) setIsAuthenticated(true);
-      })
-      .catch(() => {})
-      .finally(() => setCheckingAuth(false));
+    import("@/lib/queryClient").then(({ getAuthToken }) => {
+      const token = getAuthToken();
+      const headers: Record<string, string> = token ? { Authorization: `Bearer ${token}` } : {};
+      fetch("/api/admin/engagement", { credentials: "include", headers })
+        .then(r => { if (r.ok) setIsAuthenticated(true); })
+        .catch(() => {})
+        .finally(() => setCheckingAuth(false));
+    });
   }, []);
 
   const { data, isLoading, refetch } = useQuery({
@@ -1842,6 +1841,7 @@ export default function BeckyAdminPage() {
             </div>
             <button
               onClick={() => {
+                clearAuthToken();
                 fetch("/api/auth/logout", { method: "POST", credentials: "include" })
                   .finally(() => { window.location.href = "/#/becky-admin"; });
               }}
