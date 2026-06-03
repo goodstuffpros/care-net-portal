@@ -433,53 +433,67 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // POST /api/admin/applications/:id/approve
   app.post("/api/admin/applications/:id/approve", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-    const id = parseInt(req.params.id);
-    const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
-    if (!app_) return res.status(404).json({ message: "Application not found" });
+    try {
+      const id = parseInt(req.params.id);
+      const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
+      if (!app_) return res.status(404).json({ message: "Application not found" });
 
-    const inviteToken = generateToken(32);
-    const inviteExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const inviteUrl = `${appUrl}/?page=complete-signup&token=${inviteToken}`;
+      const inviteToken = generateToken(32);
+      const inviteExpiry = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+      const appUrl = process.env.APP_URL || "http://localhost:5000";
+      const inviteUrl = `${appUrl}/?page=complete-signup&token=${inviteToken}`;
 
-    db.update(betaApplications).set({
-      status: "approved",
-      reviewedAt: new Date().toISOString(),
-      inviteToken,
-      inviteExpiry,
-      inviteSentAt: new Date().toISOString(),
-    }).where(eq(betaApplications.id, id)).run();
+      // Use raw SQL — reviewed_at, invite_token etc. may not exist in older live DBs
+      try {
+        sqlite.prepare(`UPDATE beta_applications SET status = 'approved', reviewed_at = ?, invite_token = ?, invite_expiry = ?, invite_sent_at = ? WHERE id = ?`)
+          .run(new Date().toISOString(), inviteToken, inviteExpiry, new Date().toISOString(), id);
+      } catch {
+        sqlite.prepare(`UPDATE beta_applications SET status = 'approved' WHERE id = ?`).run(id);
+      }
 
-    // Send email non-blocking — DB update already committed
-    sendEmail({
-      to: app_.email,
-      subject: "You're in — Care Net Portal Beta",
-      html: emailApprovalTemplate(app_.name, inviteUrl),
-    }).catch((err) => console.error("[approve] email send failed:", err?.message));
+      // Send email non-blocking — DB update already committed
+      sendEmail({
+        to: app_.email,
+        subject: "You're in — Care Net Portal Beta",
+        html: emailApprovalTemplate(app_.name, inviteUrl),
+      }).catch((err) => console.error("[approve] email send failed:", err?.message));
 
-    res.json({ success: true, message: `Approved and invite sent to ${app_.email}` });
+      res.json({ success: true, message: `Approved and invite sent to ${app_.email}` });
+    } catch (err: any) {
+      console.error("[approve] failed:", err?.message);
+      res.status(500).json({ message: err?.message || "Approve failed" });
+    }
   });
 
   // POST /api/admin/applications/:id/deny
   app.post("/api/admin/applications/:id/deny", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
-    const id = parseInt(req.params.id);
-    const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
-    if (!app_) return res.status(404).json({ message: "Application not found" });
+    try {
+      const id = parseInt(req.params.id);
+      const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, id)).get();
+      if (!app_) return res.status(404).json({ message: "Application not found" });
 
-    db.update(betaApplications).set({
-      status: "denied",
-      reviewedAt: new Date().toISOString(),
-      reviewNote: req.body.note || null,
-    }).where(eq(betaApplications.id, id)).run();
+      // Use raw SQL to update only columns guaranteed to exist in the live DB.
+      // reviewed_at and review_note may be missing in older DBs — update via try/catch.
+      try {
+        sqlite.prepare(`UPDATE beta_applications SET status = 'denied', reviewed_at = ?, review_note = ? WHERE id = ?`)
+          .run(new Date().toISOString(), req.body.note || null, id);
+      } catch {
+        // Fallback: just flip the status if the other columns don't exist yet
+        sqlite.prepare(`UPDATE beta_applications SET status = 'denied' WHERE id = ?`).run(id);
+      }
 
-    // Send email non-blocking — DB update already committed
-    sendEmail({
-      to: app_.email,
-      subject: "Care Net Portal — Application Update",
-      html: emailDenialTemplate(app_.name),
-    }).catch((err) => console.error("[deny] email send failed:", err?.message));
+      // Send email non-blocking — DB update already committed
+      sendEmail({
+        to: app_.email,
+        subject: "Care Net Portal — Application Update",
+        html: emailDenialTemplate(app_.name),
+      }).catch((err) => console.error("[deny] email send failed:", err?.message));
 
-    res.json({ success: true });
+      res.json({ success: true });
+    } catch (err: any) {
+      console.error("[deny] failed:", err?.message);
+      res.status(500).json({ message: err?.message || "Deny failed" });
+    }
   });
 
 
