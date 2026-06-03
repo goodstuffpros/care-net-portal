@@ -136,11 +136,12 @@ export function clearSessionCookie(res: Response): void {
 }
 
 export function getTokenFromRequest(req: Request): string | null {
-  // Try httpOnly cookie first (web app)
-  if (req.cookies?.[COOKIE_NAME]) return req.cookies[COOKIE_NAME];
-  // Fallback: Authorization header (future mobile/API use)
+  // Try Authorization header first — explicit token always wins over ambient cookie.
+  // This ensures admin panel login (Bearer) is not shadowed by an existing portal cookie.
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) return authHeader.slice(7);
+  // Fallback: httpOnly cookie (standard web app sessions)
+  if (req.cookies?.[COOKIE_NAME]) return req.cookies[COOKIE_NAME];
   return null;
 }
 

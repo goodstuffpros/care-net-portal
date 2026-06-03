@@ -1678,6 +1678,10 @@ function AdminLoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
     setError("");
     setLoading(true);
     try {
+      // Clear any existing session/cookie first so it doesn't shadow the admin login
+      clearAuthToken();
+      await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -1689,10 +1693,13 @@ function AdminLoginGate({ onAuthenticated }: { onAuthenticated: () => void }) {
         setError(data.message || "Login failed");
         return;
       }
-      // Store the token so apiRequest sends it as Bearer
+      // Store the token
       if (data.token) setAuthToken(data.token);
-      // Verify admin access
-      const testRes = await fetch("/api/admin/engagement", { credentials: "include", headers: data.token ? { Authorization: `Bearer ${data.token}` } : {} });
+      // Verify admin access using the fresh token directly
+      const testRes = await fetch("/api/admin/engagement", {
+        credentials: "include",
+        headers: data.token ? { Authorization: `Bearer ${data.token}` } : {},
+      });
       if (!testRes.ok) {
         setError("This account does not have admin access.");
         clearAuthToken();
