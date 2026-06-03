@@ -1740,7 +1740,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
 
       const result = nonDemoUsers.map(u => {
         const clientId = u.clientId;
-        const account = sqlite.prepare(`SELECT last_login_at, created_at FROM auth_accounts WHERE user_id = ?`).get(u.id) as any;
+        const account = sqlite.prepare(`SELECT last_login_at FROM auth_accounts WHERE user_id = ?`).get(u.id) as any;
 
         // Last activity = most recent timestamp across all care data for this user
         const lastActivityRows = [
@@ -1775,7 +1775,6 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           totalEntries,
           daysSinceLogin,
           tier,
-          joinedAt: account?.created_at ?? null,
         };
       });
 
