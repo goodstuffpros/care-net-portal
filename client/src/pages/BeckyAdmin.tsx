@@ -503,16 +503,25 @@ function ApplicationCard({ app, onRefresh }: { app: BetaApplication; onRefresh: 
 function ApplicationsTab() {
   const [statusFilter, setStatusFilter] = useState<"all" | "pending" | "approved" | "denied">("pending");
 
-  const { data, isLoading, refetch } = useQuery({
+  const { data: whoami, isLoading: whoamiLoading } = useQuery({
+    queryKey: ["/api/admin/whoami"],
+    queryFn: () => apiRequest("GET", "/api/admin/whoami").then(r => r.json()),
+    staleTime: 60000,
+    retry: false,
+  });
+
+  const { data, isLoading, isError: appsError, error: appsErr, refetch } = useQuery({
     queryKey: ["/api/admin/applications"],
     queryFn: () => apiRequest("GET", "/api/admin/applications").then(r => r.json()),
     staleTime: 15000,
+    retry: false,
   });
 
-  const { data: allUsersData, isLoading: allUsersLoading } = useQuery({
+  const { data: allUsersData, isLoading: allUsersLoading, isError: engError, error: engErr } = useQuery({
     queryKey: ["/api/admin/engagement"],
     queryFn: () => apiRequest("GET", "/api/admin/engagement").then(r => r.json()),
     staleTime: 30000,
+    retry: false,
   });
 
   const apps: BetaApplication[] = Array.isArray(data) ? data : (data?.applications ?? []);
@@ -540,6 +549,33 @@ function ApplicationsTab() {
   return (
     <div className="space-y-6">
 
+      {/* AUTH DIAGNOSTIC BANNER */}
+      {!whoamiLoading && (
+        <div className={cn(
+          "rounded-xl border px-4 py-3 text-xs space-y-1",
+          whoami?.isAdmin
+            ? "bg-teal-950/30 border-teal-700/40"
+            : "bg-red-950/30 border-red-700/50"
+        )}>
+          <div className={cn("font-semibold", whoami?.isAdmin ? "text-teal-300" : "text-red-300")}>
+            {whoami?.isAdmin ? "Admin access confirmed" : "NOT recognized as admin"}
+          </div>
+          <div className="text-white/50">
+            Signed in as: {whoami?.email ?? "unknown"} (user #{whoami?.authUserId ?? "?"})
+          </div>
+          {!whoami?.isAdmin && (
+            <div className="text-red-400 mt-1">
+              Sign out and sign back in as blgservantgirl@gmail.com or beckylgould01@gmail.com
+            </div>
+          )}
+          {(appsError || engError) && (
+            <div className="text-red-400 mt-1">
+              Error: {String((appsErr || engErr) as any)}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ALL CURRENT USERS */}
       <div>
         <div className="flex items-center justify-between mb-3">
@@ -550,6 +586,8 @@ function ApplicationsTab() {
           <div className="space-y-2">
             {[...Array(4)].map((_, i) => <div key={i} className="h-12 rounded-xl bg-white/5 animate-pulse" />)}
           </div>
+        ) : engError ? (
+          <div className="text-center py-6 text-red-400 text-sm">Failed to load users: {String(engErr as any)}</div>
         ) : allUsers.length === 0 ? (
           <div className="text-center py-6 text-white/30 text-sm">No users found.</div>
         ) : (

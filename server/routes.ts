@@ -404,6 +404,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
   // ── Admin: Beta Application Management ──────────────────────────────────
 
+  // GET /api/admin/whoami — diagnostic: returns the authenticated user ID, email, and admin status
+  // No requireAdmin — this is used to debug auth failures from the admin panel
+  app.get("/api/admin/whoami", requireAuth, (req: AuthRequest, res) => {
+    const ADMIN_USER_IDS = new Set([11, 12, 43]);
+    const account = req.authAccountId
+      ? db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId)).get()
+      : null;
+    res.json({
+      authAccountId: req.authAccountId ?? null,
+      authUserId: req.authUserId ?? null,
+      authUserRole: req.authUserRole ?? null,
+      email: account?.email ?? null,
+      isAdmin: req.authUserId ? ADMIN_USER_IDS.has(req.authUserId) : false,
+    });
+  });
+
   // GET /api/admin/applications — list all beta applications with email verified status
   app.get("/api/admin/applications", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const apps = db.select().from(betaApplications).all();
