@@ -2933,6 +2933,36 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       }
     }
 
+    // ── Notify MC when caregiver posts a care log entry ────────────────
+    if (!isFamilyEntry) {
+      try {
+        const allPortalUsers = storage.getUsersByClientId(clientId);
+        const mcUsers = allPortalUsers.filter(u => u.role === "primary_family");
+        const posterName = data.loggedByName || "Your caregiver";
+        mcUsers.forEach(mc => {
+          try {
+            const raw = (mc as any).notificationPrefs;
+            const prefs: Record<string, boolean> = raw ? JSON.parse(raw) : {};
+            // Notify if care_log_entries is explicitly true, OR if no prefs set yet (default on)
+            const wantsNotif = prefs.care_log_entries !== false;
+            if (wantsNotif) {
+              storage.createNotification({
+                userId: mc.id,
+                clientId,
+                title: `📋 New Care Log Entry`,
+                body: `${posterName} posted "${log.title}"${log.description ? ": " + log.description.slice(0, 100) : ""}.`,
+                type: "info",
+                priority: "normal",
+                isRead: false,
+                createdAt: now,
+                linkTo: "/activity",
+              });
+            }
+          } catch (e) { console.error("[notify-mc] per-user error:", e); }
+        });
+      } catch (e) { console.error("[notify-mc] failed:", e); }
+    }
+
     // ── Auto-tag for pattern recognition ────────────────────────────────
     const textToTag = [log.title, log.description, log.notes].filter(Boolean).join(" ");
     if (textToTag.length > 3) {
