@@ -694,7 +694,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (isClientMode) return CLIENT_NAV_ITEMS;
     let items = rawNavItems;
     if (isFamily) items = items.filter(n => n.path !== "/thoughts" && n.path !== "/my-profile");
-    if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/patterns" && n.path !== "/archive");
+    if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/archive");
     // University always visible to caregiver + MC; ensure it's in family nav
     const hasUniversity = items.some(n => n.path === "/university");
     if (!hasUniversity && (isFamily || isFamilyPortal)) {
