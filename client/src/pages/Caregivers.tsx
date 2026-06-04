@@ -41,7 +41,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 };
 
 export default function CaregiversPage() {
-  const { activeUser, selectedClientId, appMode, isPracticeClient, sampleClientId } = useApp();
+  const { activeUser, selectedClientId, appMode, isPracticeClient, sampleClientId, isTemporarilyElevated } = useApp();
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
