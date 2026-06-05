@@ -15,7 +15,8 @@ import {
   TrendingUp, ShieldAlert, FolderOpen, MapPin,
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
-  Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home
+  Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home,
+  Phone, FileText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -242,6 +243,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [sosAlertCg, setSosAlertCg] = useState(true);
   const [sosSending, setSosSending] = useState(false);
   const [sosSent, setSosSent] = useState(false);
+
+  // Emergency info — lazy fetch when SOS modal opens
+  const { data: emergencyClient } = useQuery<any>({
+    queryKey: ["/api/clients", selectedClientId, "detail"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}`).then(r => r.json()),
+    enabled: sosModalOpen && !!selectedClientId,
+    staleTime: 30000,
+  });
+  const { data: emergencyMeds = [] } = useQuery<any[]>({
+    queryKey: ["/api/clients", selectedClientId, "medications"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/medications`).then(r => r.json()),
+    enabled: sosModalOpen && !!selectedClientId,
+    staleTime: 30000,
+  });
+  const { data: emergencyDirectory = [] } = useQuery<any[]>({
+    queryKey: ["/api/clients", selectedClientId, "directory"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/directory`).then(r => r.json()),
+    enabled: sosModalOpen && !!selectedClientId,
+    staleTime: 30000,
+  });
 
   const [referralSheetOpen, setReferralSheetOpen] = useState(false);
   const [referralCopied, setReferralCopied] = useState(false);
@@ -1624,124 +1645,237 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/* ── SOS Emergency Alert Modal ───────────────────────────────────────── */}
       {sosModalOpen && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" data-testid="sos-modal">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !sosSending && setSosModalOpen(false)} />
-          <div className="relative w-full sm:max-w-md bg-background rounded-t-2xl sm:rounded-2xl border border-red-200 dark:border-red-800 shadow-2xl p-6 z-10">
-            <div className="w-10 h-1 bg-border rounded-full mx-auto mb-5 sm:hidden" />
-            {sosSent ? (
-              <div className="text-center py-4 space-y-3">
-                <div className="w-14 h-14 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto">
-                  <Siren size={24} className="text-red-600 dark:text-red-400" />
-                </div>
-                <div>
-                  <p className="text-base font-semibold text-foreground">Alert Sent</p>
-                  <p className="text-sm text-muted-foreground mt-1">Your care team has been notified. A record of this alert has been logged.</p>
-                </div>
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => !sosSending && setSosModalOpen(false)} />
+          <div className="relative w-full sm:max-w-lg bg-background rounded-t-2xl sm:rounded-2xl border border-red-200 dark:border-red-800 shadow-2xl z-10 flex flex-col max-h-[90dvh]">
+            <div className="w-10 h-1 bg-border rounded-full mx-auto mt-3 sm:hidden flex-shrink-0" />
+
+            {/* ── Header ── */}
+            <div className="flex items-center gap-3 px-5 pt-4 pb-3 border-b border-border flex-shrink-0">
+              <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
+                <Siren size={17} className="text-red-600 dark:text-red-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-semibold text-foreground">Emergency</h2>
+                <p className="text-xs text-muted-foreground">{activeClientName}</p>
+              </div>
+              <button onClick={() => setSosModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1" data-testid="sos-modal-close">
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* ── Scrollable body ── */}
+            <div className="overflow-y-auto flex-1 px-5 py-4 space-y-5">
+
+              {/* SECTION 1 — Emergency Info snapshot */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Emergency Info</p>
+
+                {/* Blood type pill */}
+                {emergencyClient?.bloodType && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground w-20 flex-shrink-0">Blood Type</span>
+                    <span className="text-sm font-bold text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800 px-2.5 py-0.5 rounded-full">{emergencyClient.bloodType}</span>
+                  </div>
+                )}
+
+                {/* Allergies */}
+                {(() => {
+                  const allergies = (() => { try { const r = JSON.parse(emergencyClient?.allergies || "[]"); return typeof r[0] === "string" ? r.map((s: string) => ({ name: s, severity: "serious" })) : r; } catch { return []; } })();
+                  return allergies.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5">Allergies</p>
+                      <div className="space-y-1.5">
+                        {allergies.map((a: any, i: number) => (
+                          <div key={i} className="rounded-lg border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950/20 px-3 py-2">
+                            <div className="flex items-center justify-between gap-2">
+                              <span className="text-sm font-medium text-foreground">{a.name}</span>
+                              <span className={cn("text-xs px-2 py-0.5 rounded-full border capitalize flex-shrink-0",
+                                a.severity === "life-threatening" ? "bg-red-100 text-red-900 border-red-400 font-bold dark:bg-red-950/60 dark:text-red-300" :
+                                a.severity === "serious" ? "bg-red-50 text-red-700 border-red-200 dark:bg-red-950/30 dark:text-red-400" :
+                                "bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-950/30 dark:text-yellow-400"
+                              )}>{a.severity}</span>
+                            </div>
+                            {a.reaction && <p className="text-xs text-muted-foreground mt-0.5">{a.reaction}</p>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Current medications */}
+                {(() => {
+                  const activeMeds = emergencyMeds.filter((m: any) => m.status === "active");
+                  return activeMeds.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5">Current Medications</p>
+                      <div className="space-y-1">
+                        {activeMeds.map((m: any, i: number) => (
+                          <div key={i} className="flex items-baseline justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20">
+                            <span className="text-sm font-medium text-foreground">{m.name}</span>
+                            <span className="text-xs text-muted-foreground flex-shrink-0">{m.dosageAmount}{m.dosageUnit}{m.frequency ? ` · ${m.frequency.replace(/_/g, " ")}` : ""}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+
+                {/* Emergency contacts from directory */}
+                {(() => {
+                  const emergencyContacts = emergencyDirectory.filter((d: any) => d.isEmergency && d.phone);
+                  const allContacts = emergencyContacts.length > 0 ? emergencyContacts : emergencyDirectory.filter((d: any) => d.phone);
+                  return allContacts.length > 0 ? (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1.5">
+                        {emergencyContacts.length > 0 ? "Emergency Contacts" : "Directory Contacts"}
+                      </p>
+                      <div className="space-y-1.5">
+                        {allContacts.map((c: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg border border-border bg-muted/20">
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-foreground truncate">{c.name || c.title}</p>
+                              {c.name && c.title && <p className="text-xs text-muted-foreground truncate">{c.title}</p>}
+                            </div>
+                            <a
+                              href={`tel:${c.phone.replace(/\s/g, "")}`}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex-shrink-0 transition-colors"
+                            >
+                              <Phone size={11} /> Call
+                            </a>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null;
+                })()}
+              </div>
+
+              {/* Divider */}
+              <div className="border-t border-border" />
+
+              {/* SECTION 2 — Send Alert */}
+              <div className="space-y-3">
+                <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Send Alert</p>
+
+                {sosSent ? (
+                  <div className="text-center py-3 space-y-2">
+                    <div className="w-10 h-10 rounded-full bg-red-100 dark:bg-red-950/30 flex items-center justify-center mx-auto">
+                      <Siren size={18} className="text-red-600 dark:text-red-400" />
+                    </div>
+                    <p className="text-sm font-semibold text-foreground">Alert Sent</p>
+                    <p className="text-xs text-muted-foreground">Your care team has been notified and a record has been logged.</p>
+                  </div>
+                ) : (
+                  <>
+                    <textarea
+                      value={sosMessage}
+                      onChange={e => setSosMessage(e.target.value)}
+                      placeholder="Emergency — immediate attention needed"
+                      rows={2}
+                      className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-red-400"
+                      data-testid="sos-message-input"
+                    />
+
+                    {/* MC only: alert CG toggle */}
+                    {(activeUser.role === 'primary_family' || isTemporarilyElevated) && (
+                      <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2.5">
+                        <div className="flex items-center gap-2">
+                          <MessageSquare size={13} className="text-muted-foreground flex-shrink-0" />
+                          <p className="text-xs text-foreground">Also send SMS to caregiver</p>
+                        </div>
+                        <button
+                          onClick={() => setSosAlertCg(v => !v)}
+                          className={cn("relative w-10 h-5 rounded-full transition-colors flex-shrink-0", sosAlertCg ? "bg-teal-600" : "bg-zinc-300 dark:bg-zinc-600")}
+                          data-testid="sos-alert-cg-toggle"
+                        >
+                          <span className={cn("absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform", sosAlertCg ? "translate-x-5" : "translate-x-0")} />
+                        </button>
+                      </div>
+                    )}
+
+                    {isCaregiverRole(activeUser.role) && (
+                      <div className="flex items-center gap-2 rounded-lg bg-muted/30 border border-border px-3 py-2">
+                        <AlertCircle size={13} className="text-muted-foreground flex-shrink-0" />
+                        <p className="text-xs text-muted-foreground">Main Contact will be notified immediately</p>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+            </div>
+
+            {/* ── Fixed bottom action bar ── */}
+            <div className="flex gap-2 px-5 py-4 border-t border-border flex-shrink-0">
+              {/* Export PDF */}
+              <button
+                onClick={() => {
+                  const allergies = (() => { try { const r = JSON.parse(emergencyClient?.allergies || "[]"); return typeof r[0] === "string" ? r.map((s: string) => ({ name: s, severity: "serious" })) : r; } catch { return []; } })();
+                  const activeMeds = emergencyMeds.filter((m: any) => m.status === "active");
+                  const contacts = emergencyDirectory.filter((d: any) => d.phone);
+                  const w = window.open("", "_blank");
+                  if (!w) return;
+                  w.document.write(`<!DOCTYPE html><html><head><title>Emergency Info — ${activeClientName}</title><style>
+                    body{font-family:sans-serif;padding:24px;max-width:600px;margin:0 auto;color:#111}
+                    h1{font-size:20px;margin-bottom:4px}h2{font-size:13px;text-transform:uppercase;letter-spacing:.05em;color:#666;margin:20px 0 8px;border-bottom:1px solid #eee;padding-bottom:4px}
+                    .pill{display:inline-block;padding:2px 10px;border-radius:999px;font-weight:700;font-size:15px;background:#fee2e2;color:#b91c1c;border:1px solid #fca5a5}
+                    .row{display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid #f3f3f3;font-size:14px}
+                    .tag{font-size:11px;padding:2px 7px;border-radius:999px;border:1px solid #ccc;color:#555}
+                    .reaction{font-size:12px;color:#888;margin-top:2px}
+                    @media print{body{padding:0}}
+                  </style></head><body>
+                    <h1>${activeClientName}</h1>
+                    <p style="font-size:12px;color:#999">Emergency Medical Summary · ${new Date().toLocaleDateString()}</p>
+                    ${emergencyClient?.bloodType ? `<h2>Blood Type</h2><span class="pill">${emergencyClient.bloodType}</span>` : ""}
+                    ${allergies.length ? `<h2>Allergies</h2>${allergies.map((a: any) => `<div class="row"><span>${a.name}${a.reaction ? `<div class="reaction">${a.reaction}</div>` : ""}</span><span class="tag">${a.severity}</span></div>`).join("")}` : ""}
+                    ${activeMeds.length ? `<h2>Current Medications</h2>${activeMeds.map((m: any) => `<div class="row"><span>${m.name}</span><span>${m.dosageAmount}${m.dosageUnit}${m.frequency ? " · " + m.frequency.replace(/_/g," ") : ""}</span></div>`).join("")}` : ""}
+                    ${contacts.length ? `<h2>Contacts</h2>${contacts.map((c: any) => `<div class="row"><span>${c.name || c.title}${c.title && c.name ? " — " + c.title : ""}</span><span>${c.phone}</span></div>`).join("")}` : ""}
+                    <script>window.onload=()=>window.print()<\/script>
+                  </body></html>`);
+                  w.document.close();
+                }}
+                className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors flex items-center justify-center gap-2"
+              >
+                <FileText size={14} /> Export PDF
+              </button>
+
+              {/* Send Alert / Close */}
+              {sosSent ? (
                 <button
-                  onClick={() => setSosModalOpen(false)}
-                  className="mt-2 px-6 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
+                  onClick={() => { setSosModalOpen(false); setSosSent(false); setSosMessage(""); }}
+                  className="flex-1 py-2.5 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-90 transition-opacity"
                   data-testid="sos-close-btn"
                 >
                   Close
                 </button>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-3 mb-4">
-                  <div className="w-10 h-10 rounded-xl bg-red-100 dark:bg-red-950/30 flex items-center justify-center flex-shrink-0">
-                    <Siren size={18} className="text-red-600 dark:text-red-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <h2 className="text-base font-semibold text-foreground">Emergency Alert</h2>
-                    <p className="text-xs text-muted-foreground">This will immediately notify your care team</p>
-                  </div>
-                  <button onClick={() => setSosModalOpen(false)} className="text-muted-foreground hover:text-foreground p-1" data-testid="sos-modal-close">
-                    <X size={16} />
-                  </button>
-                </div>
-
-                {/* Message */}
-                <div className="mb-4">
-                  <label className="text-xs font-medium text-foreground mb-1.5 block">Message (optional)</label>
-                  <textarea
-                    value={sosMessage}
-                    onChange={e => setSosMessage(e.target.value)}
-                    placeholder="Emergency — immediate attention needed"
-                    rows={2}
-                    className="w-full text-sm rounded-lg border border-border bg-background px-3 py-2 resize-none focus:outline-none focus:ring-1 focus:ring-red-400"
-                    data-testid="sos-message-input"
-                  />
-                </div>
-
-                {/* MC only: alert CG toggle */}
-                {(activeUser.role === 'primary_family' || isTemporarilyElevated) && (
-                  <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-3 mb-4">
-                    <div className="flex items-center gap-2">
-                      <MessageSquare size={14} className="text-muted-foreground flex-shrink-0" />
-                      <div>
-                        <p className="text-sm font-medium text-foreground">Also send SMS to caregiver</p>
-                        <p className="text-xs text-muted-foreground">Your caregiver will always see an in-app alert</p>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => setSosAlertCg(v => !v)}
-                      className={cn(
-                        "relative w-11 h-6 rounded-full transition-colors flex-shrink-0",
-                        sosAlertCg ? "bg-teal-600" : "bg-zinc-300 dark:bg-zinc-600"
-                      )}
-                      data-testid="sos-alert-cg-toggle"
-                    >
-                      <span className={cn(
-                        "absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform",
-                        sosAlertCg ? "translate-x-5" : "translate-x-0"
-                      )} />
-                    </button>
-                  </div>
-                )}
-
-                {/* CG info: MC always gets notified */}
-                {isCaregiverRole(activeUser.role) && (
-                  <div className="flex items-center gap-2 rounded-lg bg-muted/30 border border-border px-3 py-2.5 mb-4">
-                    <AlertCircle size={14} className="text-muted-foreground flex-shrink-0" />
-                    <p className="text-xs text-muted-foreground">Main Contact will be notified immediately</p>
-                  </div>
-                )}
-
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setSosModalOpen(false)}
-                    className="flex-1 py-2.5 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-muted transition-colors"
-                    data-testid="sos-cancel-btn"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    disabled={sosSending}
-                    onClick={async () => {
-                      if (!selectedClientId) return;
-                      setSosSending(true);
-                      try {
-                        await apiRequest("POST", `/api/clients/${selectedClientId}/sos`, {
-                          message: sosMessage.trim() || "Emergency — immediate attention needed",
-                          smsToMc: true,
-                          smsToCg: (activeUser.role === 'primary_family' || isTemporarilyElevated) ? sosAlertCg : false,
-                        });
-                        queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] });
-                        setSosSent(true);
-                      } catch {
-                        toast({ title: "Could not send alert", variant: "destructive" });
-                      } finally {
-                        setSosSending(false);
-                      }
-                    }}
-                    className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-                    data-testid="sos-send-btn"
-                  >
-                    {sosSending ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Siren size={14} />}
-                    Send Alert
-                  </button>
-                </div>
-              </>
-            )}
+              ) : (
+                <button
+                  disabled={sosSending}
+                  onClick={async () => {
+                    if (!selectedClientId) return;
+                    setSosSending(true);
+                    try {
+                      await apiRequest("POST", `/api/clients/${selectedClientId}/sos`, {
+                        message: sosMessage.trim() || "Emergency — immediate attention needed",
+                        smsToMc: true,
+                        smsToCg: (activeUser.role === 'primary_family' || isTemporarilyElevated) ? sosAlertCg : false,
+                      });
+                      queryClient.invalidateQueries({ queryKey: ["/api/users", activeUser.id, "notifications"] });
+                      setSosSent(true);
+                    } catch {
+                      toast({ title: "Could not send alert", variant: "destructive" });
+                    } finally {
+                      setSosSending(false);
+                    }
+                  }}
+                  className="flex-1 py-2.5 rounded-lg bg-red-600 hover:bg-red-700 text-white text-sm font-semibold transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                  data-testid="sos-send-btn"
+                >
+                  {sosSending ? <span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" /> : <Siren size={14} />}
+                  Send Alert
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

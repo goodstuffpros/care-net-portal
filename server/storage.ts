@@ -405,6 +405,8 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN assistive_devices TEXT`); } ca
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN blood_type TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN height TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN weight_lbs REAL`); } catch {}
+// care_directory_entries — emergency contact flag
+try { sqlite.exec(`ALTER TABLE care_directory_entries ADD COLUMN is_emergency INTEGER DEFAULT 0`); } catch {}
 // clients — sample portal columns
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_practice INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_showcase INTEGER DEFAULT 0`); } catch {}

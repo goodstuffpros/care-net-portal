@@ -965,6 +965,7 @@ export const careDirectoryEntries = sqliteTable("care_directory_entries", {
   email: text("email"),
   address: text("address"),
   notes: text("notes"),                 // any extra context
+  isEmergency: integer("is_emergency", { mode: "boolean" }).default(false), // shown in emergency hot button screen
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });
