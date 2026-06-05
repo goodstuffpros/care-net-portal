@@ -41,7 +41,10 @@ export const clients = sqliteTable("clients", {
   name: text("name").notNull(),
   dateOfBirth: text("date_of_birth"),
   primaryCondition: text("primary_condition"),
-  allergies: text("allergies"), // JSON array of { name, severity: 'mild'|'serious'|'life-threatening' }
+  bloodType: text("blood_type"),              // 'A+' | 'A-' | 'B+' | 'B-' | 'AB+' | 'AB-' | 'O+' | 'O-' | 'unknown'
+  height: text("height"),                    // stored as string e.g. "5'4""
+  weight: real("weight_lbs"),               // lbs
+  allergies: text("allergies"), // JSON array of { name, severity: 'mild'|'serious'|'life-threatening', reaction?: string }
   diagnoses: text("diagnoses"), // JSON array of { name, severity: 'managed'|'serious'|'critical', dateNoted }
   assistiveDevices: text("assistive_devices"), // JSON array of { device, notes }
   notes: text("notes"),

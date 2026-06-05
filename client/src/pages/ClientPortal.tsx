@@ -320,7 +320,7 @@ export default function ClientPortalPage() {
   }
 
   // Parse structured medical fields
-  type AllergyEntry = { name: string; severity: "mild" | "serious" | "life-threatening" };
+  type AllergyEntry = { name: string; severity: "mild" | "serious" | "life-threatening"; reaction?: string };
   type DiagnosisEntry = { name: string; severity: "managed" | "serious" | "critical"; dateNoted?: string };
   type DeviceEntry = { device: string; notes?: string };
 
@@ -693,8 +693,43 @@ export default function ClientPortalPage() {
                     fields={[
                       { key: "name", label: "Allergen or contraindication", type: "text", required: true },
                       { key: "severity", label: "Severity", type: "select", options: ["mild", "serious", "life-threatening"] },
+                      { key: "reaction", label: "What happens (e.g. hives, breathing difficulty)", type: "text" },
                     ]}
                   />
+
+                  {/* Blood type, height, weight */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Blood Type</Label>
+                      <select
+                        value={editForm.bloodType || ""}
+                        onChange={e => setEditForm(f => ({ ...f, bloodType: e.target.value || null }))}
+                        className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm"
+                      >
+                        <option value="">Unknown</option>
+                        {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(bt => (
+                          <option key={bt} value={bt}>{bt}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Height</Label>
+                      <Input
+                        placeholder={"e.g. 5'4\""}
+                        value={editForm.height || ""}
+                        onChange={e => setEditForm(f => ({ ...f, height: e.target.value || null }))}
+                      />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label className="text-xs">Weight (lbs)</Label>
+                      <Input
+                        type="number"
+                        placeholder="lbs"
+                        value={editForm.weight ?? ""}
+                        onChange={e => setEditForm(f => ({ ...f, weight: e.target.value ? parseFloat(e.target.value) : null }))}
+                      />
+                    </div>
+                  </div>
                   <ClientListEditor
                     label="Assistive Devices"
                     items={(() => { try { return JSON.parse(editForm.assistiveDevices || "[]"); } catch { return []; } })()}
@@ -735,8 +770,8 @@ export default function ClientPortalPage() {
             </CardContent>
           </Card>
 
-          {/* Allergies */}
-          {!editingClient && (
+          {/* Allergies + Physical Profile */}
+          {!editingClient && (<>
             <Card className="border-border" data-testid="medical-allergies-card">
               <CardHeader className="pb-3">
                 <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
@@ -749,16 +784,54 @@ export default function ClientPortalPage() {
                 ) : (
                   <div className="space-y-2">
                     {allergies.map((a, i) => (
-                      <div key={i} className="flex items-center justify-between gap-3 p-2.5 rounded-lg border border-border bg-muted/20">
-                        <div className="text-sm font-medium">{a.name}</div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full border capitalize ${SEVERITY_ALLERGY_COLORS[a.severity] || SEVERITY_ALLERGY_COLORS["serious"]}`}>{a.severity}</span>
+                      <div key={i} className="p-2.5 rounded-lg border border-border bg-muted/20 space-y-1">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="text-sm font-medium">{a.name}</div>
+                          <span className={`text-xs px-2 py-0.5 rounded-full border capitalize flex-shrink-0 ${SEVERITY_ALLERGY_COLORS[a.severity] || SEVERITY_ALLERGY_COLORS["serious"]}`}>{a.severity}</span>
+                        </div>
+                        {a.reaction && (
+                          <div className="text-xs text-muted-foreground">{a.reaction}</div>
+                        )}
                       </div>
                     ))}
                   </div>
                 )}
               </CardContent>
             </Card>
-          )}
+
+            {/* Blood Type / Height / Weight */}
+            {(client?.bloodType || client?.height || client?.weight) && (
+              <Card className="border-border">
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-base flex items-center gap-2" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
+                    <Activity size={16} className="text-teal-500" /> Physical Profile
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-3 gap-3">
+                    {client.bloodType && (
+                      <div className="text-center p-3 rounded-lg border border-border bg-muted/20">
+                        <div className="text-xs text-muted-foreground mb-1">Blood Type</div>
+                        <div className="text-lg font-bold text-red-500">{client.bloodType}</div>
+                      </div>
+                    )}
+                    {client.height && (
+                      <div className="text-center p-3 rounded-lg border border-border bg-muted/20">
+                        <div className="text-xs text-muted-foreground mb-1">Height</div>
+                        <div className="text-base font-semibold">{client.height}</div>
+                      </div>
+                    )}
+                    {client.weight && (
+                      <div className="text-center p-3 rounded-lg border border-border bg-muted/20">
+                        <div className="text-xs text-muted-foreground mb-1">Weight</div>
+                        <div className="text-base font-semibold">{client.weight} lbs</div>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </>)}
 
           {/* Assistive Devices */}
           {!editingClient && (

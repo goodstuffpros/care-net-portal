@@ -401,6 +401,10 @@ try { sqlite.exec(`ALTER TABLE caregiver_profiles ADD COLUMN display_name TEXT`)
 // clients — extended medical profile fields
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN diagnoses TEXT`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN assistive_devices TEXT`); } catch {}
+// clients — additional medical snapshot fields (blood type, height, weight)
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN blood_type TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN height TEXT`); } catch {}
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN weight_lbs REAL`); } catch {}
 // clients — sample portal columns
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_practice INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN is_showcase INTEGER DEFAULT 0`); } catch {}
