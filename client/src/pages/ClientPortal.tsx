@@ -142,7 +142,7 @@ export default function ClientPortalPage() {
   const [directoryEditEntry, setDirectoryEditEntry] = useState<CareDirectoryEntry | null>(null);
   // titleSelect = the dropdown value; specialty = sub-field when Specialist is chosen
   // title (stored/sent) is derived: "Specialist – Neurology" or just titleSelect for others
-  const [dirForm, setDirForm] = useState({ titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "" });
+  const [dirForm, setDirForm] = useState({ titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "", isEmergency: false });
   const [dirDeleteConfirm, setDirDeleteConfirm] = useState<number | null>(null);
 
   // ── In-page tab state ────────────────────────────────────────────────────
@@ -205,7 +205,7 @@ export default function ClientPortalPage() {
     return f.titleSelect;
   }
 
-  const BLANK_DIR_FORM = { titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "" };
+  const BLANK_DIR_FORM = { titleSelect: "", specialty: "", specialtyOther: "", titleOther: "", name: "", phone: "", email: "", address: "", notes: "", isEmergency: false };
 
   const addDirectoryMutation = useMutation({
     mutationFn: (data: typeof dirForm) => apiRequest("POST", `/api/clients/${selectedClientId}/directory`, { ...data, title: deriveDirTitle(data) }),
@@ -1424,6 +1424,7 @@ export default function ClientPortalPage() {
                       email: directoryDetailEntry.email || "",
                       address: directoryDetailEntry.address || "",
                       notes: directoryDetailEntry.notes || "",
+                      isEmergency: (directoryDetailEntry as any).isEmergency ?? false,
                     });
                     setDirectoryEditEntry(directoryDetailEntry);
                     setDirectoryDetailEntry(null);
@@ -1567,6 +1568,22 @@ export default function ClientPortalPage() {
                   rows={2}
                   data-testid="dir-input-notes"
                 />
+              </div>
+
+              {/* Emergency contact toggle */}
+              <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-3">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Emergency Contact</p>
+                  <p className="text-xs text-muted-foreground">Shows in the Emergency screen with tap-to-call</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setDirForm(f => ({ ...f, isEmergency: !f.isEmergency }))}
+                  className={`relative w-11 h-6 rounded-full transition-colors flex-shrink-0 ${dirForm.isEmergency ? 'bg-teal-600' : 'bg-zinc-300 dark:bg-zinc-600'}`}
+                  data-testid="dir-input-is-emergency"
+                >
+                  <span className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${dirForm.isEmergency ? 'translate-x-5' : 'translate-x-0'}`} />
+                </button>
               </div>
             </div>
             <div className="flex gap-2">
