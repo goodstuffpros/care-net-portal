@@ -1471,6 +1471,20 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                     </div>
                   </div>
                 )}
+                {/* Admin Console for admin users */}
+                {[10, 11, 12, 43].includes(activeUser.id) && (
+                  <>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => { window.location.href = "/#/becky-admin"; }}
+                      className="cursor-pointer text-teal-600 dark:text-teal-400 font-medium"
+                      data-testid="nav-admin-console-mobile"
+                    >
+                      <ShieldAlert size={14} className="mr-2" />
+                      Admin Console
+                    </DropdownMenuItem>
+                  </>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => {
