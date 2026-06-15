@@ -1759,7 +1759,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         // Last activity = most recent timestamp across all care data for this user
         const lastActivityRows = [
           clientId ? sqlite.prepare(`SELECT logged_at as ts FROM activity_logs WHERE logged_by_user_id = ? ORDER BY logged_at DESC LIMIT 1`).get(u.id) as any : null,
-          clientId ? sqlite.prepare(`SELECT created_at as ts FROM schedule_events WHERE client_id = ? ORDER BY created_at DESC LIMIT 1`).get(clientId) as any : null,
+          clientId ? sqlite.prepare(`SELECT scheduled_at as ts FROM schedule_events WHERE client_id = ? ORDER BY scheduled_at DESC LIMIT 1`).get(clientId) as any : null,
           clientId ? sqlite.prepare(`SELECT recorded_at as ts FROM vitals WHERE client_id = ? ORDER BY recorded_at DESC LIMIT 1`).get(clientId) as any : null,
           sqlite.prepare(`SELECT sent_at as ts FROM messages WHERE sender_id = ? ORDER BY sent_at DESC LIMIT 1`).get(u.id) as any,
         ].filter(Boolean).map(r => r?.ts).filter(Boolean);
