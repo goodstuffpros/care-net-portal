@@ -8,6 +8,7 @@ import { badgeSurveys, badgeScores, notifications, careScopes, authAccounts, aut
 import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
+import { getOfficeHtml } from "./office";
 import fs from "fs";
 import {
   hashPassword, verifyPassword, createSession, revokeSession,
@@ -1919,6 +1920,14 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
     res.setHeader("Accept-Ranges", "bytes");
     res.setHeader("Cache-Control", "public, max-age=86400");
     fs.createReadStream(audioPath).pipe(res);
+  });
+
+
+  // GET /office — Standalone admin office (separate login, own token, desktop-first)
+  app.get('/office', (_req, res) => {
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.send(getOfficeHtml());
   });
 
   app.get("/becky-admin", (_req, res) => {
