@@ -124,7 +124,7 @@ function PatternCard({
 
   const cfg = SEVERITY_CONFIG[pattern.severity] || SEVERITY_CONFIG.moderate;
   const Icon = CATEGORY_ICONS[pattern.symptom_tag] || TrendingUp;
-  const isMC = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
+  const isMC = activeUser.role === "primary_family" || activeUser.role === "secondary_family" || activeUser.role === "self_care";
   const isCG = ["caregiver", "multi_caregiver", "temp_caregiver"].includes(activeUser.role);
 
   const correlatedMeds: { type: string; name: string; id: number }[] = (() => {
@@ -485,7 +485,7 @@ export default function Patterns({ activeUser, selectedClientId, clientName }: P
   const [showPrefs, setShowPrefs] = useState(false);
   const [filter, setFilter] = useState<"all" | "active" | "escalated" | "resolved">("all");
 
-  const isMC = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
+  const isMC = activeUser.role === "primary_family" || activeUser.role === "secondary_family" || activeUser.role === "self_care";
 
   const { data: patterns = [], isLoading, refetch } = useQuery<HealthPattern[]>({
     queryKey: ["/api/clients", selectedClientId, "patterns"],

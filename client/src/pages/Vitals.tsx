@@ -452,7 +452,7 @@ export default function VitalsPage() {
   const { t } = useLang();
   const { toast } = useToast();
   const isContributor = isClientPortal && clientPermissionLevel === "contributor";
-  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family" || isContributor;
+  const canEdit = isCaregiverRole(activeUser.role) || activeUser.role === "primary_family" || activeUser.role === "self_care" || isContributor;
   const [addOpen, setAddOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 

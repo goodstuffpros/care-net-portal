@@ -335,7 +335,7 @@ export default function MessagesPage() {
               <Volume2 size={14} /> Listen
             </button>
             {/* Manage Members button — caregiver + primary_family only */}
-            {(activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated) && activeThread?.isOpen && (
+            {(activeUser.role === "caregiver" || activeUser.role === "primary_family" || activeUser.role === "self_care" || isTemporarilyElevated) && activeThread?.isOpen && (
               <Button
                 variant="ghost" size="sm"
                 onClick={() => setManageMembersOpen(o => !o)}

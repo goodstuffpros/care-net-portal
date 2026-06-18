@@ -40,7 +40,7 @@ export default function EmergencyPage() {
 
   // Care team members as emergency contacts (MC first, then others)
   const emergencyContacts = careTeam
-    .filter(m => m.role === "primary_family" || m.role === "secondary_family" || m.role === "caregiver")
+    .filter(m => m.role === "primary_family" || m.role === "secondary_family" || m.role === "caregiver" || m.role === "self_care")
     .map(m => ({
       name: m.name,
       relationship: m.role === "primary_family" ? "Main Contact" : m.role === "secondary_family" ? "Family Member" : "Caregiver",

@@ -202,9 +202,9 @@ export default function ActivityPage() {
     const match = text.match(/^[^.!?]*[.!?]/);
     return match ? match[0].trim() : text.slice(0, 80).trim() + (text.length > 80 ? "…" : "");
   };
-  const canEdit = activeUser.role === "caregiver" || isContributor;
+  const canEdit = activeUser.role === "caregiver" || activeUser.role === "self_care" || isContributor;
   const { isTemporarilyElevated } = useApp();
-  const isFamilyPrimary = activeUser.role === "primary_family" || isTemporarilyElevated;
+  const isFamilyPrimary = activeUser.role === "primary_family" || activeUser.role === "self_care" || isTemporarilyElevated;
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
   const [form, setForm] = useState({
