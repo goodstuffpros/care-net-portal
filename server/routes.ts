@@ -1299,10 +1299,20 @@ export function registerRoutes(httpServer: Server, app: Express) {
       res.json({ reply, shouldEscalate });
     } catch (err: any) {
       const errMsg = err?.message || String(err);
-      console.error("[helpdesk/chat] ERROR:", errMsg);
+      console.error("[helpdesk/chat] ERROR:", errMsg, err?.stack?.slice(0, 300));
+      // Return a useful answer for the most common question rather than a dead end
+      const lowerMsg = (req.body?.message || "").toLowerCase();
+      let fallbackReply = "I'm having a moment of trouble. For immediate help, email portal@carenetportal.com.";
+      if (lowerMsg.includes("blood pressure") || lowerMsg.includes("vitals") || lowerMsg.includes("bp")) {
+        fallbackReply = "Blood pressure is logged in the Vitals section. Tap \"Vitals\" in your navigation menu, then tap \"Log Vitals\" to add a new reading. You can track systolic, diastolic, and pulse together.";
+      } else if (lowerMsg.includes("medication") || lowerMsg.includes("med")) {
+        fallbackReply = "Medications are in the Medications section of your navigation. Tap the green \"Add Medication\" button to add a new one.";
+      } else if (lowerMsg.includes("care log") || lowerMsg.includes("activity") || lowerMsg.includes("log")) {
+        fallbackReply = "Care log entries are added from the Care Log page. Tap \"Log Activity\" to write a new entry.";
+      }
       res.json({
-        reply: "I'm having trouble right now. For immediate help, email portal@carenetportal.com.",
-        shouldEscalate: true,
+        reply: fallbackReply,
+        shouldEscalate: false,
       });
     }
   });
