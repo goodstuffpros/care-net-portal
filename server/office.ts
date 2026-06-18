@@ -275,7 +275,7 @@ tbody td { padding: 9px 12px; font-size: 13px; color: var(--text); vertical-alig
       <label>Password</label>
       <div style="position:relative;">
         <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" style="width:100%;padding-right:44px;" />
-        <button type="button" id="toggle-pw" onclick="togglePw()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:4px;">Show</button>
+        <span id="toggle-pw" style="position:absolute;right:12px;top:50%;transform:translateY(-50%);cursor:pointer;color:var(--muted);font-size:13px;padding:4px 2px;user-select:none;">Show</span>
       </div>
     </div>
     <button class="btn-login" id="btn-login">Sign In to Admin Office</button>
@@ -461,10 +461,13 @@ function esc(s) {
 
 function togglePw() {
   const input = document.getElementById('login-password');
-  const btn = document.getElementById('toggle-pw');
-  if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
-  else { input.type = 'password'; btn.textContent = 'Show'; }
+  const lbl = document.getElementById('toggle-pw');
+  if (input.type === 'password') { input.type = 'text'; lbl.textContent = 'Hide'; }
+  else { input.type = 'password'; lbl.textContent = 'Show'; }
 }
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('toggle-pw').addEventListener('click', togglePw);
+});
 
 // LOGIN
 document.getElementById('btn-login').addEventListener('click', handleLogin);
