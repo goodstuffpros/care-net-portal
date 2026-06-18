@@ -516,23 +516,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
 
-  // GET /api/admin/bootstrap-reset — one-time password reset for admin recovery
-  // Returns 404 after first use (token consumed)
-  app.get("/api/admin/bootstrap-reset", async (_req, res) => {
-    try {
-      const hash = '$2b$12$ierj3lEq3GA3WU3IjLhVEOeNvWcaQb3sPX0FjSCmBMUKC8d7E8RHC';
-      const emails = ['gouldenterprises@yahoo.com', 'blgservantgirl@gmail.com', 'beckylgould01@gmail.com'];
-      let count = 0;
-      for (const email of emails) {
-        const result = sqlite.prepare('UPDATE auth_accounts SET password_hash = ? WHERE email = ?').run(hash, email);
-        if (result.changes > 0) count++;
-      }
-      res.json({ success: true, updated: count, password: 'AdminOffice2026', note: 'Change your password after login.' });
-    } catch(e: any) {
-      res.status(500).json({ message: e.message });
-    }
-  });
-
   // POST /api/admin/users/deactivate — deactivate a user account by email (admin only)
   app.post("/api/admin/users/deactivate", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const { email } = req.body;
