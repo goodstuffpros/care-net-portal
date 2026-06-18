@@ -183,6 +183,11 @@ export default function CaregiversPage() {
     ["caregiver","multi_caregiver","temp_caregiver"].includes(u.role)
   );
 
+  const mainContacts = allUsers.filter(u =>
+    u.clientId === selectedClientId &&
+    u.role === "primary_family"
+  );
+
   const addMutation = useMutation({
     mutationFn: () => apiRequest("POST", "/api/users", {
       ...form,
@@ -539,6 +544,36 @@ export default function CaregiversPage() {
           </div>
         ))}
       </div>
+
+      {/* Main Contact — shown to self_care users so they can see who their MC is */}
+      {activeUser.role === "self_care" && mainContacts.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Main Contact</p>
+          {mainContacts.map(user => (
+            <Card key={user.id} className="border-border">
+              <CardContent className="pt-5 pb-4">
+                <div className="flex items-start gap-4">
+                  <div className="w-11 h-11 rounded-full bg-muted flex items-center justify-content text-sm font-bold flex-shrink-0 flex items-center justify-center">
+                    {user.avatarInitials}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="font-semibold text-sm">{user.name}</span>
+                      <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-400 border-blue-200 dark:border-blue-800">
+                        Main Contact
+                      </span>
+                    </div>
+                    <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5">
+                      {user.email && <span>{user.email}</span>}
+                      {user.phone && <span>{user.phone}</span>}
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
 
       {/* Caregiver List */}
       {isLoading ? (
