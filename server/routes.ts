@@ -498,6 +498,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
 
+
+  // POST /api/admin/users/:id/link-portal — manually link a user to a clientId (fixes disconnected signups)
+  app.post("/api/admin/users/:id/link-portal", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const userId = parseInt(req.params.id);
+    const { clientId } = req.body;
+    if (!userId || !clientId) return res.status(400).json({ message: "userId and clientId required" });
+    try {
+      const user = db.select().from(users).where(eq(users.id, userId)).get();
+      if (!user) return res.status(404).json({ message: "User not found" });
+      db.update(users).set({ clientId: Number(clientId) }).where(eq(users.id, userId)).run();
+      console.log(`[admin] Linked user ${userId} (${user.name}) to clientId ${clientId}`);
+      res.json({ success: true, userId, clientId: Number(clientId) });
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
   // POST /api/admin/users/deactivate — deactivate a user account by email (admin only)
   app.post("/api/admin/users/deactivate", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const { email } = req.body;

@@ -441,6 +441,17 @@ function roleChip(r) {
 function tierBadge(t) {
   return '<span class="tier-' + t + '">' + t.charAt(0).toUpperCase() + t.slice(1) + '</span>';
 }
+
+async function linkPortal(userId, name) {
+  const clientId = prompt('Link ' + name + ' to which portal?\nEnter the clientId number (visible in the Portals tab):');
+  if (!clientId || isNaN(Number(clientId))) return;
+  try {
+    await api('POST', '/api/admin/users/' + userId + '/link-portal', { clientId: Number(clientId) });
+    toast(name + ' linked to portal #' + clientId, 'success');
+    await loadAllData();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
 }
@@ -600,11 +611,15 @@ function renderUsers() {
     html += '<tr><td><strong>' + esc(u.name||'—') + '</strong></td>';
     html += '<td class="td-email">' + esc(u.email||'—') + '</td>';
     html += '<td>' + roleChip(u.role) + '</td>';
-    html += '<td class="td-muted">' + (u.clientId ? '#'+u.clientId : '—') + '</td>';
+    html += '<td class="td-muted">' + (u.clientId ? '#'+u.clientId : '<span style="color:var(--warn);font-weight:700;">No portal</span>') + '</td>';
     html += '<td class="td-muted">' + fmtAgo(u.lastLoginAt) + '</td>';
     html += '<td class="td-muted">' + u.totalEntries + '</td>';
     html += '<td>' + tierBadge(u.tier) + '</td>';
-    html += '<td><div class="action-btns"><button class="btn-action btn-deactivate" onclick="deactivateUser(' + JSON.stringify(u.email) + ')">Deactivate</button></div></td>';
+    const noPortal = !u.clientId && u.role !== 'self_care';
+    html += '<td><div class="action-btns">';
+    if (noPortal) html += '<button class="btn-action btn-approve" onclick="linkPortal(' + u.id + ',' + JSON.stringify(u.name) + ')">Link Portal</button>';
+    html += '<button class="btn-action btn-deactivate" onclick="deactivateUser(' + JSON.stringify(u.email) + ')">Deactivate</button>';
+    html += '</div></td>';
     html += '</tr>';
   });
   html += '</tbody></table>';
