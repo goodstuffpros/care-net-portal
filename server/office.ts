@@ -497,7 +497,7 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
     if (!data.length) { wrap.innerHTML = '<div class="empty">No users found.</div>'; return; }
     var html = '<div class="user-cards">';
     data.forEach(function(u) {
-      var noPortal = u.role === 'primary_family';
+      var noPortal = u.role === 'primary_family' && !u.clientId;
       var portalTxt = u.clientId ? '#'+u.clientId : '<span style="color:var(--warn);font-weight:700;">No portal</span>';
       html += '<div class="user-card">';
       html += '<div class="uc-top"><div class="uc-name">'+esc(u.name||'—')+'</div><div class="uc-chips">'+roleChip(u.role)+' '+tierSpan(u.tier)+'</div></div>';
