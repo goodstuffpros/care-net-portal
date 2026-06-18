@@ -121,6 +121,7 @@ const ROLE_LABELS: Record<string, string> = {
   caregiver: "Caregiver",
   primary_family: "Main Contact",
   secondary_family: "Family Member",
+  self_care: "Self-Managed",
 };
 
 const ROLE_COLORS: Record<string, string> = {
@@ -164,7 +165,7 @@ export default function ClientPortalPage() {
     queryFn: () => apiRequest("GET", "/api/users").then(r => r.json()),
   });
 
-  const familyMembers = allUsers.filter(u => u.clientId === selectedClientId && u.role !== "caregiver" && u.role !== "multi_caregiver" && u.role !== "temp_caregiver");
+  const familyMembers = allUsers.filter(u => u.clientId === selectedClientId && u.role !== "caregiver" && u.role !== "multi_caregiver" && u.role !== "temp_caregiver" && u.id !== activeUser.id);
   const caregiver = allUsers.find(u => u.clientId === selectedClientId && (u.role === "caregiver" || u.role === "multi_caregiver"));
 
   // Rating score query
