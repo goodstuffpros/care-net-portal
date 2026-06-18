@@ -104,6 +104,14 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
 .btn-approve-act:hover{background:var(--accent);color:white}
 .btn-link-act{border-color:var(--warn);color:var(--warn);background:transparent}
 .btn-link-act:hover{background:var(--warn);color:white}
+.user-cards{display:flex;flex-direction:column;gap:10px}
+.user-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
+.uc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
+.uc-name{font-size:15px;font-weight:700;color:var(--text)}
+.uc-chips{display:flex;gap:5px;flex-shrink:0}
+.uc-email{font-size:12px;color:var(--muted);margin-bottom:8px;word-break:break-all}
+.uc-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:10px}
+.uc-acts{display:flex;gap:8px;flex-wrap:wrap}
 /* SEARCH */
 .search-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
 .search-input{flex:1;min-width:160px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;outline:none;transition:border-color .15s}
@@ -487,19 +495,20 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
     else if (s === 'entries') data.sort(function(a,b) { return b.totalEntries - a.totalEntries; });
     var wrap = document.getElementById('users-tbl');
     if (!data.length) { wrap.innerHTML = '<div class="empty">No users found.</div>'; return; }
-    var html = '<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Portal</th><th>Last Login</th><th>Activity</th><th>Status</th><th>Actions</th></tr></thead><tbody>';
+    var html = '<div class="user-cards">';
     data.forEach(function(u) {
       var noPortal = !u.clientId && u.role !== 'self_care';
-      html += '<tr><td><strong>'+esc(u.name||'—')+'</strong></td><td class="td-e">'+esc(u.email||'—')+'</td>';
-      html += '<td>'+roleChip(u.role)+'</td>';
-      html += '<td class="td-m">'+(u.clientId ? '#'+u.clientId : '<span style="color:var(--warn);font-weight:700;">No portal</span>')+'</td>';
-      html += '<td class="td-m">'+ago(u.lastLoginAt)+'</td><td class="td-m">'+u.totalEntries+'</td><td>'+tierSpan(u.tier)+'</td>';
-      html += '<td><div class="acts">';
-      if (noPortal) html += '<button class="btn-act btn-link-act" data-id="'+u.id+'" data-name="'+esc(u.name||'')+'" data-action="link">Link</button>';
+      var portalTxt = u.clientId ? '#'+u.clientId : '<span style="color:var(--warn);font-weight:700;">No portal</span>';
+      html += '<div class="user-card">';
+      html += '<div class="uc-top"><div class="uc-name">'+esc(u.name||'—')+'</div><div class="uc-chips">'+roleChip(u.role)+' '+tierSpan(u.tier)+'</div></div>';
+      html += '<div class="uc-email">'+esc(u.email||'—')+'</div>';
+      html += '<div class="uc-meta"><span>Portal: '+portalTxt+'</span><span>Login: '+ago(u.lastLoginAt)+'</span><span>Activity: '+u.totalEntries+'</span></div>';
+      html += '<div class="uc-acts">';
+      if (noPortal) html += '<button class="btn-act btn-link-act" data-id="'+u.id+'" data-name="'+esc(u.name||'')+'" data-action="link">Link Portal</button>';
       html += '<button class="btn-act btn-deny-act" data-email="'+esc(u.email||'')+'" data-action="deactivate">Deactivate</button>';
-      html += '</div></td></tr>';
+      html += '</div></div>';
     });
-    html += '</tbody></table>';
+    html += '</div>';
     wrap.innerHTML = html;
   }
 
