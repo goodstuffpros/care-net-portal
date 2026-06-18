@@ -215,6 +215,40 @@ tbody td { padding: 9px 12px; font-size: 13px; color: var(--text); vertical-alig
 .toast.show { transform: translateY(0); opacity: 1; }
 .toast.success { border-color: var(--success); }
 .toast.error { border-color: var(--danger); }
+
+/* ── LIBRARY ── */
+.lib-controls { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; align-items: center; }
+.theme-filter { background: var(--card); border: 1px solid var(--border); border-radius: 8px; color: var(--text); font-size: 12px; padding: 7px 10px; outline: none; cursor: pointer; }
+.btn-add { padding: 7px 14px; background: var(--accent); color: white; border: none; border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; white-space: nowrap; transition: background .15s; }
+.btn-add:hover { background: var(--accent-light); }
+.lib-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 10px; overflow: hidden; }
+.lib-card-hdr { padding: 10px 14px; display: flex; align-items: center; gap: 8px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.02); }
+.lib-theme { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px; border-radius: 8px; background: rgba(26,140,131,.15); color: var(--accent-light); }
+.lib-placeholder { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; background: rgba(217,119,6,.15); color: var(--warn); }
+.lib-inactive { font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 8px; background: rgba(132,144,168,.1); color: var(--muted); }
+.lib-card-actions { margin-left: auto; display: flex; gap: 6px; }
+.lib-card-body { padding: 12px 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 600px) { .lib-card-body { grid-template-columns: 1fr; } }
+.lib-field-label { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.lib-field-text { font-size: 13px; color: var(--text); line-height: 1.5; white-space: pre-wrap; }
+/* ── MODAL ── */
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,.6); z-index: 100; display: none; align-items: center; justify-content: center; padding: 16px; }
+.modal-overlay.open { display: flex; }
+.modal { background: var(--card); border: 1px solid var(--border); border-radius: 14px; width: 100%; max-width: 560px; padding: 24px; box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+.modal h2 { font-size: 16px; font-weight: 700; margin-bottom: 16px; }
+.modal-field { margin-bottom: 13px; }
+.modal-field label { display: block; font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 5px; }
+.modal-field input, .modal-field select, .modal-field textarea {
+  width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); font-size: 13px; padding: 9px 12px; outline: none; transition: border-color .15s; font-family: inherit; resize: vertical;
+}
+.modal-field input:focus, .modal-field select:focus, .modal-field textarea:focus { border-color: var(--accent); }
+.modal-field textarea { min-height: 90px; }
+.modal-btns { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+.btn-cancel { padding: 8px 16px; background: transparent; border: 1px solid var(--border); border-radius: 7px; color: var(--muted); font-size: 13px; cursor: pointer; }
+.btn-save { padding: 8px 18px; background: var(--accent); border: none; border-radius: 7px; color: white; font-size: 13px; font-weight: 700; cursor: pointer; }
+.btn-save:hover { background: var(--accent-light); }
+
 </style>
 </head>
 <body>
@@ -277,6 +311,11 @@ tbody td { padding: 9px 12px; font-size: 13px; color: var(--text); vertical-alig
       <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
       Users
     </div>
+
+    <div class="tab" data-view="library">
+      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+      Library
+    </div>
     <div class="tab" data-view="queue">
       <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
       Queue
@@ -334,6 +373,17 @@ tbody td { padding: 9px 12px; font-size: 13px; color: var(--text); vertical-alig
     <!-- QUEUE -->
     <div class="view" id="view-queue">
       <div class="table-wrap" id="queue-table-wrap"><div class="loading">Loading queue...</div></div>
+    </div>
+
+    <!-- LIBRARY -->
+    <div class="view" id="view-library">
+      <div class="lib-controls">
+        <select class="theme-filter" id="lib-theme-filter">
+          <option value="">All Themes</option>
+        </select>
+        <button class="btn-add" onclick="openLibModal()">+ New Response</button>
+      </div>
+      <div id="library-list"><div class="loading">Loading library...</div></div>
     </div>
 
   </div>
@@ -445,6 +495,7 @@ const viewMeta = {
   portals:   ['Portals',   'All active care circles'],
   users:     ['Users',     'All registered accounts'],
   queue:     ['Queue',     'Pending signup applications'],
+  library:   ['Library',   'Becky\'s response bank for caregivers'],
 };
 document.querySelectorAll('.tab').forEach(tab => {
   tab.addEventListener('click', () => {
@@ -453,6 +504,7 @@ document.querySelectorAll('.tab').forEach(tab => {
     tab.classList.add('active');
     document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
     document.getElementById('view-' + v).classList.add('active');
+    if (v === 'library') loadLibrary();
     const [title, sub] = viewMeta[v];
     document.getElementById('toolbar-title').textContent = title;
     document.getElementById('toolbar-sub').textContent = sub;
@@ -617,6 +669,110 @@ async function deactivateUser(email) {
   catch(e) { toast('Error: '+e.message,'error'); }
 }
 
+
+
+// ── LIBRARY ──────────────────────────────────────────────────────────────
+let libraryData = [];
+
+async function loadLibrary() {
+  try {
+    libraryData = await api('GET', '/api/becky-library');
+    renderLibrary();
+  } catch(e) { document.getElementById('library-list').innerHTML = '<div class="empty">Error loading library.</div>'; }
+}
+
+function renderLibrary() {
+  const themeFilter = document.getElementById('lib-theme-filter').value;
+  let data = libraryData;
+  if (themeFilter) data = data.filter(r => r.theme === themeFilter);
+
+  // Populate theme filter
+  const themes = [...new Set(libraryData.map(r => r.theme))].sort();
+  const sel = document.getElementById('lib-theme-filter');
+  const cur = sel.value;
+  sel.innerHTML = '<option value="">All Themes</option>' + themes.map(t => '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>').join('');
+
+  const container = document.getElementById('library-list');
+  if (!data.length) { container.innerHTML = '<div class="empty">No responses yet. Add one above.</div>'; return; }
+
+  let html = '';
+  data.forEach(r => {
+    html += '<div class="lib-card">';
+    html += '<div class="lib-card-hdr">';
+    html += '<span class="lib-theme">' + esc(r.theme) + '</span>';
+    if (r.isPlaceholder) html += '<span class="lib-placeholder">Needs editing</span>';
+    if (!r.isActive) html += '<span class="lib-inactive">Inactive</span>';
+    html += '<div class="lib-card-actions">';
+    html += '<button class="btn-action btn-approve" onclick="editLibEntry('+r.id+')">Edit</button>';
+    html += '<button class="btn-action btn-deny" onclick="deleteLibEntry('+r.id+')">Delete</button>';
+    html += '</div></div>';
+    html += '<div class="lib-card-body">';
+    html += '<div><div class="lib-field-label">Example Message</div><div class="lib-field-text">'+esc(r.examplePrompt)+'</div></div>';
+    html += '<div><div class="lib-field-label">Response</div><div class="lib-field-text">'+esc(r.response)+'</div></div>';
+    html += '</div></div>';
+  });
+  container.innerHTML = html;
+}
+
+document.getElementById('lib-theme-filter').addEventListener('change', renderLibrary);
+
+function openLibModal(entry) {
+  document.getElementById('lib-modal-title').textContent = entry ? 'Edit Response' : 'New Response';
+  document.getElementById('lib-modal-id').value = entry ? entry.id : '';
+  document.getElementById('lib-modal-theme').value = entry ? entry.theme : '';
+  document.getElementById('lib-modal-prompt').value = entry ? entry.examplePrompt : '';
+  document.getElementById('lib-modal-response').value = entry ? entry.response : '';
+  document.getElementById('lib-modal-active').value = entry ? (entry.isActive ? '1' : '0') : '1';
+  document.getElementById('lib-modal').classList.add('open');
+  setTimeout(() => document.getElementById('lib-modal-theme').focus(), 50);
+}
+
+function closeLibModal() {
+  document.getElementById('lib-modal').classList.remove('open');
+}
+
+function editLibEntry(id) {
+  const entry = libraryData.find(r => r.id === id);
+  if (entry) openLibModal(entry);
+}
+
+async function saveLibEntry() {
+  const id = document.getElementById('lib-modal-id').value;
+  const body = {
+    theme: document.getElementById('lib-modal-theme').value.trim(),
+    examplePrompt: document.getElementById('lib-modal-prompt').value.trim(),
+    response: document.getElementById('lib-modal-response').value.trim(),
+    isActive: document.getElementById('lib-modal-active').value === '1' ? 1 : 0,
+    isPlaceholder: 0,
+  };
+  if (!body.theme || !body.examplePrompt || !body.response) { toast('All fields required', 'error'); return; }
+  try {
+    if (id) {
+      await api('PATCH', '/api/becky-library/' + id, body);
+      toast('Response updated', 'success');
+    } else {
+      await api('POST', '/api/becky-library', body);
+      toast('Response added', 'success');
+    }
+    closeLibModal();
+    await loadLibrary();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function deleteLibEntry(id) {
+  if (!confirm('Delete this response?')) return;
+  try {
+    await api('DELETE', '/api/becky-library/' + id);
+    toast('Deleted', 'success');
+    await loadLibrary();
+  } catch(e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// Close modal on overlay click
+document.getElementById('lib-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeLibModal();
+});
+
 // INIT
 (async function() {
   const saved = getToken();
@@ -629,6 +785,37 @@ async function deactivateUser(email) {
   document.getElementById('login-screen').style.display = 'flex';
 })();
 </script>
+
+<!-- LIBRARY MODAL -->
+<div class="modal-overlay" id="lib-modal">
+  <div class="modal">
+    <h2 id="lib-modal-title">New Response</h2>
+    <input type="hidden" id="lib-modal-id" />
+    <div class="modal-field">
+      <label>Theme</label>
+      <input type="text" id="lib-modal-theme" placeholder="e.g. burnout, client_decline, general" />
+    </div>
+    <div class="modal-field">
+      <label>Example Caregiver Message</label>
+      <textarea id="lib-modal-prompt" placeholder="What a caregiver might say or ask..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label>Becky's Response</label>
+      <textarea id="lib-modal-response" style="min-height:120px" placeholder="Becky's response to this situation..."></textarea>
+    </div>
+    <div class="modal-field">
+      <label>Status</label>
+      <select id="lib-modal-active">
+        <option value="1">Active</option>
+        <option value="0">Inactive (draft)</option>
+      </select>
+    </div>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeLibModal()">Cancel</button>
+      <button class="btn-save" onclick="saveLibEntry()">Save</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>`;
 }
