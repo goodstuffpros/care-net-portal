@@ -273,7 +273,10 @@ tbody td { padding: 9px 12px; font-size: 13px; color: var(--text); vertical-alig
     </div>
     <div class="field">
       <label>Password</label>
-      <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" />
+      <div style="position:relative;">
+        <input type="password" id="login-password" autocomplete="current-password" placeholder="••••••••" style="width:100%;padding-right:44px;" />
+        <button type="button" id="toggle-pw" onclick="togglePw()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--muted);font-size:13px;padding:4px;">Show</button>
+      </div>
     </div>
     <button class="btn-login" id="btn-login">Sign In to Admin Office</button>
     <div class="login-error" id="login-error"></div>
@@ -454,6 +457,13 @@ async function linkPortal(userId, name) {
 
 function esc(s) {
   return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function togglePw() {
+  const input = document.getElementById('login-password');
+  const btn = document.getElementById('toggle-pw');
+  if (input.type === 'password') { input.type = 'text'; btn.textContent = 'Hide'; }
+  else { input.type = 'password'; btn.textContent = 'Show'; }
 }
 
 // LOGIN
