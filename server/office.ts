@@ -469,18 +469,21 @@ async function handleLogin() {
   errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in...';
   try {
-    const data = await fetch('/api/auth/login', {
+    const loginRes = await fetch('/api/auth/login', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password })
-    }).then(r => r.json());
-    if (!data.token) throw new Error(data.message || 'Login failed');
-    const whoami = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + data.token } }).then(r => r.json());
-    if (!whoami.isAdmin) throw new Error('This account does not have admin access.');
+    });
+    const data = await loginRes.json().catch(() => ({}));
+    if (!loginRes.ok || !data.token) throw new Error(data.message || 'Login failed. Check your email and password.');
+    const whoamiRes = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + data.token } });
+    const whoami = await whoamiRes.json().catch(() => ({}));
+    if (!whoami.isAdmin) throw new Error('This account does not have admin access. Contact David to be added.');
     setToken(data.token);
-    currentUser = whoami;
+    currentUser = { ...whoami, name: data.user?.name || whoami.email || 'Admin' };
     showApp();
   } catch(e) {
-    errEl.textContent = e.message; errEl.style.display = 'block';
+    errEl.textContent = e.message || 'Something went wrong. Try again.';
+    errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Sign In to Admin Office';
   }
@@ -793,9 +796,15 @@ document.getElementById('lib-modal').addEventListener('click', function(e) {
   const saved = getToken();
   if (saved) {
     try {
-      const whoami = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + saved } }).then(r => r.json());
-      if (whoami.isAdmin) { currentUser = whoami; showApp(); return; }
+      const whoamiRes = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + saved } });
+      const whoami = await whoamiRes.json().catch(() => ({}));
+      if (whoami.isAdmin) {
+        currentUser = { ...whoami, name: whoami.name || whoami.email || 'Admin' };
+        showApp();
+        return;
+      }
     } catch(e) {}
+    clearToken(); // clear stale token
   }
   document.getElementById('login-screen').style.display = 'flex';
 })();
