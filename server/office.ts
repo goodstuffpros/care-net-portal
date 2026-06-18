@@ -479,20 +479,34 @@ async function handleLogin() {
   errEl.style.display = 'none';
   btn.disabled = true; btn.textContent = 'Signing in...';
   try {
-    const loginRes = await fetch('/api/auth/login', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const data = await loginRes.json().catch(() => ({}));
-    if (!loginRes.ok || !data.token) throw new Error(data.message || 'Login failed. Check your email and password.');
-    const whoamiRes = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + data.token } });
-    const whoami = await whoamiRes.json().catch(() => ({}));
-    if (!whoami.isAdmin) throw new Error('This account does not have admin access. Contact David to be added.');
+    errEl.textContent = 'Step 1: Contacting server...';
+    errEl.style.display = 'block';
+    let loginRes, data;
+    try {
+      loginRes = await fetch('/api/auth/login', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password })
+      });
+      data = await loginRes.json().catch(() => ({}));
+    } catch(fetchErr) {
+      throw new Error('Network error: ' + (fetchErr.message || 'Cannot reach server'));
+    }
+    if (!loginRes.ok || !data.token) throw new Error('Step 1 failed (' + loginRes.status + '): ' + (data.message || 'No token returned'));
+    errEl.textContent = 'Step 2: Verifying admin access...';
+    let whoamiRes, whoami;
+    try {
+      whoamiRes = await fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + data.token } });
+      whoami = await whoamiRes.json().catch(() => ({}));
+    } catch(fetchErr2) {
+      throw new Error('Whoami network error: ' + (fetchErr2.message || 'Cannot reach server'));
+    }
+    if (!whoami.isAdmin) throw new Error('Step 2 failed: Not an admin account (userId=' + whoami.authUserId + ')');
+    errEl.style.display = 'none';
     setToken(data.token);
     currentUser = { ...whoami, name: data.user?.name || whoami.email || 'Admin' };
     showApp();
   } catch(e) {
-    errEl.textContent = e.message || 'Something went wrong. Try again.';
+    errEl.textContent = e.message || 'Unknown error';
     errEl.style.display = 'block';
   } finally {
     btn.disabled = false; btn.textContent = 'Sign In to Admin Office';
