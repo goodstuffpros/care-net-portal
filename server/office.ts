@@ -467,12 +467,35 @@ function togglePw() {
 }
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('toggle-pw').addEventListener('click', togglePw);
+  document.getElementById('btn-login').addEventListener('click', handleLogin);
+  document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') handleLogin(); });
+  document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-password').focus(); });
+  document.getElementById('btn-signout').addEventListener('click', () => {
+    api('POST', '/api/auth/logout').catch(() => {});
+    clearToken();
+    location.reload();
+  });
+  // refresh listener moved to DOMContentLoaded
+  document.getElementById('users-search').addEventListener('input', renderUsers);
+  document.getElementById('users-sort').addEventListener('change', renderUsers);
+  document.getElementById('lib-modal').addEventListener('click', function(e) {
+    if (e.target === this) closeLibModal();
+  });
+  document.querySelectorAll('.tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      const v = tab.dataset.view;
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+      document.getElementById('view-' + v).classList.add('active');
+      const [title, sub] = viewMeta[v];
+      document.getElementById('toolbar-title').textContent = title;
+      document.getElementById('toolbar-sub').textContent = sub;
+      if (v === 'library') loadLibrary();
+    });
+  });
+  init();
 });
-
-// LOGIN
-document.getElementById('btn-login').addEventListener('click', handleLogin);
-document.getElementById('login-password').addEventListener('keydown', e => { if (e.key==='Enter') handleLogin(); });
-document.getElementById('login-email').addEventListener('keydown', e => { if (e.key==='Enter') document.getElementById('login-password').focus(); });
 
 async function handleLogin() {
   const email = document.getElementById('login-email').value.trim();
@@ -524,11 +547,7 @@ function showApp() {
   loadAllData();
 }
 
-document.getElementById('btn-signout').addEventListener('click', () => {
-  api('POST', '/api/auth/logout').catch(() => {});
-  clearToken();
-  location.reload();
-});
+// signout listener moved to DOMContentLoaded
 
 // TABS
 const viewMeta = {
@@ -655,8 +674,7 @@ function renderUsers() {
   html += '</tbody></table>';
   wrap.innerHTML = html;
 }
-document.getElementById('users-search').addEventListener('input', renderUsers);
-document.getElementById('users-sort').addEventListener('change', renderUsers);
+// users listeners moved to DOMContentLoaded
 
 // QUEUE
 function renderQueue() {
@@ -813,13 +831,10 @@ async function deleteLibEntry(id) {
   } catch(e) { toast('Error: ' + e.message, 'error'); }
 }
 
-// Close modal on overlay click
-document.getElementById('lib-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeLibModal();
-});
+// modal listener moved to DOMContentLoaded
 
 // INIT
-(async function() {
+async function init() {
   const saved = getToken();
   if (saved) {
     try {
@@ -834,7 +849,7 @@ document.getElementById('lib-modal').addEventListener('click', function(e) {
     clearToken(); // clear stale token
   }
   document.getElementById('login-screen').style.display = 'flex';
-})();
+}
 </script>
 
 <!-- LIBRARY MODAL -->
