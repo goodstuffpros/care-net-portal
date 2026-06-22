@@ -1591,6 +1591,20 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
     }
   });
 
+  // GET /api/clients/:clientId/health-history/:entryId/logs — care log entries linked to this history event
+  app.get("/api/clients/:clientId/health-history/:entryId/logs", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
+    try {
+      const entryId = Number(req.params.entryId);
+      const logs = db.select().from(activityLogs)
+        .where(eq(activityLogs.healthHistoryEntryId, entryId))
+        .orderBy(activityLogs.loggedAt)
+        .all();
+      res.json(logs);
+    } catch (err: any) {
+      res.status(500).json({ message: err?.message });
+    }
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   // CARE HOME — MULTI-CLIENT ROUTES
   // ══════════════════════════════════════════════════════════════════════════

@@ -126,6 +126,8 @@ export const activityLogs = sqliteTable("activity_logs", {
   // Phase 2 — Contributor (self_care) entries
   pendingReview: integer("pending_review", { mode: "boolean" }).default(false), // true when minor contributor's entry awaits MC approval
   approvedByUserId: integer("approved_by_user_id"), // MC who approved this entry
+  // Health History link — ties a care log entry to a specific health history event
+  healthHistoryEntryId: integer("health_history_entry_id"), // optional FK to health_history_entries.id
 });
 
 export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({ id: true });

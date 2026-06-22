@@ -3,7 +3,7 @@ import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
-import type { ActivityLog, ActivityLogAddendum, Client } from "@shared/schema";
+import type { ActivityLog, ActivityLogAddendum, Client, HealthHistoryEntry } from "@shared/schema";
 import { PriorityBadge } from "@/components/AppLayout";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -207,8 +207,15 @@ export default function ActivityPage() {
   const isFamilyPrimary = activeUser.role === "primary_family" || activeUser.role === "self_care" || isTemporarilyElevated;
   const isFamily = activeUser.role === "primary_family" || activeUser.role === "secondary_family";
 
+  // Health history entries for the "link to event" picker
+  const { data: healthHistory = [] } = useQuery<HealthHistoryEntry[]>({
+    queryKey: ["/api/clients", selectedClientId, "health-history"],
+    queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/health-history`).then(r => r.json()),
+    enabled: !!selectedClientId,
+  });
+
   const [form, setForm] = useState({
-    title: "", description: "", priority: "green", category: "general",
+    title: "", description: "", priority: "green", category: "general", healthHistoryEntryId: null as number | null,
   });
 
   // MC Log Entry state
@@ -221,6 +228,7 @@ export default function ActivityPage() {
     isEmergency: false,
     emergencyType: "fall",
     notes: "",
+    healthHistoryEntryId: null as number | null,
   });
 
   const mcLogMutation = useMutation({
@@ -234,6 +242,7 @@ export default function ActivityPage() {
       isEmergency: mcLogForm.isEmergency,
       emergencyType: mcLogForm.isEmergency ? mcLogForm.emergencyType : null,
       notes: mcLogForm.notes,
+      healthHistoryEntryId: mcLogForm.healthHistoryEntryId || null,
       loggedAt: new Date().toISOString(),
       isChecked: false,
     }),
@@ -241,7 +250,7 @@ export default function ActivityPage() {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "threads"] });
       setMcLogOpen(false);
-      setMcLogForm({ title: "", description: "", priority: "green", category: "general", isEmergency: false, emergencyType: "fall", notes: "" });
+      setMcLogForm({ title: "", description: "", priority: "green", category: "general", isEmergency: false, emergencyType: "fall", notes: "", healthHistoryEntryId: null });
       toast({
         title: mcLogForm.isEmergency ? "🚨 Emergency entry logged" : "Entry logged",
         description: mcLogForm.isEmergency
@@ -286,13 +295,14 @@ export default function ActivityPage() {
       loggedByUserId: activeUser.id,
       loggedAt: new Date().toISOString(),
       isChecked: false,
+      healthHistoryEntryId: form.healthHistoryEntryId || null,
       // Phase 2: tag self_care contributor entries
       ...(isContributor ? { loggedByRole: "self_care" } : {}),
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "activity"] });
       setAddOpen(false);
-      setForm({ title: "", description: "", priority: "green", category: "general" });
+      setForm({ title: "", description: "", priority: "green", category: "general", healthHistoryEntryId: null });
       toast({ title: isContributor ? "Added to your record" : "Activity logged", description: isContributor ? "Your entry was saved." : "Entry added to activity log." });
     },
   });
@@ -534,6 +544,25 @@ export default function ActivityPage() {
                   )}
                 </div>
 
+                {/* Link to health event */}
+                {healthHistory.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Link to health event <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Select
+                      value={mcLogForm.healthHistoryEntryId ? String(mcLogForm.healthHistoryEntryId) : "none"}
+                      onValueChange={v => setMcLogForm(f => ({ ...f, healthHistoryEntryId: v === "none" ? null : Number(v) }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {healthHistory.map((h: HealthHistoryEntry) => (
+                          <SelectItem key={h.id} value={String(h.id)}>{h.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
                 {/* Additional Notes */}
                 <div className="space-y-1.5">
                   <Label>Additional Notes <span className="text-xs text-muted-foreground">(optional)</span></Label>
@@ -629,6 +658,23 @@ export default function ActivityPage() {
                   </Label>
                   <Textarea value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} placeholder="Add details — or use voice to speak your notes..." rows={4} data-testid="activity-description-input" />
                 </div>
+                {healthHistory.length > 0 && (
+                  <div className="space-y-1.5">
+                    <Label>Link to health event <span className="text-xs text-muted-foreground">(optional)</span></Label>
+                    <Select
+                      value={form.healthHistoryEntryId ? String(form.healthHistoryEntryId) : "none"}
+                      onValueChange={v => setForm(f => ({ ...f, healthHistoryEntryId: v === "none" ? null : Number(v) }))}
+                    >
+                      <SelectTrigger><SelectValue placeholder="None" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="none">None</SelectItem>
+                        {healthHistory.map((h: HealthHistoryEntry) => (
+                          <SelectItem key={h.id} value={String(h.id)}>{h.title}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 <Button className="w-full" onClick={() => addMutation.mutate()} disabled={!form.title || addMutation.isPending} data-testid="save-activity-btn">
                   {addMutation.isPending ? "Logging..." : "Log Activity"}
                 </Button>

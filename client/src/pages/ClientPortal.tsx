@@ -130,6 +130,43 @@ const ROLE_COLORS: Record<string, string> = {
   secondary_family: "bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400",
 };
 
+// ── Linked Care Logs component — shown inside each Health History card ────
+function LinkedCareLogs({ clientId, entryId, expanded, onToggle }: { clientId: number; entryId: number; expanded: boolean; onToggle: () => void }) {
+  const { data: logs = [], isLoading } = useQuery<any[]>({
+    queryKey: ["/api/clients", clientId, "health-history", entryId, "logs"],
+    queryFn: () => apiRequest("GET", `/api/clients/${clientId}/health-history/${entryId}/logs`).then(r => r.json()),
+    enabled: !!clientId,
+  });
+  if (isLoading) return null;
+  if (logs.length === 0) return null;
+  return (
+    <div className="mt-2 border-t border-border/50 pt-2">
+      <button
+        onClick={onToggle}
+        className="flex items-center gap-1.5 text-xs text-teal-600 dark:text-teal-400 font-medium hover:opacity-80 transition-opacity"
+      >
+        {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+        {logs.length} care log update{logs.length !== 1 ? 's' : ''}
+      </button>
+      {expanded && (
+        <div className="mt-2 space-y-2">
+          {logs.map((log: any) => (
+            <div key={log.id} className="rounded-lg bg-muted/40 border border-border/50 px-3 py-2">
+              <div className="flex items-center justify-between gap-2 mb-0.5">
+                <span className="text-xs font-medium text-foreground">{log.title}</span>
+                <span className="text-xs text-muted-foreground flex-shrink-0">
+                  {new Date(log.loggedAt).toLocaleString("en-US", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}
+                </span>
+              </div>
+              {log.description && <p className="text-xs text-muted-foreground leading-relaxed">{log.description}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function ClientPortalPage() {
   const { activeUser, selectedClientId, isPracticeClient, isShowcaseMode, clientPermissionLevel, isRealSession, isTemporarilyElevated } = useApp();
   const { t } = useLang();
@@ -289,6 +326,8 @@ export default function ClientPortalPage() {
   const canEdit = (activeUser.role === "primary_family" || activeUser.role === "self_care") && !isShowcaseMode;
 
   // ── Health History state + mutations ──────────────────────────────────
+  const [expandedHistoryIds, setExpandedHistoryIds] = useState<Set<number>>(new Set());
+  const toggleHistoryExpanded = (id: number) => setExpandedHistoryIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
   const [showHistoryForm, setShowHistoryForm] = useState(false);
   const [historyForm, setHistoryForm] = useState({
     entryType: "surgery", title: "", dateApprox: "", dateYear: "", dateMonth: "", facility: "", provider: "", outcome: "", notes: "", isSignificant: false,
@@ -1147,6 +1186,13 @@ export default function ClientPortalPage() {
                           {entry.notes && (
                             <p className="text-xs text-muted-foreground leading-relaxed">{entry.notes}</p>
                           )}
+                          {/* Linked care log thread */}
+                          <LinkedCareLogs
+                            clientId={selectedClientId!}
+                            entryId={entry.id}
+                            expanded={expandedHistoryIds.has(entry.id)}
+                            onToggle={() => toggleHistoryExpanded(entry.id)}
+                          />
                         </div>
                       </div>
                     );
