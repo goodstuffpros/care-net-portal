@@ -234,6 +234,17 @@ export async function requireAuth(
   req.authJti = payload.jti;
   req.authUserId = user.id;
   req.authUserRole = user.role;
+
+  // Refresh last_login_at if it hasn't been updated in the last hour
+  // This ensures users with long-lived sessions still show as recently active
+  const lastLogin = account.lastLoginAt ? new Date(account.lastLoginAt).getTime() : 0;
+  if (Date.now() - lastLogin > 60 * 60 * 1000) {
+    db.update(authAccounts)
+      .set({ lastLoginAt: new Date().toISOString() })
+      .where(eq(authAccounts.id, payload.authAccountId))
+      .run();
+  }
+
   next();
 }
 
