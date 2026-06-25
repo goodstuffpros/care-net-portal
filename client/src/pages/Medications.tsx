@@ -107,6 +107,7 @@ function MedCard({
     l => l.medicationId === med.id && l.wasGiven && l.loggedAt?.slice(0, 10) === today
   ).length;
   const givenToday = todayGivenCount >= expectedDoses;
+  const partialToday = todayGivenCount > 0 && todayGivenCount < expectedDoses;
 
   return (
     <Card className={cn("transition-all", isPRN && "border-dashed")}>
@@ -149,10 +150,15 @@ function MedCard({
                   className="h-7 w-7 transition-colors"
                   onClick={() => onLogDose(med)}
                   data-testid={`log-dose-${med.id}`}
-                  title={givenToday ? "Dose logged today — log again" : "Log dose"}
+                  title={givenToday ? "All doses given today" : partialToday ? `${todayGivenCount} of ${expectedDoses} doses given` : "Log dose"}
                 >
                   {givenToday ? (
                     <CheckCircle2 size={16} className="text-emerald-600 fill-emerald-600" />
+                  ) : partialToday ? (
+                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" className="text-emerald-500" />
+                      <path d="M8 1a7 7 0 0 1 0 14V1z" fill="currentColor" className="text-emerald-500" />
+                    </svg>
                   ) : (
                     <Circle size={16} className="text-emerald-500" />
                   )}
