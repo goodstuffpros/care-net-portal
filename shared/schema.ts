@@ -12,6 +12,7 @@ export const users = sqliteTable("users", {
   avatarInitials: text("avatar_initials"),
   clientId: integer("client_id"), // which client this user is associated with
   notificationPrefs: text("notification_prefs").default('{"all":true}'), // JSON string
+  fontSizePreference: text("font_size_preference").default("normal"), // 'normal' | 'large' | 'x-large'
   isActive: integer("is_active", { mode: "boolean" }).default(true),
   onboardingCompletedAt: text("onboarding_completed_at"), // ISO date — null means not yet completed
   mcSetupCompletedAt: text("mc_setup_completed_at"),     // ISO date — null means MC wizard not yet done

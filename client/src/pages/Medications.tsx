@@ -97,11 +97,16 @@ function MedCard({
   const [expanded, setExpanded] = useState(false);
   const isPRN = med.scheduleType === "as_needed";
 
-  // Check if this med was given today (any log with wasGiven=true for today)
+  // Check if ALL expected doses have been logged today
   const today = new Date().toISOString().slice(0, 10);
-  const givenToday = (logs ?? []).some(
+  const dosesPerDay: Record<string, number> = {
+    once_daily: 1, twice_daily: 2, three_daily: 3, four_daily: 4,
+  };
+  const expectedDoses = dosesPerDay[med.frequency || ""] ?? 1;
+  const todayGivenCount = (logs ?? []).filter(
     l => l.medicationId === med.id && l.wasGiven && l.loggedAt?.slice(0, 10) === today
-  );
+  ).length;
+  const givenToday = todayGivenCount >= expectedDoses;
 
   return (
     <Card className={cn("transition-all", isPRN && "border-dashed")}>

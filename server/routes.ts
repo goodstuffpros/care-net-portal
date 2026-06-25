@@ -1247,6 +1247,25 @@ export function registerRoutes(httpServer: Server, app: Express) {
     }
   });
 
+  // GET /api/user/font-size — get current user's font size preference
+  app.get("/api/user/font-size", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const user = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
+      res.json({ fontSizePreference: user?.fontSizePreference || "normal" });
+    } catch (err: any) { res.status(500).json({ message: err?.message }); }
+  });
+
+  // PATCH /api/user/font-size — update current user's font size preference
+  app.patch("/api/user/font-size", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const { fontSizePreference } = req.body;
+      if (!["normal", "large", "x-large"].includes(fontSizePreference))
+        return res.status(400).json({ message: "Invalid font size" });
+      db.update(users).set({ fontSizePreference }).where(eq(users.id, req.authUserId!)).run();
+      res.json({ success: true, fontSizePreference });
+    } catch (err: any) { res.status(500).json({ message: err?.message }); }
+  });
+
   // ── Help Desk ────────────────────────────────────────────────────────────
 
   // POST /api/helpdesk/chat — AI-powered support chat (Gemini 1.5 Flash)

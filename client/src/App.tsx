@@ -132,6 +132,8 @@ interface AppContextType {
   setNavOverlayOpen: (open: boolean) => void;
   realUserEmail: string; // email of the logged-in real user (used for demo detection)
   onLogout: () => void;  // call to log out + reset to login screen
+  fontSizePreference: "normal" | "large" | "x-large";
+  setFontSizePreference: (size: "normal" | "large" | "x-large") => void;
 }
 
 export const AppContext = createContext<AppContextType>({} as AppContextType);
@@ -211,6 +213,11 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
+  const [fontSizePreference, setFontSizePref] = useState<"normal" | "large" | "x-large">("normal");
+  const setFontSizePreference = (size: "normal" | "large" | "x-large") => {
+    setFontSizePref(size);
+    apiRequest("PATCH", "/api/user/font-size", { fontSizePreference: size }).catch(() => {});
+  };
   const [activeClientName, setActiveClientName] = useState<string>("");
   const isTemporarilyElevated = realUser?.role === "secondary_family" && !!realUser?.elevatedUntil && new Date(realUser.elevatedUntil) > new Date();
   const elevationExpiresAt = isTemporarilyElevated ? (realUser?.elevatedUntil ?? null) : null;
@@ -286,6 +293,11 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
           setIsPracticeClient(inSample);
           if (!inSample) setIsShowcaseMode(false);
         })
+        .catch(() => {});
+      // Fetch font size preference
+      fetch("/api/user/font-size", { headers: { Authorization: `Bearer ${getAuthToken()}` } })
+        .then(r => r.json())
+        .then((d: any) => { if (d?.fontSizePreference) setFontSizePref(d.fontSizePreference); })
         .catch(() => {});
     }
     // If in sample mode, also check showcase flag on the client record
@@ -406,6 +418,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
             .finally(() => { window.location.replace("/#/login"); });
         },
+        fontSizePreference,
+        setFontSizePreference,
       }}>
         <LangProvider>
         <AlarmEngine />

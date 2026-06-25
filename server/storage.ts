@@ -432,6 +432,7 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN mc_post_transfer_role TEXT`); 
 try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN approved_by_user_id INTEGER`); } catch {}
 try { sqlite.exec(`ALTER TABLE activity_logs ADD COLUMN health_history_entry_id INTEGER`); } catch {}
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN font_size_preference TEXT DEFAULT 'normal'`); } catch {}
 try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN pending_review INTEGER DEFAULT 0`); } catch {}
 try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN approved_by_user_id INTEGER`); } catch {}
 try { sqlite.exec(`ALTER TABLE vitals ADD COLUMN recorded_by_user_id INTEGER`); } catch {}

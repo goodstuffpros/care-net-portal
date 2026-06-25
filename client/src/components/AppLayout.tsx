@@ -22,7 +22,7 @@ import { Button } from "@/components/ui/button";
 import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
-  DropdownMenuGroup
+  DropdownMenuGroup, DropdownMenuSub, DropdownMenuSubTrigger, DropdownMenuSubContent
 } from "@/components/ui/dropdown-menu";
 import TTSBar from "@/components/TTSBar";
 import DailyNudge from "@/components/DailyNudge";
@@ -930,6 +930,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         >
           {lang === "en" ? "ES" : "EN"}
         </button>
+        <div className="w-px h-5 bg-sidebar-border" />
+        <button
+          onClick={() => setFontSizePreference(fontSizePreference === "normal" ? "large" : fontSizePreference === "large" ? "x-large" : "normal")}
+          data-testid="font-size-toggle-sidebar"
+          aria-label="Toggle text size"
+          title={`Text size: ${fontSizePreference}`}
+          className="flex-1 flex items-center justify-center gap-1 py-2 rounded-lg hover:bg-sidebar-accent transition-colors text-xs font-bold text-sidebar-foreground/60 hover:text-sidebar-foreground"
+        >
+          {fontSizePreference === "normal" ? "Aa" : fontSizePreference === "large" ? "A+" : "A++"}
+        </button>
         {isCaregiverRole(activeUser.role) && !isFamilyPortal && (
           <>
             <div className="w-px h-5 bg-sidebar-border" />
@@ -1071,8 +1081,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     </aside>
   );
 
+  const { fontSizePreference, setFontSizePreference } = useApp();
+  const fontSizeClass = fontSizePreference === "large" ? "text-base" : fontSizePreference === "x-large" ? "text-lg" : "";
+
   return (
-    <div className="flex h-screen bg-background overflow-hidden">
+    <div className={`flex h-screen bg-background overflow-hidden ${fontSizeClass}`}>
       {/* Desktop Sidebar */}
       <div className="hidden lg:flex flex-col w-60 flex-shrink-0 border-r border-border">
         <Sidebar />
@@ -1416,6 +1429,27 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   {theme === "dark" ? <Sun size={14} className="mr-2" /> : <Moon size={14} className="mr-2" />}
                   {theme === "dark" ? "Light mode" : "Dark mode"}
                 </DropdownMenuItem>
+                {/* Font size */}
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger className="cursor-pointer text-muted-foreground">
+                    <span className="mr-2 text-sm font-bold leading-none">Aa</span>
+                    Text size
+                  </DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent>
+                    {(["normal", "large", "x-large"] as const).map(size => (
+                      <DropdownMenuItem
+                        key={size}
+                        onClick={() => setFontSizePreference(size)}
+                        className="cursor-pointer"
+                      >
+                        <span className={fontSizePreference === size ? "font-semibold text-primary" : "text-muted-foreground"}>
+                          {size === "normal" ? "Normal" : size === "large" ? "Large" : "Extra large"}
+                          {fontSizePreference === size ? " ✓" : ""}
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
                 <DropdownMenuItem
                   onClick={() => setLang(lang === "en" ? "es" : "en")}
                   className="cursor-pointer text-muted-foreground"
