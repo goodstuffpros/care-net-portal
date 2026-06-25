@@ -520,14 +520,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
   app.post("/api/admin/users/deactivate", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const { email } = req.body;
     if (!email) return res.status(400).json({ message: "email required" });
-    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
-    if (!account) return res.status(404).json({ message: "Account not found" });
-    db.update(authAccounts).set({ isActive: false }).where(eq(authAccounts.email, email.toLowerCase())).run();
     const user = db.select().from(users).where(eq(users.email, email.toLowerCase())).get();
-    if (user) {
-      db.update(users).set({ isActive: false }).where(eq(users.email, email.toLowerCase())).run();
-    }
+    if (!user) return res.status(404).json({ message: "Account not found" });
+    db.update(users).set({ isActive: false }).where(eq(users.id, user.id)).run();
     res.json({ success: true, message: `${email} deactivated` });
+  });
+
+  // POST /api/admin/users/:id/role — change a user's role (admin only)
+  app.post("/api/admin/users/:id/role", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    try {
+      const id = Number(req.params.id);
+      const { role } = req.body;
+      const valid = ["caregiver","primary_family","secondary_family","self_care","facilitator"];
+      if (!valid.includes(role)) return res.status(400).json({ message: "Invalid role" });
+      db.update(users).set({ role }).where(eq(users.id, id)).run();
+      res.json({ success: true, role });
+    } catch(e: any) { res.status(500).json({ message: e.message }); }
   });
 
   // ── Onboarding ─────────────────────────────────────────────────────────────
