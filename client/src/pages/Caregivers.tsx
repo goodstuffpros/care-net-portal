@@ -65,7 +65,7 @@ export default function CaregiversPage() {
   const cgHasNoRealClient = canManage && (!activeUser.clientId || isPracticeClient || activeUser.clientId === sampleClientId);
 
   // Invite type: CG invites MC, MC invites CG or family
-  const inviteType = (activeUser.role === "primary_family" || activeUser.role === "secondary_family")
+  const inviteType = (activeUser.role === "primary_family" || activeUser.role === "secondary_family" || activeUser.role === "self_care")
     ? "mc_to_caregiver"
     : "caregiver_to_mc";
   const inviteLabel = inviteType === "caregiver_to_mc" ? "Family Contact (MC)" : "Caregiver";
@@ -331,8 +331,8 @@ export default function CaregiversPage() {
             </Button>
           )}
 
-          {/* Invite buttons — MC only */}
-          {isFamily && (
+          {/* Invite buttons — MC and self_care */}
+          {(isFamily || activeUser.role === "self_care") && (
             <>
               <Button size="sm" className="gap-2 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
                 <Link2 size={15} /> Invite a Caregiver
@@ -582,8 +582,8 @@ export default function CaregiversPage() {
         <div className="text-center py-16 text-muted-foreground">
           <Users size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No caregivers yet</p>
-          {canManage && <p className="text-sm mt-1 text-muted-foreground">The main contact will invite caregivers to this portal.</p>}
-          {isFamily && (
+          {canManage && activeUser.role !== "self_care" && <p className="text-sm mt-1 text-muted-foreground">The main contact will invite caregivers to this portal.</p>}
+          {(isFamily || activeUser.role === "self_care") && (
             <div className="mt-5 space-y-3">
               <p className="text-sm max-w-xs mx-auto">
                 Once a caregiver joins Care Net Portal, they'll appear here. Use the button below to send them an invite link.
