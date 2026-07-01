@@ -51,32 +51,33 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
         }
         throw new Error(body.message || "Login failed");
       }
-      // Success — accept pending invite if token present
+      // Store token FIRST — must happen before any post-login API calls (invite accept, etc.)
+      if (body.token) {
+        setAuthToken(body.token);
+        try { sessionStorage.setItem("cn_auth_token", body.token); } catch {}
+      }
+      // Accept pending invite if token present
       if (inviteTokenFromUrl) {
         // Small delay to let the browser fully commit the session cookie before
         // firing the accept request — critical on Android Chrome
-        await new Promise(resolve => setTimeout(resolve, 300));
+        await new Promise(resolve => setTimeout(resolve, 400));
         try {
           const acceptRes = await apiRequest("POST", `/api/invite/${inviteTokenFromUrl}/accept`, {});
           const acceptData = await acceptRes.json();
-          sessionStorage.removeItem("pending_invite_token");
           if (acceptData.success) {
+            sessionStorage.removeItem("pending_invite_token");
             toast({ title: "Connected!", description: "Your portals are now linked. Taking you in..." });
-            // Full reload so cookie is fully committed and RealAuthGate picks up new clientId
-            await new Promise(resolve => setTimeout(resolve, 1200));
+            // Delay so DB write is committed before RealAuthGate reads /api/auth/me
+            await new Promise(resolve => setTimeout(resolve, 1500));
             window.location.href = "/#/";
             return;
           } else {
+            // Keep token in sessionStorage on failure so user can retry
             console.warn("[invite accept]", acceptData.message);
           }
         } catch (err) {
           console.error("[invite accept] failed:", err);
         }
-      }
-      // Store token — belt and suspenders across localStorage + sessionStorage.
-      if (body.token) {
-        setAuthToken(body.token);
-        try { sessionStorage.setItem("cn_auth_token", body.token); } catch {}
       }
       // Dismiss any lingering error toasts (e.g. from a failed attempt just before this one)
       dismiss();
