@@ -290,7 +290,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     if (app_.inviteToken) {
       try {
         const connInvite = db.select().from(connectionInvites).where(eq(connectionInvites.token, app_.inviteToken)).get();
-        if (connInvite && connInvite.status === "pending") {
+        if (connInvite && connInvite.status === "pending" && new Date(connInvite.expiresAt) >= new Date()) {
           const now2 = new Date().toISOString();
           // Assign clientId + role from invite
           let clientId2 = connInvite.clientId ?? null;
@@ -1034,6 +1034,23 @@ export function registerRoutes(httpServer: Server, app: Express) {
         clientName = client?.name ?? null;
       }
 
+      // Expire any existing pending invite for this sender+email+type to prevent duplicates
+      if (invitedEmail) {
+        const existingPending = db.select().from(connectionInvites)
+          .where(and(
+            eq(connectionInvites.senderUserId, user.id),
+            eq(connectionInvites.invitedEmail, invitedEmail.trim()),
+            eq(connectionInvites.inviteType, inviteType),
+            eq(connectionInvites.status, "pending")
+          )).all();
+        if (existingPending.length > 0) {
+          for (const old of existingPending) {
+            db.update(connectionInvites).set({ status: "expired" })
+              .where(eq(connectionInvites.id, old.id)).run();
+          }
+        }
+      }
+
       const token = generateToken(32);
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
       const now = new Date().toISOString();
@@ -1313,14 +1330,57 @@ export function registerRoutes(httpServer: Server, app: Express) {
           }
           if (clientId) {
             db.update(users).set({ clientId, role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
+            // Set as primaryContactId on the client record
+            db.update(clients).set({ primaryContactId: acceptingUser.id }).where(eq(clients.id, clientId)).run();
+            // Seed junction row so MC appears correctly in Care Team view
+            const existingRelCTM = db.select().from(userClientRelationships)
+              .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).get();
+            if (!existingRelCTM) {
+              const relCountCTM = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, acceptingUser.id)).all().length;
+              db.insert(userClientRelationships).values({
+                userId: acceptingUser.id, clientId, role: 'mc',
+                isPrimary: relCountCTM === 0, createdAt: now,
+              }).run();
+            } else {
+              db.update(userClientRelationships).set({ role: 'mc' })
+                .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).run();
+            }
           }
         } else if (acceptingUser.clientId) {
           // MC already has a client — share it back to the CG sender, still mark acceptor as primary_family
           if (sender) {
             db.update(users).set({ clientId: acceptingUser.clientId }).where(eq(users.id, sender.id)).run();
+            // Seed junction row for the CG sender on this client
+            const existingRelCGBack = db.select().from(userClientRelationships)
+              .where(and(eq(userClientRelationships.userId, sender.id), eq(userClientRelationships.clientId, acceptingUser.clientId))).get();
+            if (!existingRelCGBack) {
+              const relCountCGBack = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, sender.id)).all().length;
+              db.insert(userClientRelationships).values({
+                userId: sender.id, clientId: acceptingUser.clientId, role: 'caregiver',
+                isPrimary: relCountCGBack === 0, createdAt: now,
+              }).run();
+            } else {
+              db.update(userClientRelationships).set({ role: 'caregiver' })
+                .where(and(eq(userClientRelationships.userId, sender.id), eq(userClientRelationships.clientId, acceptingUser.clientId))).run();
+            }
           }
           clientId = acceptingUser.clientId;
           db.update(users).set({ role: "primary_family" }).where(eq(users.id, acceptingUser.id)).run();
+          // Set as primaryContactId on the client record
+          db.update(clients).set({ primaryContactId: acceptingUser.id }).where(eq(clients.id, clientId)).run();
+          // Seed junction row for the MC acceptor
+          const existingRelMCBack = db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).get();
+          if (!existingRelMCBack) {
+            const relCountMCBack = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, acceptingUser.id)).all().length;
+            db.insert(userClientRelationships).values({
+              userId: acceptingUser.id, clientId, role: 'mc',
+              isPrimary: relCountMCBack === 0, createdAt: now,
+            }).run();
+          } else {
+            db.update(userClientRelationships).set({ role: 'mc' })
+              .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).run();
+          }
         }
       } else if (invite.inviteType === "mc_to_family") {
         // Sender is MC, acceptor is secondary family — give them read access to same client.
