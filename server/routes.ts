@@ -538,6 +538,62 @@ export function registerRoutes(httpServer: Server, app: Express) {
     } catch(e: any) { res.status(500).json({ message: e.message }); }
   });
 
+  // POST /api/admin/repair/portal-membership — one-time repair endpoint
+  // Fixes a user's portal membership: sets primaryContactId on a client, ensures
+  // userClientRelationships row exists, and clears stale MC wizard fields.
+  app.post("/api/admin/repair/portal-membership", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    try {
+      const { clientId, primaryContactEmail, cgUserId, clearMcFieldsForUserId } = req.body;
+      const results: string[] = [];
+
+      // 1. Set primaryContactId on the client
+      if (clientId && primaryContactEmail) {
+        const pcAccount = db.select().from(authAccounts)
+          .where(eq(authAccounts.email, primaryContactEmail.toLowerCase())).get();
+        if (pcAccount?.userId) {
+          db.update(clients).set({ primaryContactId: pcAccount.userId })
+            .where(eq(clients.id, clientId)).run();
+          results.push(`primaryContactId on client ${clientId} set to user ${pcAccount.userId} (${primaryContactEmail})`);
+        } else {
+          results.push(`WARN: could not find user for ${primaryContactEmail}`);
+        }
+      }
+
+      // 2. Ensure CG has a userClientRelationships row
+      if (clientId && cgUserId) {
+        const existing = db.select().from(userClientRelationships)
+          .where(and(eq(userClientRelationships.userId, cgUserId), eq(userClientRelationships.clientId, clientId))).get();
+        if (!existing) {
+          db.insert(userClientRelationships).values({
+            userId: cgUserId,
+            clientId,
+            role: 'caregiver',
+            isPrimary: true,
+            createdAt: new Date().toISOString(),
+          }).run();
+          results.push(`Junction row created: user ${cgUserId} as caregiver on client ${clientId}`);
+        } else {
+          // Update role to caregiver in case it was wrongly set to mc
+          db.update(userClientRelationships)
+            .set({ role: 'caregiver' })
+            .where(and(eq(userClientRelationships.userId, cgUserId), eq(userClientRelationships.clientId, clientId))).run();
+          results.push(`Junction row updated: user ${cgUserId} role set to caregiver on client ${clientId}`);
+        }
+      }
+
+      // 3. Clear stale MC wizard fields from a user who accidentally went through it
+      if (clearMcFieldsForUserId) {
+        db.update(users).set({
+          mcSetupCompletedAt: null,
+          carePathChoice: null,
+        }).where(eq(users.id, clearMcFieldsForUserId)).run();
+        results.push(`Cleared mcSetupCompletedAt and carePathChoice for user ${clearMcFieldsForUserId}`);
+      }
+
+      res.json({ success: true, results });
+    } catch(e: any) { res.status(500).json({ message: e.message }); }
+  });
+
   // ── Onboarding ─────────────────────────────────────────────────────────────
 
   // POST /api/onboarding/profile — save profile data + create user row for real auth users
