@@ -84,13 +84,15 @@ export default function SchedulePage() {
   const { t } = useLang();
   const { toast } = useToast();
   const [addOpen, setAddOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<ScheduleEvent | null>(null);
+  const [editForm, setEditForm] = useState<{ title: string; scheduledAt: string; location: string; notes: string; priority: string; type: string; recurrence: string; caregiverResponsible: boolean; responsibilityNote: string; }>({ title: "", scheduledAt: "", location: "", notes: "", priority: "green", type: "appointment", recurrence: "none", caregiverResponsible: true, responsibilityNote: "" });
   const [isRecording, setIsRecording] = useState(false);
   const [filter, setFilter] = useState<string>("all");
   const [excuseOpen, setExcuseOpen] = useState<number | null>(null);
   const [excuseNote, setExcuseNote] = useState("");
   const [excusedIds, setExcusedIds] = useState<Set<number>>(new Set());
   const [discussingId, setDiscussingId] = useState<number | null>(null);
-  const canEdit = activeUser.role === "caregiver" || (activeUser.role === "self_care" && clientPermissionLevel === "self_care_mc");
+  const canEdit = activeUser.role === "caregiver" || activeUser.role === "primary_family" || isTemporarilyElevated || (activeUser.role === "self_care" && clientPermissionLevel === "self_care_mc");
   const isFamilyPrimary = activeUser.role === "primary_family" || isTemporarilyElevated;
 
   const [form, setForm] = useState({
@@ -176,6 +178,50 @@ export default function SchedulePage() {
       toast({ title: "Event added", description: "Schedule updated successfully." });
     },
   });
+
+  const editMutation = useMutation({
+    mutationFn: () => {
+      if (!editingEvent) throw new Error("No event selected");
+      return apiRequest("PATCH", `/api/schedule/${editingEvent.id}`, {
+        title: editForm.title,
+        type: editForm.type,
+        scheduledAt: new Date(editForm.scheduledAt).toISOString(),
+        location: editForm.location || null,
+        notes: editForm.notes || null,
+        priority: editForm.priority,
+        recurrence: editForm.recurrence,
+        caregiverResponsible: editForm.caregiverResponsible,
+        responsibilityNote: editForm.caregiverResponsible ? null : editForm.responsibilityNote,
+      });
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "schedule"] });
+      setEditingEvent(null);
+      toast({ title: "Event updated", description: "Schedule has been saved." });
+    },
+    onError: () => {
+      toast({ title: "Update failed", description: "Please check required fields.", variant: "destructive" });
+    },
+  });
+
+  function openEdit(event: ScheduleEvent) {
+    // Convert ISO to datetime-local format (YYYY-MM-DDTHH:mm) in local time
+    const d = new Date(event.scheduledAt);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    const local = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+    setEditForm({
+      title: event.title,
+      scheduledAt: local,
+      location: event.location || "",
+      notes: event.notes || "",
+      priority: event.priority || "green",
+      type: event.type,
+      recurrence: event.recurrence || "none",
+      caregiverResponsible: event.caregiverResponsible !== false,
+      responsibilityNote: event.responsibilityNote || "",
+    });
+    setEditingEvent(event);
+  }
 
   // ── MC: Add Appointment ──────────────────────────────────────────────────
   const [alarmPickerOpen, setAlarmPickerOpen] = useState(false);
@@ -286,7 +332,8 @@ export default function SchedulePage() {
     const isExcused = excusedIds.has(event.id);
     const seenBy: string[] = []; // future: pull from DB via read-receipts API
     return (
-      <div key={event.id} className={cn("p-4 rounded-xl border bg-card transition-all", event.isCompleted && "opacity-70")} data-testid={`event-card-${event.id}`}>
+      <div key={event.id} className={cn("p-4 rounded-xl border bg-card transition-all", event.isCompleted && "opacity-70", canEdit && !event.isCompleted && "cursor-pointer hover:border-primary/40 hover:shadow-sm active:scale-[0.99]")} data-testid={`event-card-${event.id}`}
+        onClick={canEdit && !event.isCompleted ? (e) => { if ((e.target as HTMLElement).closest('button, [role="button"]')) return; openEdit(event); } : undefined}>
         <div className="flex items-start gap-3">
           <div className="flex flex-col items-center gap-1.5 flex-shrink-0">
             <div className={cn("w-9 h-9 rounded-lg flex items-center justify-center", TYPE_COLORS[event.type])}>
@@ -807,6 +854,84 @@ export default function SchedulePage() {
               )}
             </div>
           )}
+        </div>
+      )}
+
+      {/* Edit Event Dialog */}
+      {editingEvent && (
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4" onClick={() => setEditingEvent(null)}>
+          <div className="bg-white dark:bg-zinc-900 rounded-t-2xl sm:rounded-xl w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="sticky top-0 bg-white dark:bg-zinc-900 px-5 pt-5 pb-3 border-b border-border/50 flex items-center justify-between">
+              <div>
+                <div className="font-semibold text-base">Edit Event</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Tap a field to update it</div>
+              </div>
+              <button onClick={() => setEditingEvent(null)} className="text-muted-foreground hover:text-foreground p-1 rounded-lg hover:bg-muted" aria-label="Close">✕</button>
+            </div>
+            <div className="p-5 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Title *</Label>
+                <Input value={editForm.title} onChange={e => setEditForm(f => ({...f, title: e.target.value}))} placeholder="Event name" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Date &amp; Time *</Label>
+                <Input type="datetime-local" value={editForm.scheduledAt} max={maxDateOneYear()} onChange={e => setEditForm(f => ({...f, scheduledAt: e.target.value}))} />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Type</Label>
+                <Select value={editForm.type} onValueChange={v => setEditForm(f => ({...f, type: v}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="appointment">Appointment</SelectItem>
+                    <SelectItem value="medication">Medication</SelectItem>
+                    <SelectItem value="therapy">Therapy</SelectItem>
+                    <SelectItem value="task">Task</SelectItem>
+                    <SelectItem value="other">Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Location</Label>
+                <Input value={editForm.location} onChange={e => setEditForm(f => ({...f, location: e.target.value}))} placeholder="Optional" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Priority</Label>
+                <Select value={editForm.priority} onValueChange={v => setEditForm(f => ({...f, priority: v}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="green">Normal</SelectItem>
+                    <SelectItem value="yellow">Important</SelectItem>
+                    <SelectItem value="red">Urgent</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Recurrence</Label>
+                <Select value={editForm.recurrence} onValueChange={v => setEditForm(f => ({...f, recurrence: v}))}>
+                  <SelectTrigger><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">One-time</SelectItem>
+                    <SelectItem value="daily">Daily</SelectItem>
+                    <SelectItem value="weekly">Weekly</SelectItem>
+                    <SelectItem value="monthly">Monthly</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium">Notes</Label>
+                <Textarea value={editForm.notes} onChange={e => setEditForm(f => ({...f, notes: e.target.value}))} placeholder="Optional" rows={3} />
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button variant="outline" className="flex-1" onClick={() => setEditingEvent(null)}>Cancel</Button>
+                <Button
+                  className="flex-1 bg-primary text-white hover:bg-primary/90"
+                  disabled={!editForm.title || !editForm.scheduledAt || editMutation.isPending}
+                  onClick={() => editMutation.mutate()}>
+                  {editMutation.isPending ? "Saving..." : "Save Changes"}
+                </Button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 
