@@ -309,7 +309,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
               }
             }
           } else if (connInvite.inviteType === "mc_to_caregiver") {
-            if (clientId2) db.update(users).set({ clientId: clientId2 }).where(eq(users.id, newUser.id)).run();
+            if (clientId2) {
+              db.update(users).set({ clientId: clientId2 }).where(eq(users.id, newUser.id)).run();
+              // Seed junction row so CG appears correctly in Care Team view
+              const existingRelV = db.select().from(userClientRelationships)
+                .where(and(eq(userClientRelationships.userId, newUser.id), eq(userClientRelationships.clientId, clientId2))).get();
+              if (!existingRelV) {
+                const relCountV = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, newUser.id)).all().length;
+                db.insert(userClientRelationships).values({
+                  userId: newUser.id, clientId: clientId2, role: 'caregiver',
+                  isPrimary: relCountV === 0, createdAt: new Date().toISOString(),
+                }).run();
+              }
+            }
           } else if (connInvite.inviteType === "caregiver_to_mc") {
             // The CG sender may have a practice client or no client yet.
             // Do NOT assign the MC to a practice client — the real clientId comes
@@ -326,6 +338,18 @@ export function registerRoutes(httpServer: Server, app: Express) {
             }
             // Always set role; only set clientId if we resolved a real one
             db.update(users).set({ role: "primary_family", ...(clientId2 ? { clientId: clientId2 } : {}) }).where(eq(users.id, newUser.id)).run();
+            // Seed junction row if we have a real clientId
+            if (clientId2) {
+              const existingRelMV = db.select().from(userClientRelationships)
+                .where(and(eq(userClientRelationships.userId, newUser.id), eq(userClientRelationships.clientId, clientId2))).get();
+              if (!existingRelMV) {
+                const relCountMV = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, newUser.id)).all().length;
+                db.insert(userClientRelationships).values({
+                  userId: newUser.id, clientId: clientId2, role: 'mc',
+                  isPrimary: relCountMV === 0, createdAt: new Date().toISOString(),
+                }).run();
+              }
+            }
           }
           db.update(connectionInvites).set({ status: "accepted", acceptedByUserId: newUser.id, acceptedAt: now2 })
             .where(eq(connectionInvites.token, app_.inviteToken)).run();
