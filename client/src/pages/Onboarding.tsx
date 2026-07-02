@@ -57,7 +57,7 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const profileRole = isSelfManaged ? "caregiver" : (initialRole || "primary_family");
+      const profileRole = isSelfManaged ? "self_care" : (initialRole || "primary_family");
       await apiRequest("POST", "/api/onboarding/profile", {
         name: name.trim(),
         phone: phone.trim(),

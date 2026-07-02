@@ -1189,6 +1189,19 @@ export function registerRoutes(httpServer: Server, app: Express) {
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
           db.update(users).set({ clientId }).where(eq(users.id, acceptingUser.id)).run();
+          // Seed junction table so CG appears correctly in Care Team view
+          const existingRelCG = db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).get();
+          if (!existingRelCG) {
+            const relCountCG = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, acceptingUser.id)).all().length;
+            db.insert(userClientRelationships).values({
+              userId: acceptingUser.id, clientId, role: 'caregiver',
+              isPrimary: relCountCG === 0, createdAt: now,
+            }).run();
+          } else {
+            db.update(userClientRelationships).set({ role: 'caregiver' })
+              .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).run();
+          }
         }
       } else if (invite.inviteType === "caregiver_to_mc") {
         // Sender is CG (has clientId), acceptor is MC — share the clientId and set role.
@@ -1263,9 +1276,24 @@ export function registerRoutes(httpServer: Server, app: Express) {
         // Acceptor gets primary_family role on the sender's client.
         clientId = invite.clientId ?? sender?.clientId ?? null;
         if (clientId) {
-          // If acceptor already has a different client, only link if they don't
           db.update(users).set({ clientId, role: "primary_family" })
             .where(eq(users.id, acceptingUser.id)).run();
+          // Set as primaryContactId on the client record
+          db.update(clients).set({ primaryContactId: acceptingUser.id })
+            .where(eq(clients.id, clientId)).run();
+          // Seed junction table so MC appears correctly in Care Team view
+          const existingRelMC = db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).get();
+          if (!existingRelMC) {
+            const relCountMC = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, acceptingUser.id)).all().length;
+            db.insert(userClientRelationships).values({
+              userId: acceptingUser.id, clientId, role: 'mc',
+              isPrimary: relCountMC === 0, createdAt: now,
+            }).run();
+          } else {
+            db.update(userClientRelationships).set({ role: 'mc' })
+              .where(and(eq(userClientRelationships.userId, acceptingUser.id), eq(userClientRelationships.clientId, clientId))).run();
+          }
         }
       }
 

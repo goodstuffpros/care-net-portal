@@ -158,11 +158,10 @@ export default function ApplyPage() {
   }, [inviteCtx]);
 
   // When role is selected on role screen, advance to form
-  // Self-managed without an invite token stays on the role screen with a warning
+  // Self-managed is allowed without an invite token — SC can sign up cold
   function handleRoleSelect(role: SignupRole) {
     setSelectedRole(role);
     setForm(f => ({ ...f, role }));
-    if (role === "self_managed" && !inviteToken) return; // show warning, don't advance
     setStage("form");
   }
 
