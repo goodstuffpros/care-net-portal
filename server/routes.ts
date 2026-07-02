@@ -551,14 +551,87 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/admin/users/:id/role — change a user's role (admin only)
+  // Body: { role, clientId? }
+  // Side effects handled here:
+  //   1. userClientRelationships.role updated to match new role
+  //   2. clients.primaryContactId updated when new role is primary_family
+  //   3. permissionLevel set to self_care_mc when new role is self_care
+  //   4. permissionLevel cleared when leaving self_care
+  //   5. Junction row inserted if missing and clientId is known
   app.post("/api/admin/users/:id/role", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     try {
       const id = Number(req.params.id);
-      const { role } = req.body;
+      const { role, clientId: bodyClientId } = req.body;
       const valid = ["caregiver","primary_family","secondary_family","self_care","facilitator"];
       if (!valid.includes(role)) return res.status(400).json({ message: "Invalid role" });
-      db.update(users).set({ role }).where(eq(users.id, id)).run();
-      res.json({ success: true, role });
+
+      // Read current user state before making changes
+      const currentUser = db.select().from(users).where(eq(users.id, id)).get();
+      if (!currentUser) return res.status(404).json({ message: "User not found" });
+
+      const prevRole = currentUser.role;
+      const clientId = bodyClientId ?? currentUser.clientId;
+
+      // Map user role → junction row role
+      const junctionRoleMap: Record<string, string> = {
+        primary_family: "mc",
+        caregiver: "caregiver",
+        secondary_family: "secondary_family",
+        self_care: "self_care",
+        facilitator: "caregiver", // facilitator treated as CG in junction
+      };
+      const junctionRole = junctionRoleMap[role] ?? role;
+
+      // 1. Update user role (and permissionLevel side effect)
+      const userUpdate: Record<string, any> = { role };
+      if (role === "self_care" && prevRole !== "self_care") {
+        userUpdate.permissionLevel = "self_care_mc";
+      } else if (prevRole === "self_care" && role !== "self_care") {
+        userUpdate.permissionLevel = null;
+      }
+      db.update(users).set(userUpdate).where(eq(users.id, id)).run();
+
+      const log: string[] = [`role updated: ${prevRole} → ${role}`];
+
+      // 2. Update or insert junction row
+      if (clientId) {
+        const existingRel = db.select().from(userClientRelationships)
+          .where(and(eq(userClientRelationships.userId, id), eq(userClientRelationships.clientId, clientId))).get();
+        if (existingRel) {
+          db.update(userClientRelationships).set({ role: junctionRole })
+            .where(and(eq(userClientRelationships.userId, id), eq(userClientRelationships.clientId, clientId))).run();
+          log.push(`junction row updated: role → ${junctionRole}`);
+        } else {
+          // Insert a junction row — this user had none (edge case: admin set clientId but no row existed)
+          const relCount = db.select().from(userClientRelationships).where(eq(userClientRelationships.userId, id)).all().length;
+          db.insert(userClientRelationships).values({
+            userId: id,
+            clientId,
+            role: junctionRole,
+            isPrimary: relCount === 0,
+            createdAt: new Date().toISOString(),
+          }).run();
+          log.push(`junction row inserted: role=${junctionRole}, clientId=${clientId}`);
+        }
+
+        // 3. If new role is MC, update clients.primaryContactId
+        if (role === "primary_family") {
+          db.update(clients).set({ primaryContactId: id }).where(eq(clients.id, clientId)).run();
+          log.push(`clients.primaryContactId set to user ${id}`);
+        }
+
+        // 4. If previous role was MC and new role is not, clear primaryContactId only if
+        //    this user was actually the primaryContactId (avoid clearing someone else's)
+        if (prevRole === "primary_family" && role !== "primary_family") {
+          const clientRecord = db.select().from(clients).where(eq(clients.id, clientId)).get();
+          if (clientRecord?.primaryContactId === id) {
+            db.update(clients).set({ primaryContactId: null }).where(eq(clients.id, clientId)).run();
+            log.push(`clients.primaryContactId cleared (user was previous MC)`);
+          }
+        }
+      }
+
+      res.json({ success: true, role, log });
     } catch(e: any) { res.status(500).json({ message: e.message }); }
   });
 

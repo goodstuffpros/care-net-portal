@@ -507,7 +507,7 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       html += '<div class="uc-meta"><span>Portal: '+portalTxt+'</span><span>Login: '+ago(u.lastLoginAt)+'</span><span>Activity: '+u.totalEntries+'</span></div>';
       html += '<div class="uc-acts">';
       if (noPortal) html += '<button class="btn-act btn-link-act" data-id="'+u.id+'" data-name="'+esc(u.name||'')+'" data-action="link">Link Portal</button>';
-      html += '<button class="btn-act btn-role-act" data-id="'+u.id+'" data-role="'+esc(u.role||'')+'" data-name="'+esc(u.name||'')+'" data-action="role">Change Role</button>';
+      html += '<button class="btn-act btn-role-act" data-id="'+u.id+'" data-role="'+esc(u.role||'')+'" data-name="'+esc(u.name||'')+'" data-clientid="'+(u.clientId||'')+'" data-action="role">Change Role</button>';
       html += '<button class="btn-act btn-deny-act" data-email="'+esc(u.email||'')+'" data-action="deactivate">Deactivate</button>';
       html += '</div></div>';
     });
@@ -652,8 +652,10 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       var current = t.dataset.role || 'unknown';
       var newRole = prompt('Change role for '+t.dataset.name+'\nCurrent: '+current+'\n\nEnter new role:\n caregiver\n primary_family\n secondary_family\n self_care');
       if (!newRole || !roles.includes(newRole.trim())) return;
-      callApi('POST', '/api/admin/users/'+t.dataset.id+'/role', { role: newRole.trim() })
-        .then(function() { showToast('Role changed to '+newRole.trim(),'ok'); loadAll(); })
+      var rolePayload = { role: newRole.trim() };
+      if (t.dataset.clientid) rolePayload.clientId = Number(t.dataset.clientid);
+      callApi('POST', '/api/admin/users/'+t.dataset.id+'/role', rolePayload)
+        .then(function(r) { showToast('Role changed to '+newRole.trim()+(r.log&&r.log.length?' ('+r.log.length+' side effects)':""),'ok'); loadAll(); })
         .catch(function(e) { showToast('Error: '+e.message,'err'); });
     } else if (action === 'link') {
       var cid = prompt('Link '+t.dataset.name+' to which portal?\nEnter the clientId number (see Portals tab):');
