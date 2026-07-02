@@ -590,6 +590,32 @@ export function registerRoutes(httpServer: Server, app: Express) {
         results.push(`Cleared mcSetupCompletedAt and carePathChoice for user ${clearMcFieldsForUserId}`);
       }
 
+      // 4. Revoke all active sessions for a user (forces fresh login)
+      if (req.body.revokeSessionsForUserId) {
+        const uid = req.body.revokeSessionsForUserId;
+        const account = db.select().from(authAccounts).where(eq(authAccounts.userId, uid)).get();
+        if (account) {
+          const now2 = new Date().toISOString();
+          sqlite.prepare(
+            `UPDATE auth_sessions SET revoked_at = ? WHERE auth_account_id = ? AND revoked_at IS NULL`
+          ).run(now2, account.id);
+          results.push(`Revoked all active sessions for user ${uid} (authAccountId ${account.id})`);
+        } else {
+          results.push(`WARN: no auth account found for user ${uid}`);
+        }
+      }
+
+      // 5. Stamp onboardingCompletedAt and mcSetupCompletedAt for a CG to skip all wizards
+      if (req.body.stampOnboardingForUserId) {
+        const uid = req.body.stampOnboardingForUserId;
+        const now2 = new Date().toISOString();
+        db.update(users).set({
+          onboardingCompletedAt: now2,
+          mcSetupCompletedAt: now2,
+        }).where(eq(users.id, uid)).run();
+        results.push(`Stamped onboardingCompletedAt + mcSetupCompletedAt for user ${uid}`);
+      }
+
       res.json({ success: true, results });
     } catch(e: any) { res.status(500).json({ message: e.message }); }
   });
