@@ -2115,6 +2115,10 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         const daysSinceLogin = lastLogin ? Math.floor((Date.now() - new Date(lastLogin).getTime()) / 86400000) : 999;
         const tier = daysSinceLogin <= 7 ? 'active' : daysSinceLogin <= 30 ? 'moderate' : 'quiet';
 
+        // Account created date — from beta_applications accountCreatedAt or authAccounts
+        const appRow = sqlite.prepare(`SELECT account_created_at FROM beta_applications WHERE email = ?`).get((u.email || '').toLowerCase()) as any;
+        const joinedAt = appRow?.account_created_at ?? null;
+
         return {
           id: u.id,
           name: u.name,
@@ -2126,6 +2130,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           totalEntries,
           daysSinceLogin,
           tier,
+          joinedAt,
         };
       });
 

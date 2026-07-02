@@ -255,6 +255,7 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       <div class="search-row">
         <input class="search-input" id="u-search" placeholder="Search name or email...">
         <select class="sort-sel" id="u-sort">
+          <option value="newest">Newest First</option>
           <option value="login">Last Login</option>
           <option value="name">Name A–Z</option>
           <option value="entries">Most Active</option>
@@ -492,7 +493,8 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
     var q = document.getElementById('u-search').value.toLowerCase();
     if (q) data = data.filter(function(u) { return (u.name||'').toLowerCase().indexOf(q) > -1 || (u.email||'').toLowerCase().indexOf(q) > -1; });
     var s = document.getElementById('u-sort').value;
-    if (s === 'login') data.sort(function(a,b) { return a.daysSinceLogin - b.daysSinceLogin; });
+    if (s === 'newest') data.sort(function(a,b) { return (b.joinedAt||'').localeCompare(a.joinedAt||''); });
+    else if (s === 'login') data.sort(function(a,b) { return a.daysSinceLogin - b.daysSinceLogin; });
     else if (s === 'name') data.sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
     else if (s === 'entries') data.sort(function(a,b) { return b.totalEntries - a.totalEntries; });
     var wrap = document.getElementById('users-tbl');
@@ -504,7 +506,10 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       html += '<div class="user-card">';
       html += '<div class="uc-top"><div class="uc-name">'+esc(u.name||'—')+'</div><div class="uc-chips">'+roleChip(u.role)+' '+tierSpan(u.tier)+'</div></div>';
       html += '<div class="uc-email">'+esc(u.email||'—')+'</div>';
-      html += '<div class="uc-meta"><span>Portal: '+portalTxt+'</span><span>Login: '+ago(u.lastLoginAt)+'</span><span>Activity: '+u.totalEntries+'</span></div>';
+      var isNew = u.joinedAt && (Date.now() - new Date(u.joinedAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
+      var joinedTxt = u.joinedAt ? 'Joined: '+ago(u.joinedAt) : '';
+      html += '<div class="uc-meta"><span>Portal: '+portalTxt+'</span><span>Login: '+ago(u.lastLoginAt)+'</span><span>Activity: '+u.totalEntries+'</span>'+(joinedTxt ? '<span>'+joinedTxt+'</span>' : '')+'</div>';
+      if (isNew) html += '<div style="display:inline-block;margin-bottom:6px;padding:2px 8px;background:var(--accent);color:white;font-size:10px;font-weight:700;border-radius:8px;text-transform:uppercase;letter-spacing:.04em;">New</div>';
       html += '<div class="uc-acts">';
       if (noPortal) html += '<button class="btn-act btn-link-act" data-id="'+u.id+'" data-name="'+esc(u.name||'')+'" data-action="link">Link Portal</button>';
       html += '<button class="btn-act btn-role-act" data-id="'+u.id+'" data-role="'+esc(u.role||'')+'" data-name="'+esc(u.name||'')+'" data-clientid="'+(u.clientId||'')+'" data-action="role">Change Role</button>';
