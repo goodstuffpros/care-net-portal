@@ -241,7 +241,7 @@ export default function NavOverlay({
         </div>
 
         {/* ── Footer: Color Palette + User Switcher ── */}
-        <div className="shrink-0 px-4 pt-2 pb-3 border-t border-border space-y-2.5">
+        <div className="shrink-0 px-4 pt-2 pb-20 border-t border-border space-y-2.5">
           {/* Portal Mode Toggle — demo users + admin accounts only.
                Regular real users cannot switch portals; their role determines it.
                TODO: replace isAdmin email-match with DB flag pre-launch. */}
