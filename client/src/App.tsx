@@ -166,7 +166,9 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   // Real MC who just completed setup — start in family portal mode
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
   const isClientRole = realUser?.role === "self_care";
-  const startPortalMode: PortalMode = isClientRole ? "client" : isMCReal ? "family" : "dedicated";
+  // CGs attached to a real portal also start in family mode (they're working in a family's portal)
+  const isCGWithPortal = realUser?.role === "caregiver" && !!realUser?.clientId;
+  const startPortalMode: PortalMode = isClientRole ? "client" : (isMCReal || isCGWithPortal) ? "family" : "dedicated";
 
   // Admin email list — temporary until isAdmin DB column is wired pre-launch
   const ADMIN_EMAILS = ["goodstuffpros@gmail.com", "becky@carenetportal.com"];
