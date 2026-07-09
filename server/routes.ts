@@ -170,14 +170,22 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     // Self-heal: if the beta application says family/MC but the user row has a caregiver role,
     // correct it now. This fixes accounts created before the onboarding role-skip fix.
+    // GUARD: do NOT self-heal if the user already has a clientId and a junction row —
+    // that means their role was intentionally set (e.g. admin corrected a CG who applied as family).
     if (user.role === "caregiver" || user.role === "temp_caregiver") {
-      const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
-      if (app_ && (app_.role === "family" || app_.role === "both" && user.role !== "caregiver")) {
-        // Application said family — correct the user role
-        const correctRole = app_.role === "family" ? "primary_family" : user.role;
-        if (correctRole !== user.role) {
-          db.update(users).set({ role: correctRole }).where(eq(users.id, user.id)).run();
-          user = { ...user, role: correctRole };
+      const hasJunctionRow = user.clientId
+        ? db.select().from(userClientRelationships)
+            .where(and(eq(userClientRelationships.userId, user.id), eq(userClientRelationships.clientId, user.clientId))).get()
+        : null;
+      if (!hasJunctionRow) {
+        const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
+        if (app_ && (app_.role === "family" || app_.role === "both" && user.role !== "caregiver")) {
+          // Application said family — correct the user role only if no established portal relationship exists
+          const correctRole = app_.role === "family" ? "primary_family" : user.role;
+          if (correctRole !== user.role) {
+            db.update(users).set({ role: correctRole }).where(eq(users.id, user.id)).run();
+            user = { ...user, role: correctRole };
+          }
         }
       }
     }
