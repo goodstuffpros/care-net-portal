@@ -1,18 +1,23 @@
 /**
- * Care Net Portal — Square Subscription Payments
+ * Care Net Portal — Square Payments
  *
  * Model: ONE merchant (Good Stuff / David). All subscriptions bill to one Square account.
- * Flow: capture card (hosted field) → create Square Customer → save card on file → create Subscription
+ * Flow: capture card (hosted field) → create Square Customer → save card on file → charge $10 now
+ *       → store customer+card IDs → renew monthly via cron/webhook
+ *
+ * No Square Subscriptions API. No catalog plans. No plan variation IDs.
+ * We manage the billing cycle ourselves — simpler, no Square catalog dependencies.
  *
  * Three auto-selected modes:
- *   simulate   — no SQUARE_ACCESS_TOKEN set → all operations faked, no network calls
+ *   simulate   — no SQUARE_ACCESS_TOKEN → all operations faked, no network calls
  *   sandbox    — SQUARE_ENV=sandbox + token set → real Square sandbox, fake cards, no real money
  *   production — SQUARE_ENV=production + token set → real money
  *
- * SDK: square (v42+) — exports SquareClient and SquareEnvironment (not Client/Environment)
+ * SDK: square v42+ — SquareClient / SquareEnvironment
  */
 
 import { SquareClient, SquareEnvironment } from "square";
+import { randomUUID } from "crypto";
 
 // ── Env config ───────────────────────────────────────────────────────────────
 
@@ -20,6 +25,8 @@ const SQUARE_ENV   = process.env.SQUARE_ENV || "sandbox";
 const ACCESS_TOKEN = process.env.SQUARE_ACCESS_TOKEN || "";
 const APP_ID       = process.env.SQUARE_APP_ID || "";
 const LOCATION_ID  = process.env.SQUARE_LOCATION_ID || "";
+
+const MONTHLY_PRICE_CENTS = 1000; // $10.00
 
 export type PaymentMode = "simulate" | "sandbox" | "production";
 
@@ -48,97 +55,18 @@ function squareClient(): SquareClient {
   });
 }
 
-// ── Plan ID (catalog item) ────────────────────────────────────────────────────
-
-const PLAN_NAME        = "Care Net Portal — Monthly";
-const PLAN_PRICE_CENTS = 1000; // $10.00
-
-let _cachedPlanId: string | null = null;
-
-async function getOrCreatePlanId(): Promise<string> {
-  if (paymentMode() === "simulate") return "sim_plan_monthly";
-  if (_cachedPlanId) return _cachedPlanId;
-
-  const sq = squareClient();
-
-  // Search for existing plan
-  const searchResp = await sq.catalog.search({
-    objectTypes: ["SUBSCRIPTION_PLAN"],
-    query: {
-      exactQuery: {
-        attributeName: "name",
-        attributeValue: PLAN_NAME,
-      },
-    },
-  });
-
-  const existing = (searchResp as any)?.objects?.find(
-    (o: any) => o.type === "SUBSCRIPTION_PLAN"
-  );
-  if (existing?.id) {
-    // Fetch the full plan object to get the variation ID
-    const planResp = await sq.catalog.object.get({ objectId: existing.id, includeRelatedObjects: true });
-    const variation = (planResp as any)?.relatedObjects?.find(
-      (o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION"
-    );
-    const variationId = variation?.id ?? existing.subscriptionPlanData?.phases?.[0]?.uid;
-    if (!variationId) throw new Error("Could not find plan variation ID");
-    _cachedPlanId = variationId;
-    return _cachedPlanId!;
-  }
-
-  // Create the plan using catalog.object.upsert
-  const idempKey = `cnp-monthly-plan-v1`;
-  const createResp = await sq.catalog.object.upsert({
-    idempotencyKey: idempKey,
-    object: {
-      type: "SUBSCRIPTION_PLAN",
-      id: "#monthly",
-      subscriptionPlanData: {
-        name: PLAN_NAME,
-        phases: [
-          {
-            cadence: "MONTHLY",
-            recurringPriceMoney: {
-              amount: BigInt(PLAN_PRICE_CENTS),
-              currency: "USD",
-            },
-          },
-        ],
-      },
-    },
-  });
-
-  const planObj = (createResp as any)?.catalogObject;
-  if (!planObj?.id) throw new Error("Failed to create subscription plan in Square catalog");
-
-  // Fetch the variation from relatedObjects or re-fetch
-  const relatedObjs = (createResp as any)?.relatedObjects ?? [];
-  const variation = relatedObjs.find((o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION");
-  let variationId: string | undefined = variation?.id;
-
-  if (!variationId) {
-    // Re-fetch to get the variation
-    const fetchResp = await sq.catalog.object.get({ objectId: planObj.id, includeRelatedObjects: true });
-    const fetchedVariation = (fetchResp as any)?.relatedObjects?.find(
-      (o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION"
-    );
-    variationId = fetchedVariation?.id;
-  }
-
-  if (!variationId) throw new Error("Could not find plan variation after creation");
-  _cachedPlanId = variationId;
-  return _cachedPlanId!;
-}
-
 // ── Main export: createSubscription ──────────────────────────────────────────
+// 1. Create Square Customer
+// 2. Save card on file (Cards API)
+// 3. Charge $10 now (Payments API)
+// 4. Return IDs + next renewal date (30 days)
 
 export interface SubscriptionResult {
   mode: PaymentMode;
   squareCustomerId: string;
   squareCardId: string;
-  squareSubscriptionId: string;
-  currentPeriodEnd: string; // ISO date of next renewal
+  squareSubscriptionId: string; // payment ID used as subscription reference
+  currentPeriodEnd: string;     // ISO date of next renewal
 }
 
 export async function createSubscription(
@@ -149,96 +77,126 @@ export async function createSubscription(
 ): Promise<SubscriptionResult> {
   const mode = paymentMode();
 
-  // ── Simulate mode — no real calls ────────────────────────────────────────
+  // ── Simulate mode ─────────────────────────────────────────────────────────
   if (mode === "simulate") {
-    const now = new Date();
-    now.setMonth(now.getMonth() + 1);
+    const next = new Date();
+    next.setMonth(next.getMonth() + 1);
     return {
       mode: "simulate",
       squareCustomerId: `sim_cust_${portalId}`,
       squareCardId: `sim_card_${Date.now()}`,
-      squareSubscriptionId: `sim_sub_${Date.now()}`,
-      currentPeriodEnd: now.toISOString(),
+      squareSubscriptionId: `sim_pay_${Date.now()}`,
+      currentPeriodEnd: next.toISOString(),
     };
   }
 
-  // ── Real Square (sandbox or production) ──────────────────────────────────
+  // ── Real Square (sandbox or production) ───────────────────────────────────
   const sq = squareClient();
 
   // 1. Create customer
   const custResp = await sq.customers.create({
-    emailAddress: email,
+    emailAddress: email || undefined,
     givenName: name || "Portal Owner",
     referenceId: `cnp_portal_${portalId}`,
-    idempotencyKey: `cnp-cust-${portalId}-${Date.now()}`,
+    idempotencyKey: `cnp-cust-${portalId}-${randomUUID()}`,
   });
 
   const customerId = (custResp as any)?.customer?.id;
-  if (!customerId) throw new Error("Square customer creation failed");
+  if (!customerId) {
+    const err = JSON.stringify((custResp as any)?.errors ?? custResp);
+    throw new Error(`Square customer creation failed: ${err}`);
+  }
 
   // 2. Save card on file
   const cardResp = await sq.cards.create({
-    idempotencyKey: `cnp-card-${portalId}-${Date.now()}`,
+    idempotencyKey: `cnp-card-${portalId}-${randomUUID()}`,
     sourceId: cardToken,
-    card: {
-      customerId,
-    },
+    card: { customerId },
   });
 
   const cardId = (cardResp as any)?.card?.id;
-  if (!cardId) throw new Error("Square card save failed");
+  if (!cardId) {
+    const err = JSON.stringify((cardResp as any)?.errors ?? cardResp);
+    throw new Error(`Square card save failed: ${err}`);
+  }
 
-  // 3. Get or create the subscription plan
-  const planId = await getOrCreatePlanId();
-
-  // 4. Create subscription
-  const subResp = await sq.subscriptions.create({
-    idempotencyKey: `cnp-sub-${portalId}-${Date.now()}`,
-    locationId: LOCATION_ID,
-    planVariationId: planId,
+  // 3. Charge $10 now
+  const payResp = await sq.payments.create({
+    idempotencyKey: randomUUID(),
+    sourceId: cardId,
     customerId,
-    cardId,
-    startDate: new Date().toISOString().split("T")[0],
+    amountMoney: {
+      amount: BigInt(MONTHLY_PRICE_CENTS),
+      currency: "USD",
+    },
+    locationId: LOCATION_ID,
+    note: `Care Net Portal — monthly subscription (portal ${portalId})`,
+    autocomplete: true,
   });
 
-  const sub = (subResp as any)?.subscription;
-  if (!sub?.id) throw new Error("Square subscription creation failed");
-
-  // Calculate next billing date (30 days out as fallback)
-  let periodEnd: string;
-  if (sub.chargedThroughDate) {
-    periodEnd = new Date(sub.chargedThroughDate).toISOString();
-  } else {
-    const next = new Date();
-    next.setMonth(next.getMonth() + 1);
-    periodEnd = next.toISOString();
+  const payment = (payResp as any)?.payment;
+  if (!payment?.id) {
+    const err = JSON.stringify((payResp as any)?.errors ?? payResp);
+    throw new Error(`Square charge failed: ${err}`);
   }
+
+  // 4. Next renewal = 30 days from now
+  const next = new Date();
+  next.setDate(next.getDate() + 30);
 
   return {
     mode,
     squareCustomerId: customerId,
     squareCardId: cardId,
-    squareSubscriptionId: sub.id,
-    currentPeriodEnd: periodEnd,
+    squareSubscriptionId: payment.id, // payment ID as the subscription reference
+    currentPeriodEnd: next.toISOString(),
   };
 }
 
 // ── cancelSubscription ────────────────────────────────────────────────────────
+// We manage billing ourselves — cancellation just prevents future renewals.
+// No Square API call needed; the DB column update in routes.ts handles it.
 
-export async function cancelSubscription(squareSubscriptionId: string): Promise<void> {
-  if (paymentMode() === "simulate") return;
-  const sq = squareClient();
-  await sq.subscriptions.cancel({ subscriptionId: squareSubscriptionId });
+export async function cancelSubscription(_squareSubscriptionId: string): Promise<void> {
+  // Nothing to do in Square — we simply stop charging at renewal time.
+  return;
 }
 
-// ── getSubscriptionStatus ─────────────────────────────────────────────────────
+// ── chargeRenewal ─────────────────────────────────────────────────────────────
+// Called by a cron job when subscription_renews_at is due.
 
-export async function getSquareSubscriptionStatus(
-  squareSubscriptionId: string
-): Promise<"ACTIVE" | "CANCELED" | "PAUSED" | "PENDING" | "UNKNOWN"> {
-  if (paymentMode() === "simulate") return "ACTIVE";
+export async function chargeRenewal(
+  squareCustomerId: string,
+  squareCardId: string,
+  portalId: number
+): Promise<{ paymentId: string; nextPeriodEnd: string }> {
+  if (paymentMode() === "simulate") {
+    const next = new Date();
+    next.setDate(next.getDate() + 30);
+    return { paymentId: `sim_renew_${Date.now()}`, nextPeriodEnd: next.toISOString() };
+  }
+
   const sq = squareClient();
-  const resp = await sq.subscriptions.get({ subscriptionId: squareSubscriptionId });
-  const status = (resp as any)?.subscription?.status;
-  return status ?? "UNKNOWN";
+  const payResp = await sq.payments.create({
+    idempotencyKey: randomUUID(),
+    sourceId: squareCardId,
+    customerId: squareCustomerId,
+    amountMoney: {
+      amount: BigInt(MONTHLY_PRICE_CENTS),
+      currency: "USD",
+    },
+    locationId: LOCATION_ID,
+    note: `Care Net Portal — monthly renewal (portal ${portalId})`,
+    autocomplete: true,
+  });
+
+  const payment = (payResp as any)?.payment;
+  if (!payment?.id) {
+    const err = JSON.stringify((payResp as any)?.errors ?? payResp);
+    throw new Error(`Square renewal charge failed: ${err}`);
+  }
+
+  const next = new Date();
+  next.setDate(next.getDate() + 30);
+  return { paymentId: payment.id, nextPeriodEnd: next.toISOString() };
 }
