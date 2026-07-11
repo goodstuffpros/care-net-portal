@@ -76,9 +76,13 @@ async function getOrCreatePlanId(): Promise<string> {
     (o: any) => o.type === "SUBSCRIPTION_PLAN"
   );
   if (existing?.id) {
-    // Cache the plan variation ID (needed for subscriptions.create)
-    const variationId = existing.subscriptionPlanData?.phases?.[0]?.uid
-      ?? existing.id;
+    // Fetch the full plan object to get the variation ID
+    const planResp = await sq.catalog.object.get({ objectId: existing.id, includeRelatedObjects: true });
+    const variation = (planResp as any)?.relatedObjects?.find(
+      (o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION"
+    );
+    const variationId = variation?.id ?? existing.subscriptionPlanData?.phases?.[0]?.uid;
+    if (!variationId) throw new Error("Could not find plan variation ID");
     _cachedPlanId = variationId;
     return _cachedPlanId!;
   }
@@ -107,8 +111,22 @@ async function getOrCreatePlanId(): Promise<string> {
 
   const planObj = (createResp as any)?.catalogObject;
   if (!planObj?.id) throw new Error("Failed to create subscription plan in Square catalog");
-  // subscriptions.create needs the plan variation ID
-  const variationId = planObj.subscriptionPlanData?.phases?.[0]?.uid ?? planObj.id;
+
+  // Fetch the variation from relatedObjects or re-fetch
+  const relatedObjs = (createResp as any)?.relatedObjects ?? [];
+  const variation = relatedObjs.find((o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION");
+  let variationId: string | undefined = variation?.id;
+
+  if (!variationId) {
+    // Re-fetch to get the variation
+    const fetchResp = await sq.catalog.object.get({ objectId: planObj.id, includeRelatedObjects: true });
+    const fetchedVariation = (fetchResp as any)?.relatedObjects?.find(
+      (o: any) => o.type === "SUBSCRIPTION_PLAN_VARIATION"
+    );
+    variationId = fetchedVariation?.id;
+  }
+
+  if (!variationId) throw new Error("Could not find plan variation after creation");
   _cachedPlanId = variationId;
   return _cachedPlanId!;
 }
