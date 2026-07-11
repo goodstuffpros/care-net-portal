@@ -225,6 +225,9 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
     <div class="tab" data-v="library">
       <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library
     </div>
+    <div class="tab" data-v="billing">
+      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Billing
+    </div>
   </div>
 
   <div class="toolbar">
@@ -270,6 +273,15 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
         <button class="btn-add" id="btn-new-lib">+ New Response</button>
       </div>
       <div id="lib-list"><div class="loading">Loading...</div></div>
+    </div>
+    <div class="view" id="view-billing">
+      <div class="stat-grid" id="billing-stats">
+        <div class="stat-card"><div class="stat-label">Active</div><div class="stat-num c-success" id="b-active">—</div></div>
+        <div class="stat-card"><div class="stat-label">Trial</div><div class="stat-num c-accent" id="b-trial">—</div></div>
+        <div class="stat-card"><div class="stat-label">Past Due</div><div class="stat-num c-warn" id="b-pastdue">—</div></div>
+        <div class="stat-card"><div class="stat-label">Lapsed</div><div class="stat-num" style="color:#f87171" id="b-lapsed">—</div></div>
+      </div>
+      <div class="tbl-wrap" id="billing-tbl"><div class="loading">Loading...</div></div>
     </div>
   </div>
 </div>
@@ -616,7 +628,68 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
     users:     ['Users','All registered accounts'],
     queue:     ['Queue','Pending signup applications'],
     library:   ['Library','Response bank'],
+    billing:   ['Billing','Subscription status for all portals'],
   };
+
+  var billingData = [];
+
+  function loadBilling() {
+    document.getElementById('billing-tbl').innerHTML = '<div class="loading">Loading...</div>';
+    callApi('GET', '/api/admin/billing').then(function(rows) {
+      billingData = rows;
+      renderBilling();
+    }).catch(function(e) { showToast('Billing load error: ' + e.message, 'err'); });
+  }
+
+  function fmtDate(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  }
+
+  function renderBilling() {
+    var rows = billingData;
+    var active  = rows.filter(function(r) { return r.subscriptionStatus === 'active'; }).length;
+    var trial   = rows.filter(function(r) { return r.subscriptionStatus === 'trial'; }).length;
+    var pastdue = rows.filter(function(r) { return r.subscriptionStatus === 'past_due' || r.subscriptionStatus === 'grace'; }).length;
+    var lapsed  = rows.filter(function(r) { return r.subscriptionStatus === 'read_only'; }).length;
+    document.getElementById('b-active').textContent  = active;
+    document.getElementById('b-trial').textContent   = trial;
+    document.getElementById('b-pastdue').textContent = pastdue;
+    document.getElementById('b-lapsed').textContent  = lapsed;
+
+    var statusBadge = {
+      active:    'background:#166534;color:#86efac',
+      trial:     'background:#1e3a5f;color:#93c5fd',
+      past_due:  'background:#713f12;color:#fde68a',
+      grace:     'background:#713f12;color:#fde68a',
+      read_only: 'background:#450a0a;color:#fca5a5',
+      canceled:  'background:#1f2937;color:#9ca3af',
+    };
+
+    if (rows.length === 0) {
+      document.getElementById('billing-tbl').innerHTML = '<div class="loading">No portals found.</div>';
+      return;
+    }
+
+    var html = '<table><thead><tr><th>Portal</th><th>Owner</th><th>Status</th><th>Started</th><th>Renews</th><th>Card</th></tr></thead><tbody>';
+    rows.forEach(function(r) {
+      var style = statusBadge[r.subscriptionStatus] || statusBadge.canceled;
+      var badge = '<span style="' + style + ';padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">' + r.subscriptionStatus.replace('_',' ').toUpperCase() + '</span>';
+      var grace = r.gracePeriodEndsAt ? '<br><span style="color:#fde68a;font-size:11px">Grace ends ' + fmtDate(r.gracePeriodEndsAt) + '</span>' : '';
+      var card = r.hasPaymentMethod ? '<span style="color:#86efac">Yes</span>' : '<span style="color:#6b7280">No</span>';
+      html += '<tr>';
+      html += '<td><strong>' + r.clientName + '</strong></td>';
+      html += '<td>' + r.ownerName + '<br><span style="color:#6b7280;font-size:11px">' + r.ownerEmail + '</span></td>';
+      html += '<td>' + badge + grace + '</td>';
+      html += '<td>' + fmtDate(r.subscriptionStartedAt) + '</td>';
+      html += '<td>' + fmtDate(r.subscriptionRenewsAt) + '</td>';
+      html += '<td>' + card + '</td>';
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    document.getElementById('billing-tbl').innerHTML = html;
+  }
 
   document.addEventListener('click', function(e) {
     var t = e.target;
@@ -633,6 +706,7 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       document.getElementById('tb-title').textContent = meta[0];
       document.getElementById('tb-sub').textContent = meta[1];
       if (v === 'library') loadLibrary();
+      if (v === 'billing') loadBilling();
       return;
     }
 
