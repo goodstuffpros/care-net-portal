@@ -63,6 +63,7 @@ async function getOrCreatePlanId(): Promise<string> {
 
   // Search for existing plan
   const searchResp = await sq.catalog.search({
+    objectTypes: ["SUBSCRIPTION_PLAN"],
     query: {
       exactQuery: {
         attributeName: "name",
@@ -75,13 +76,16 @@ async function getOrCreatePlanId(): Promise<string> {
     (o: any) => o.type === "SUBSCRIPTION_PLAN"
   );
   if (existing?.id) {
-    _cachedPlanId = existing.id;
+    // Cache the plan variation ID (needed for subscriptions.create)
+    const variationId = existing.subscriptionPlanData?.phases?.[0]?.uid
+      ?? existing.id;
+    _cachedPlanId = variationId;
     return _cachedPlanId!;
   }
 
-  // Create the plan
+  // Create the plan using catalog.object.upsert
   const idempKey = `cnp-monthly-plan-v1`;
-  const createResp = await sq.catalog.upsert({
+  const createResp = await sq.catalog.object.upsert({
     idempotencyKey: idempKey,
     object: {
       type: "SUBSCRIPTION_PLAN",
@@ -101,9 +105,11 @@ async function getOrCreatePlanId(): Promise<string> {
     },
   });
 
-  const planId = (createResp as any)?.catalogObject?.id;
-  if (!planId) throw new Error("Failed to create subscription plan in Square catalog");
-  _cachedPlanId = planId;
+  const planObj = (createResp as any)?.catalogObject;
+  if (!planObj?.id) throw new Error("Failed to create subscription plan in Square catalog");
+  // subscriptions.create needs the plan variation ID
+  const variationId = planObj.subscriptionPlanData?.phases?.[0]?.uid ?? planObj.id;
+  _cachedPlanId = variationId;
   return _cachedPlanId!;
 }
 
