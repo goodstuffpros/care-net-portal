@@ -16,7 +16,7 @@ import {
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
   Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home,
-  Phone, FileText
+  Phone, FileText, CreditCard
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -976,6 +976,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <Bell size={14} className="flex-shrink-0" />
           <span>Notification preferences</span>
         </Link>
+        {/* Billing — MC and SC only */}
+        {(activeUser.role === "primary_family" || activeUser.role === "self_care") && (
+          <Link
+            href="/billing"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+          >
+            <CreditCard size={14} className="flex-shrink-0" />
+            <span>Billing &amp; subscription</span>
+          </Link>
+        )}
       </div>
 
       {/* Invite a Friend — all real users */}
@@ -1067,7 +1077,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               onClick={() => {
                 clearAuthToken();
                 fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                  .finally(() => { window.location.href = "/#/login"; });
+                  .finally(() => { window.location.replace("/"); });
               }}
               className="cursor-pointer text-red-500 dark:text-red-400"
               data-testid="sign-out-btn"
@@ -1524,7 +1534,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   onClick={() => {
                     clearAuthToken();
                     fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                      .finally(() => { window.location.replace("/#/login"); });
+                      .finally(() => { window.location.replace("/"); });
                   }}
                   className="cursor-pointer text-red-500 dark:text-red-400"
                   data-testid="sign-out-mobile"
