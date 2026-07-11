@@ -672,15 +672,25 @@ tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle
       return;
     }
 
-    var html = '<table><thead><tr><th>Portal</th><th>Owner</th><th>Status</th><th>Started</th><th>Renews</th><th>Card</th></tr></thead><tbody>';
+    var tierBadge = {
+      beta:     'background:#1e1b4b;color:#a5b4fc',
+      founder:  'background:#1a2e1a;color:#86efac',
+      standard: 'background:#1f2937;color:#9ca3af',
+    };
+
+    var html = '<table><thead><tr><th>Portal</th><th>Owner</th><th>Tier</th><th>Status</th><th>Started</th><th>Renews</th><th>Card</th></tr></thead><tbody>';
     rows.forEach(function(r) {
       var style = statusBadge[r.subscriptionStatus] || statusBadge.canceled;
       var badge = '<span style="' + style + ';padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">' + r.subscriptionStatus.replace('_',' ').toUpperCase() + '</span>';
       var grace = r.gracePeriodEndsAt ? '<br><span style="color:#fde68a;font-size:11px">Grace ends ' + fmtDate(r.gracePeriodEndsAt) + '</span>' : '';
+      var tier = r.founderTier || 'standard';
+      var tStyle = tierBadge[tier] || tierBadge.standard;
+      var tierLabel = '<span style="' + tStyle + ';padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">' + tier.toUpperCase() + '</span>';
       var card = r.hasPaymentMethod ? '<span style="color:#86efac">Yes</span>' : '<span style="color:#6b7280">No</span>';
       html += '<tr>';
       html += '<td><strong>' + r.clientName + '</strong></td>';
       html += '<td>' + r.ownerName + '<br><span style="color:#6b7280;font-size:11px">' + r.ownerEmail + '</span></td>';
+      html += '<td>' + tierLabel + '</td>';
       html += '<td>' + badge + grace + '</td>';
       html += '<td>' + fmtDate(r.subscriptionStartedAt) + '</td>';
       html += '<td>' + fmtDate(r.subscriptionRenewsAt) + '</td>';

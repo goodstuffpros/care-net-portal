@@ -70,6 +70,7 @@ export const clients = sqliteTable("clients", {
   // Phase 2 — minor contributor approval gate
   requiresMinorApproval: integer("requires_minor_approval", { mode: "boolean" }).default(false), // MC toggle: true = pending entries held for review (minor clients only)
   // ── Subscription billing ──────────────────────────────────────────────────
+  founderTier: text("founder_tier").default("standard"), // 'beta' | 'founder' | 'standard'
   subscriptionStatus: text("subscription_status").default("trial"), // 'trial' | 'active' | 'past_due' | 'grace' | 'read_only' | 'canceled'
   squareCustomerId: text("square_customer_id"),           // Square Customer ID
   squareCardId: text("square_card_id"),                   // Square card-on-file ID

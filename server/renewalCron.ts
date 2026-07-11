@@ -11,7 +11,7 @@
 import cron from "node-cron";
 import { db } from "./db";
 import { clients, users } from "../shared/schema";
-import { eq, lte, and, isNotNull } from "drizzle-orm";
+import { eq, lte, and, isNotNull, ne } from "drizzle-orm";
 import { chargeRenewal } from "./payments";
 import { sendEmail } from "./auth";
 
@@ -53,6 +53,7 @@ async function renewalJob() {
       .where(
         and(
           eq(clients.subscriptionStatus, "active"),
+          ne(clients.founderTier, "beta"),  // beta portals are free for life
           isNotNull(clients.squareCardId),
           isNotNull(clients.squareCustomerId),
           lte(clients.subscriptionRenewsAt, todayStr)

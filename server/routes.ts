@@ -20,6 +20,15 @@ import {
   requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, checkPortalAccess, type AuthRequest
 } from "./auth";
 
+// Returns the founder tier for a newly created portal based on current date
+function assignFounderTier(): "beta" | "founder" | "standard" {
+  const now = new Date();
+  // Founder window: now through Dec 31, 2026
+  const founderWindowEnd = new Date("2026-12-31T23:59:59Z");
+  if (now <= founderWindowEnd) return "founder";
+  return "standard";
+}
+
 export function registerRoutes(httpServer: Server, app: Express) {
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -926,6 +935,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
           isActive: true,
           appMode: "caregiver",
           colorTheme: safeTheme,
+          founderTier: assignFounderTier(),
         }).returning().get();
         clientIdToUse = newClient.id;
 
@@ -1985,6 +1995,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
         isActive: true,
         dateOfBirth: clientDob || null,
         primaryCondition: clientCondition || null,
+        founderTier: assignFounderTier(),
       }).returning().get();
       // Add junction row
       db.insert(userClientRelationships).values({
@@ -2105,6 +2116,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           clientName: c.name ?? "Unnamed",
           ownerName: owner?.name ?? "—",
           ownerEmail: owner?.email ?? "—",
+          founderTier: c.founderTier ?? "standard",
           subscriptionStatus: c.subscriptionStatus ?? "trial",
           subscriptionRenewsAt: c.subscriptionRenewsAt ?? null,
           gracePeriodEndsAt: c.gracePeriodEndsAt ?? null,
@@ -4946,6 +4958,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
       if (!client) return res.status(404).json({ message: "Portal not found" });
       res.json({
+        founderTier: client.founderTier ?? "standard",
         subscriptionStatus: client.subscriptionStatus ?? "trial",
         subscriptionRenewsAt: client.subscriptionRenewsAt ?? null,
         gracePeriodEndsAt: client.gracePeriodEndsAt ?? null,
@@ -4969,6 +4982,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
       const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
       if (!client) return res.status(404).json({ message: "Portal not found" });
+
+      // Beta portals are free for life — no charge ever
+      if (client.founderTier === "beta")
+        return res.status(400).json({ message: "This portal is a founding beta portal and is not subject to subscription charges." });
 
       // Already has an active subscription
       if (client.subscriptionStatus === "active" && client.squareSubscriptionId)
