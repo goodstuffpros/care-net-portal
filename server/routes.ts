@@ -4905,7 +4905,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // GET /api/billing/status — returns subscription status for the user's portal
   app.get("/api/billing/status", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      const user = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
       if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
       const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
       if (!client) return res.status(404).json({ message: "Portal not found" });
@@ -4923,7 +4923,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // Only the portal owner (MC or SC) may subscribe. Body: { cardToken }
   app.post("/api/billing/subscribe", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      const user = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
       if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
 
       // Only MC (primary_family) or SC (self_care) can subscribe
@@ -4967,7 +4967,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // POST /api/billing/cancel — cancel subscription (portal drops to read_only after grace)
   app.post("/api/billing/cancel", requireAuth, async (req: AuthRequest, res) => {
     try {
-      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      const user = db.select().from(users).where(eq(users.id, req.authUserId!)).get();
       if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
 
       const allowedRoles = ["primary_family", "self_care"];
