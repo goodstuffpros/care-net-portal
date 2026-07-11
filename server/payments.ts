@@ -98,7 +98,7 @@ export async function createSubscription(
     emailAddress: email || undefined,
     givenName: name || "Portal Owner",
     referenceId: `cnp_portal_${portalId}`,
-    idempotencyKey: `cnp-cust-${portalId}-${randomUUID()}`,
+    idempotencyKey: randomUUID(),
   });
 
   const customerId = (custResp as any)?.customer?.id;
@@ -109,7 +109,7 @@ export async function createSubscription(
 
   // 2. Save card on file
   const cardResp = await sq.cards.create({
-    idempotencyKey: `cnp-card-${portalId}-${randomUUID()}`,
+    idempotencyKey: randomUUID(),
     sourceId: cardToken,
     card: { customerId },
   });
