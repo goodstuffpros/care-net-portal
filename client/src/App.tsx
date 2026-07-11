@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient, apiRequest, clearAuthToken, getAuthToken } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AlarmEngine } from "@/components/AlarmEngine";
+import InstallPrompt from "@/components/InstallPrompt";
 import { createContext, useContext, useState, useEffect, useRef} from "react";
 import { LangProvider } from "@/lib/LangContext";
 
@@ -426,6 +427,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
       }}>
         <LangProvider>
         <AlarmEngine />
+        <InstallPrompt />
         <Router hook={useHashLocation}>
           <AppLayout>
             <Switch>
