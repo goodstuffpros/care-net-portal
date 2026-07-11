@@ -79,7 +79,7 @@ export default function Billing() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Subscription failed");
       qc.invalidateQueries({ queryKey: ["/api/billing/status"] });
-      setSuccessMsg(`Subscription active. Next billing date: ${formatDate(data.renewsAt)}.`);
+      setSuccessMsg(`Your first month is free. First charge of $10 on ${formatDate(data.renewsAt)}.`);
     } catch (e: any) {
       setErrorMsg(e.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -179,7 +179,7 @@ export default function Billing() {
             disabled={subscribing}
             className="w-full rounded-lg bg-primary text-white py-2.5 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {subscribing ? "Processing…" : "Subscribe — $10/month"}
+            {subscribing ? "Processing…" : "Start free month — $10/month after"}
           </button>
           <p className="text-xs text-center text-muted-foreground">
             Your card is encrypted by Square and never stored on our servers.

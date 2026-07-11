@@ -58,8 +58,8 @@ function squareClient(): SquareClient {
 // ── Main export: createSubscription ──────────────────────────────────────────
 // 1. Create Square Customer
 // 2. Save card on file (Cards API)
-// 3. Charge $10 now (Payments API)
-// 4. Return IDs + next renewal date (30 days)
+// 3. No charge today — first charge hits on day 31 via renewal cron
+// 4. Return IDs + next renewal date (31 days)
 
 export interface SubscriptionResult {
   mode: PaymentMode;
@@ -80,12 +80,12 @@ export async function createSubscription(
   // ── Simulate mode ─────────────────────────────────────────────────────────
   if (mode === "simulate") {
     const next = new Date();
-    next.setMonth(next.getMonth() + 1);
+    next.setDate(next.getDate() + 31);
     return {
       mode: "simulate",
       squareCustomerId: `sim_cust_${portalId}`,
       squareCardId: `sim_card_${Date.now()}`,
-      squareSubscriptionId: `sim_pay_${Date.now()}`,
+      squareSubscriptionId: `sim_sub_${Date.now()}`,
       currentPeriodEnd: next.toISOString(),
     };
   }
@@ -120,35 +120,21 @@ export async function createSubscription(
     throw new Error(`Square card save failed: ${err}`);
   }
 
-  // 3. Charge $10 now
-  const payResp = await sq.payments.create({
-    idempotencyKey: randomUUID(),
-    sourceId: cardId,
-    customerId,
-    amountMoney: {
-      amount: BigInt(MONTHLY_PRICE_CENTS),
-      currency: "USD",
-    },
-    locationId: LOCATION_ID,
-    note: `Care Net Portal — monthly subscription (portal ${portalId})`,
-    autocomplete: true,
-  });
+  // 3. No charge today — first charge hits on day 31 via renewal cron
+  // First month is always free. Card is saved and verified above.
 
-  const payment = (payResp as any)?.payment;
-  if (!payment?.id) {
-    const err = JSON.stringify((payResp as any)?.errors ?? payResp);
-    throw new Error(`Square charge failed: ${err}`);
-  }
-
-  // 4. Next renewal = 30 days from now
+  // 4. Next renewal = 31 days from now
   const next = new Date();
-  next.setDate(next.getDate() + 30);
+  next.setDate(next.getDate() + 31);
+
+  // Use a stable reference ID since there is no payment ID yet
+  const subscriptionRef = `cnp_sub_${portalId}_${Date.now()}`;
 
   return {
     mode,
     squareCustomerId: customerId,
     squareCardId: cardId,
-    squareSubscriptionId: payment.id, // payment ID as the subscription reference
+    squareSubscriptionId: subscriptionRef,
     currentPeriodEnd: next.toISOString(),
   };
 }
