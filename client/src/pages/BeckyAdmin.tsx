@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { cn } from "@/lib/utils";
-import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, UserX, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart, Lightbulb, Tag, RefreshCw } from "lucide-react";
+import { Plus, Pencil, Trash2, Check, X, BookHeart, AlertTriangle, ChevronDown, ChevronUp, Save, Users, Clock, CheckCircle2, XCircle, Mail, MessageCircleHeart, ChevronRight, Download, Eraser, ShieldAlert, User, UserX, CalendarDays, NotebookPen, Pill, Activity, Image, FolderOpen, Heart, Lightbulb, Tag, RefreshCw, CreditCard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -1702,9 +1702,95 @@ function IdeasTab() {
   );
 }
 
+// ── Billing Tab ──────────────────────────────────────────────────────────────
+function BillingTab() {
+  const { data, isLoading, refetch } = useQuery({
+    queryKey: ["/api/admin/billing"],
+    queryFn: () => apiRequest("GET", "/api/admin/billing").then(r => r.json()),
+    refetchInterval: 30000,
+  });
+
+  const rows: any[] = Array.isArray(data) ? data : [];
+
+  const statusColor: Record<string, string> = {
+    active:    "bg-emerald-500/20 text-emerald-300 border-emerald-500/30",
+    trial:     "bg-blue-500/20 text-blue-300 border-blue-500/30",
+    past_due:  "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    grace:     "bg-amber-500/20 text-amber-300 border-amber-500/30",
+    read_only: "bg-red-500/20 text-red-300 border-red-500/30",
+    canceled:  "bg-white/10 text-white/40 border-white/10",
+  };
+
+  const activeCount  = rows.filter(r => r.subscriptionStatus === "active").length;
+  const trialCount   = rows.filter(r => r.subscriptionStatus === "trial").length;
+  const pastDueCount = rows.filter(r => ["past_due","grace"].includes(r.subscriptionStatus)).length;
+  const lapsedCount  = rows.filter(r => r.subscriptionStatus === "read_only").length;
+
+  function fmt(iso: string | null) {
+    if (!iso) return "—";
+    return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  }
+
+  if (isLoading) return <div className="text-white/40 text-sm text-center py-10">Loading billing data...</div>;
+
+  return (
+    <div className="space-y-4">
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {[
+          { label: "Active",   count: activeCount,  color: "text-emerald-400" },
+          { label: "Trial",    count: trialCount,   color: "text-blue-400" },
+          { label: "Past Due", count: pastDueCount, color: "text-amber-400" },
+          { label: "Lapsed",   count: lapsedCount,  color: "text-red-400" },
+        ].map(s => (
+          <div key={s.label} className="bg-white/5 rounded-xl p-3 border border-white/10 text-center">
+            <div className={`text-2xl font-bold ${s.color}`}>{s.count}</div>
+            <div className="text-white/40 text-xs mt-0.5">{s.label}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Refresh */}
+      <div className="flex justify-end">
+        <button onClick={() => refetch()} className="flex items-center gap-1.5 text-xs text-white/40 hover:text-white/70 transition-colors">
+          <RefreshCw size={12} /> Refresh
+        </button>
+      </div>
+
+      {/* Portal rows */}
+      <div className="space-y-2">
+        {rows.length === 0 && (
+          <div className="text-white/30 text-sm text-center py-8">No portals found.</div>
+        )}
+        {rows.map(row => (
+          <div key={row.clientId} className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-2">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <div className="text-sm font-semibold text-white">{row.clientName}</div>
+                <div className="text-xs text-white/40">{row.ownerName} · {row.ownerEmail}</div>
+              </div>
+              <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${statusColor[row.subscriptionStatus] ?? "bg-white/10 text-white/40 border-white/10"}`}>
+                {row.subscriptionStatus.replace("_", " ").toUpperCase()}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-2 text-xs text-white/50">
+              <div>Started: <span className="text-white/70">{fmt(row.subscriptionStartedAt)}</span></div>
+              <div>Renews: <span className="text-white/70">{fmt(row.subscriptionRenewsAt)}</span></div>
+              {row.gracePeriodEndsAt && (
+                <div className="col-span-2 text-amber-300">Grace period ends: {fmt(row.gracePeriodEndsAt)}</div>
+              )}
+              <div>Card on file: <span className={row.hasPaymentMethod ? "text-emerald-400" : "text-white/30"}>{row.hasPaymentMethod ? "Yes" : "No"}</span></div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement">("applications");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement" | "billing">("applications");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
 
@@ -1774,6 +1860,7 @@ export default function BeckyAdminPage() {
             {([
               { key: "library",      icon: <BookHeart size={14} />,           label: "Library" },
               { key: "applications", icon: <Users size={14} />,               label: "Users" },
+              { key: "billing",      icon: <CreditCard size={14} />,          label: "Billing" },
               { key: "engagement",   icon: <Activity size={14} />,            label: "Engagement" },
               { key: "helpdesk",     icon: <MessageCircleHeart size={14} />,  label: "Help Desk" },
               { key: "cleanup",      icon: <Eraser size={14} />,              label: "Cleanup" },
@@ -1798,6 +1885,9 @@ export default function BeckyAdminPage() {
 
         {/* Applications tab */}
         {activeTab === "applications" && <ApplicationsTab />}
+
+        {/* Billing tab */}
+        {activeTab === "billing" && <BillingTab />}
 
         {/* Engagement tab */}
         {activeTab === "engagement" && <EngagementTab />}

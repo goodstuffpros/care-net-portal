@@ -2087,6 +2087,42 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // ══════════════════════════════════════════════════════════════════════════
+  // BILLING ADMIN ROUTES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/admin/billing — subscription status for all portals
+  app.get("/api/admin/billing", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    try {
+      const allClients = db.select().from(clients).all();
+      const allUsers = db.select().from(users).all();
+
+      const rows = allClients.map(c => {
+        // Find the MC or SC owner
+        const owner = allUsers.find(u => u.id === c.primaryContactId)
+          ?? allUsers.find(u => u.clientId === c.id && (u.role === "primary_family" || u.role === "self_care"));
+        return {
+          clientId: c.id,
+          clientName: c.name ?? "Unnamed",
+          ownerName: owner?.name ?? "—",
+          ownerEmail: owner?.email ?? "—",
+          subscriptionStatus: c.subscriptionStatus ?? "trial",
+          subscriptionRenewsAt: c.subscriptionRenewsAt ?? null,
+          gracePeriodEndsAt: c.gracePeriodEndsAt ?? null,
+          subscriptionStartedAt: c.subscriptionStartedAt ?? null,
+          hasPaymentMethod: !!(c.squareCustomerId && c.squareCardId),
+        };
+      });
+
+      // Sort: active first, then trial, then past_due, then read_only, then canceled
+      const ORDER: Record<string, number> = { active: 0, trial: 1, past_due: 2, grace: 2, read_only: 3, canceled: 4 };
+      rows.sort((a, b) => (ORDER[a.subscriptionStatus] ?? 9) - (ORDER[b.subscriptionStatus] ?? 9));
+
+      res.json(rows);
+    } catch (e: any) {
+      res.status(500).json({ message: e.message });
+    }
+  });
+
   // ENGAGEMENT ADMIN ROUTES
   // ══════════════════════════════════════════════════════════════════════════
 
