@@ -1630,6 +1630,16 @@ try { sqlite.exec(`ALTER TABLE auth_accounts ADD COLUMN login_count INTEGER DEFA
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN has_seen_high_five INTEGER DEFAULT 0`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN has_seen_open_hand INTEGER DEFAULT 0`); } catch { /* already exists */ }
 
+// ── Subscription billing columns on clients ─────────────────────────────────────
+ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN subscription_status TEXT DEFAULT 'trial'`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN square_customer_id TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN square_card_id TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN square_subscription_id TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN subscription_started_at TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN subscription_renews_at TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN grace_period_ends_at TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN trial_started_at TEXT`); } catch { /* already exists */ }
+
 // ── User-Client Relationships Migration ────────────────────────────────
 try {
   sqlite.exec(`CREATE TABLE IF NOT EXISTS user_client_relationships (

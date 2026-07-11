@@ -1,5 +1,6 @@
 import type { Express } from "express";
 import type { Server } from "http";
+import { paymentsConfig, createSubscription, cancelSubscription, getSubscriptionStatus } from "./payments";
 import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
 import { runPatternEngine, saveTagsForEntry, checkResolvedPatterns, resurfaceDismissedPatterns } from "./patternEngine";
@@ -4890,6 +4891,179 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.get("/api/demo/status", requireAuth, (req: any, res) => {
     const isDemoAccount = req.authAccount?.email === DEMO_EMAIL;
     res.json({ isDemo: isDemoAccount });
+  });
+
+  // ────────────────────────────────────────────────────────────────────────────
+  // Subscription / Billing Routes
+  // ────────────────────────────────────────────────────────────────────────────
+
+  // GET /api/payments/config — public Square config for the browser (mode, appId, locationId)
+  app.get("/api/payments/config", requireAuth, (_req, res) => {
+    res.json(paymentsConfig());
+  });
+
+  // GET /api/billing/status — returns subscription status for the user's portal
+  app.get("/api/billing/status", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
+      const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
+      if (!client) return res.status(404).json({ message: "Portal not found" });
+      res.json({
+        subscriptionStatus: client.subscriptionStatus ?? "trial",
+        subscriptionRenewsAt: client.subscriptionRenewsAt ?? null,
+        gracePeriodEndsAt: client.gracePeriodEndsAt ?? null,
+        trialStartedAt: client.trialStartedAt ?? null,
+        hasPaymentMethod: !!client.squareCustomerId,
+      });
+    } catch (e: any) { res.status(500).json({ message: e.message }); }
+  });
+
+  // POST /api/billing/subscribe — capture card token + start subscription
+  // Only the portal owner (MC or SC) may subscribe. Body: { cardToken }
+  app.post("/api/billing/subscribe", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
+
+      // Only MC (primary_family) or SC (self_care) can subscribe
+      const allowedRoles = ["primary_family", "self_care"];
+      if (!allowedRoles.includes(user.role ?? ""))
+        return res.status(403).json({ message: "Only the portal owner can manage billing" });
+
+      const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
+      if (!client) return res.status(404).json({ message: "Portal not found" });
+
+      // Already has an active subscription
+      if (client.subscriptionStatus === "active" && client.squareSubscriptionId)
+        return res.status(400).json({ message: "Portal already has an active subscription" });
+
+      const { cardToken } = req.body;
+      if (!cardToken) return res.status(400).json({ message: "Card token is required" });
+
+      const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
+      const email = account?.email ?? user.email ?? "";
+
+      const result = await createSubscription(cardToken, email, user.name, user.clientId);
+
+      const now = new Date().toISOString();
+      db.update(clients).set({
+        subscriptionStatus: "active",
+        squareCustomerId: result.squareCustomerId,
+        squareCardId: result.squareCardId,
+        squareSubscriptionId: result.squareSubscriptionId,
+        subscriptionStartedAt: now,
+        subscriptionRenewsAt: result.currentPeriodEnd,
+        gracePeriodEndsAt: null,
+      }).where(eq(clients.id, user.clientId)).run();
+
+      res.json({ success: true, mode: result.mode, renewsAt: result.currentPeriodEnd });
+    } catch (e: any) {
+      console.error("Subscribe error:", e);
+      res.status(500).json({ message: e.message ?? "Subscription failed" });
+    }
+  });
+
+  // POST /api/billing/cancel — cancel subscription (portal drops to read_only after grace)
+  app.post("/api/billing/cancel", requireAuth, async (req: AuthRequest, res) => {
+    try {
+      const user = db.select().from(users).where(eq(users.id, req.userId!)).get();
+      if (!user?.clientId) return res.status(404).json({ message: "No portal found" });
+
+      const allowedRoles = ["primary_family", "self_care"];
+      if (!allowedRoles.includes(user.role ?? ""))
+        return res.status(403).json({ message: "Only the portal owner can manage billing" });
+
+      const client = db.select().from(clients).where(eq(clients.id, user.clientId)).get();
+      if (!client?.squareSubscriptionId)
+        return res.status(400).json({ message: "No active subscription found" });
+
+      await cancelSubscription(client.squareSubscriptionId);
+
+      // Start the 30-day grace period clock
+      const graceEnd = new Date();
+      graceEnd.setDate(graceEnd.getDate() + 30);
+
+      db.update(clients).set({
+        subscriptionStatus: "grace",
+        gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10),
+      }).where(eq(clients.id, user.clientId)).run();
+
+      res.json({ success: true, gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10) });
+    } catch (e: any) {
+      console.error("Cancel error:", e);
+      res.status(500).json({ message: e.message ?? "Cancellation failed" });
+    }
+  });
+
+  // POST /api/billing/webhook — Square webhook for subscription events
+  // Square sends: subscription.updated, invoice.payment_made, invoice.payment_failed
+  app.post("/api/billing/webhook", async (req, res) => {
+    try {
+      const event = req.body;
+      const eventType = event?.type ?? "";
+      const data = event?.data?.object ?? {};
+
+      if (eventType === "invoice.payment_made") {
+        // Successful charge — mark active, update renewal date
+        const subId = data?.invoice?.subscription_id ?? data?.subscription_id;
+        if (subId) {
+          const client = sqlite.prepare(
+            `SELECT id FROM clients WHERE square_subscription_id = ?`
+          ).get(subId) as any;
+          if (client) {
+            const nextMonth = new Date();
+            nextMonth.setMonth(nextMonth.getMonth() + 1);
+            db.update(clients).set({
+              subscriptionStatus: "active",
+              gracePeriodEndsAt: null,
+              subscriptionRenewsAt: data?.invoice?.subscription_plan_variation?.phases?.[0]?.end_date
+                ?? nextMonth.toISOString().substring(0, 10),
+            }).where(eq(clients.id, client.id)).run();
+          }
+        }
+      } else if (eventType === "invoice.payment_failed") {
+        // Failed charge — start 30-day grace period
+        const subId = data?.invoice?.subscription_id ?? data?.subscription_id;
+        if (subId) {
+          const client = sqlite.prepare(
+            `SELECT id, grace_period_ends_at FROM clients WHERE square_subscription_id = ?`
+          ).get(subId) as any;
+          if (client && !client.grace_period_ends_at) {
+            const graceEnd = new Date();
+            graceEnd.setDate(graceEnd.getDate() + 30);
+            db.update(clients).set({
+              subscriptionStatus: "grace",
+              gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10),
+            }).where(eq(clients.id, client.id)).run();
+          }
+        }
+      } else if (eventType === "subscription.updated") {
+        const sub = data?.subscription;
+        const subId = sub?.id;
+        if (subId && sub?.status === "CANCELED") {
+          const client = sqlite.prepare(
+            `SELECT id, grace_period_ends_at FROM clients WHERE square_subscription_id = ?`
+          ).get(subId) as any;
+          if (client) {
+            // If no grace period yet, start one
+            if (!client.grace_period_ends_at) {
+              const graceEnd = new Date();
+              graceEnd.setDate(graceEnd.getDate() + 30);
+              db.update(clients).set({
+                subscriptionStatus: "grace",
+                gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10),
+              }).where(eq(clients.id, client.id)).run();
+            }
+          }
+        }
+      }
+
+      res.json({ received: true });
+    } catch (e: any) {
+      console.error("Webhook error:", e);
+      res.status(500).json({ message: e.message });
+    }
   });
 
 

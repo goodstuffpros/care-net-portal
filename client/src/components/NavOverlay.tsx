@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { X, Sun, Moon, BookHeart, Bell } from "lucide-react";
+import { X, Sun, Moon, BookHeart, Bell, CreditCard } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/lib/useLang";
@@ -308,6 +308,17 @@ export default function NavOverlay({
             <Bell size={14} className="flex-shrink-0" />
             <span>Notification preferences</span>
           </button>
+
+          {/* Billing link — MC and SC only */}
+          {(activeUser.role === "primary_family" || activeUser.role === "self_care") && (
+            <button
+              onClick={() => { onClose(); navigate("/billing"); }}
+              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+            >
+              <CreditCard size={14} className="flex-shrink-0" />
+              <span>Billing &amp; subscription</span>
+            </button>
+          )}
 
           {/* User identity pill */}
           <div

@@ -33,6 +33,7 @@ import UniversityPage from "@/pages/University";
 import PatternsPage from "@/pages/Patterns";
 import BeckyAdminPage from "@/pages/BeckyAdmin";
 import PricingPage from "@/pages/Pricing";
+import BillingPage from "@/pages/Billing";
 import FamilyPricingPage from "@/pages/FamilyPricing";
 import CaregiverProfilePage from "@/pages/CaregiverProfile";
 import FamilyProfilePage from "@/pages/FamilyProfile";
@@ -458,6 +459,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
               <Route path="/becky-admin" component={BeckyAdminPage} />
               <Route path="/pricing" component={PricingPage} />
               <Route path="/family-pricing" component={FamilyPricingPage} />
+              <Route path="/billing" component={BillingPage} />
               <Route path="/notification-prefs" component={() => (
                 <NotificationPrefs portalMode={activeUser.portalMode} />
               )} />

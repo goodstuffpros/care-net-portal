@@ -69,6 +69,15 @@ export const clients = sqliteTable("clients", {
   mcPostTransferRole: text("mc_post_transfer_role"), // 'monitor' | 'step_back' | 'remove' — client's choice after transfer
   // Phase 2 — minor contributor approval gate
   requiresMinorApproval: integer("requires_minor_approval", { mode: "boolean" }).default(false), // MC toggle: true = pending entries held for review (minor clients only)
+  // ── Subscription billing ──────────────────────────────────────────────────
+  subscriptionStatus: text("subscription_status").default("trial"), // 'trial' | 'active' | 'past_due' | 'grace' | 'read_only' | 'canceled'
+  squareCustomerId: text("square_customer_id"),           // Square Customer ID
+  squareCardId: text("square_card_id"),                   // Square card-on-file ID
+  squareSubscriptionId: text("square_subscription_id"),   // Square Subscription ID
+  subscriptionStartedAt: text("subscription_started_at"), // ISO date — when first paid
+  subscriptionRenewsAt: text("subscription_renews_at"),   // ISO date — next billing date
+  gracePeriodEndsAt: text("grace_period_ends_at"),         // ISO date — 30 days after lapse
+  trialStartedAt: text("trial_started_at"),               // ISO date — when portal was created (trial clock)
 });
 
 export const insertClientSchema = createInsertSchema(clients).omit({ id: true });
