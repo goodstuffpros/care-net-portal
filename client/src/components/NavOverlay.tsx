@@ -6,7 +6,7 @@
 
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { X, Sun, Moon, BookHeart, Bell, CreditCard } from "lucide-react";
+import { X, Sun, Moon, BookHeart, Bell, CreditCard, Smartphone, MessageCircleHeart } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { TranslationKey } from "@/lib/i18n";
 import { useLang } from "@/lib/useLang";
@@ -319,6 +319,24 @@ export default function NavOverlay({
               <span>Billing &amp; subscription</span>
             </button>
           )}
+
+          {/* Need help */}
+          <button
+            onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("cnp:open-helpdesk")); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <MessageCircleHeart size={14} className="flex-shrink-0" />
+            <span>Need help? Contact support</span>
+          </button>
+
+          {/* Add to Home Screen */}
+          <button
+            onClick={() => { onClose(); window.dispatchEvent(new CustomEvent("cnp:show-install")); }}
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <Smartphone size={14} className="flex-shrink-0" />
+            <span>Add to Home Screen</span>
+          </button>
 
           {/* User identity pill */}
           <div

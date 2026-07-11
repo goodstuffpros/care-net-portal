@@ -33,31 +33,34 @@ export default function InstallPrompt() {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
 
   useEffect(() => {
-    // Don't show if already installed or dismissed
-    if (isInStandaloneMode()) return;
-    if (localStorage.getItem(DISMISSED_KEY)) return;
-
     setOs(getOS());
 
     // Capture Android/Chrome install event
-    const handler = (e: Event) => {
+    const installHandler = (e: Event) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      setShow(true);
+      if (!isInStandaloneMode() && !localStorage.getItem(DISMISSED_KEY)) setShow(true);
     };
-    window.addEventListener("beforeinstallprompt", handler);
+    window.addEventListener("beforeinstallprompt", installHandler);
 
-    // iOS — show after a short delay
+    // iOS — show after a short delay on first visit
     const ua = navigator.userAgent;
-    if (/iphone|ipad|ipod/i.test(ua)) {
-      // Only show in Safari (not in Chrome on iOS which can't install)
-      const isChromeiOS = /CriOS/i.test(ua);
-      if (!isChromeiOS) {
+    if (/iphone|ipad|ipod/i.test(ua) && !/CriOS/i.test(ua)) {
+      if (!isInStandaloneMode() && !localStorage.getItem(DISMISSED_KEY)) {
         setTimeout(() => setShow(true), 2000);
       }
     }
 
-    return () => window.removeEventListener("beforeinstallprompt", handler);
+    // Manual trigger from nav overlay "Add to Home Screen" link
+    const manualHandler = () => {
+      if (!isInStandaloneMode()) setShow(true);
+    };
+    window.addEventListener("cnp:show-install", manualHandler);
+
+    return () => {
+      window.removeEventListener("beforeinstallprompt", installHandler);
+      window.removeEventListener("cnp:show-install", manualHandler);
+    };
   }, []);
 
   function dismiss() {

@@ -16,7 +16,7 @@ import {
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
   Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home,
-  Phone, FileText, CreditCard
+  Phone, FileText, CreditCard, Smartphone
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -960,14 +960,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Help Desk — always visible */}
       <div className="px-3 py-2">
-        <a
-          href="mailto:portal@carenetportal.com"
-          className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("cnp:open-helpdesk"))}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
           data-testid="help-desk-btn"
         >
           <MessageCircleHeart size={14} className="flex-shrink-0" />
           <span>Need help? Contact support</span>
-        </a>
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new CustomEvent("cnp:show-install"))}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+        >
+          <Smartphone size={14} className="flex-shrink-0" />
+          <span>Add to Home Screen</span>
+        </button>
         <Link
           href="/notification-prefs"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"

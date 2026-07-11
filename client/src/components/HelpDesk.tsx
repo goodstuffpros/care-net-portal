@@ -214,6 +214,14 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
     }
   }, [open, wakeListenerEnabled, hfmActive]);
 
+  // Listen for external open trigger
+  useEffect(() => {
+    const handler = () => handleOpen();
+    window.addEventListener("cnp:open-helpdesk", handler);
+    return () => window.removeEventListener("cnp:open-helpdesk", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [messages.length, wakeListenerEnabled]);
+
   // Show welcome message on first open
   function handleOpen() {
     setOpen(true);
