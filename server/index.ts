@@ -3,6 +3,7 @@ import express, { Response, NextFunction } from 'express';
 import type { Request } from 'express';
 import cookieParser from "cookie-parser";
 import { registerRoutes } from "./routes";
+import { startRenewalCron } from "./renewalCron";
 import { serveStatic } from "./static";
 import { startFlagEngine } from "./flagEngine";
 import { createServer } from "node:http";
@@ -195,6 +196,8 @@ app.use((req, res, next) => {
       log(`serving on port ${port}`);
       // Start automated flag engine (runs every 15 minutes)
       startFlagEngine();
+      // Start subscription renewal cron (daily at 11:00 UTC)
+      startRenewalCron();
     },
   );
 })();
