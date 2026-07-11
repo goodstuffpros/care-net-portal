@@ -184,8 +184,21 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
     setFamilyEmails(prev => prev.filter((_, idx) => idx !== i));
   }
 
-  function enterPortal() {
-    window.location.href = "/";
+  async function enterPortal() {
+    try {
+      const res = await apiRequest("GET", "/api/billing/status");
+      const data = await res.json();
+      // Beta portals are free for life — go straight to dashboard
+      if (data.founderTier === "beta") {
+        window.location.href = "/";
+      } else {
+        // Everyone else must set up billing before entering
+        window.location.href = "/#/billing?setup=1";
+      }
+    } catch {
+      // If check fails, just go to dashboard
+      window.location.href = "/";
+    }
   }
 
   // ════════════════════════════════════════════════════════════════════════════

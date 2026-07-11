@@ -7,7 +7,12 @@ import { useRef, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import SquareCard, { type SquareCardRef, type PaymentsConfig } from "@/components/SquareCard";
-import { CreditCard, CheckCircle, AlertTriangle, BookOpen } from "lucide-react";
+import { CreditCard, CheckCircle, AlertTriangle, BookOpen, Heart } from "lucide-react";
+
+// Detect setup mode — user just finished MC wizard, card entry is required
+function isSetupMode(): boolean {
+  return window.location.hash.includes("setup=1") || new URLSearchParams(window.location.search).get("setup") === "1";
+}
 
 interface BillingStatus {
   subscriptionStatus: "trial" | "active" | "past_due" | "grace" | "read_only" | "canceled";
@@ -47,6 +52,7 @@ export default function Billing() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const setupMode = isSetupMode();
 
   const { data: billing, isLoading: billingLoading } = useQuery<BillingStatus>({
     queryKey: ["/api/billing/status"],
@@ -79,6 +85,10 @@ export default function Billing() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Subscription failed");
       qc.invalidateQueries({ queryKey: ["/api/billing/status"] });
+      if (setupMode) {
+        // Setup flow — go straight to dashboard after card saved
+        setTimeout(() => { window.location.href = "/"; }, 1800);
+      }
       setSuccessMsg(`Your first month is free. First charge of $10 on ${formatDate(data.renewsAt)}.`);
     } catch (e: any) {
       setErrorMsg(e.message ?? "Something went wrong. Please try again.");
@@ -100,10 +110,24 @@ export default function Billing() {
     <div className="max-w-lg mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-foreground">Portal Billing</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Manage your Care Net Portal subscription.
-        </p>
+        {setupMode ? (
+          <>
+            <div className="flex items-center gap-2 mb-1">
+              <Heart className="w-5 h-5 text-primary fill-primary/20" />
+              <h1 className="text-2xl font-bold text-foreground">One last step</h1>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Your portal is ready. Add a payment method to keep access after your free month — your card won't be charged until day 31.
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-foreground">Portal Billing</h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Manage your Care Net Portal subscription.
+            </p>
+          </>
+        )}
       </div>
 
       {/* Status card */}
