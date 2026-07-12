@@ -35,7 +35,7 @@ export default function PrivacyPolicy() {
         </Button>
 
         <h1 className="text-2xl font-bold text-foreground mb-2">Privacy Policy</h1>
-        <p className="text-sm text-muted-foreground mb-10">Last updated: May 2026 · Beta Version</p>
+        <p className="text-sm text-muted-foreground mb-10">Last updated: July 2026</p>
 
         <div className="space-y-8 text-foreground">
 
@@ -158,7 +158,7 @@ export default function PrivacyPolicy() {
 
         <div className="mt-12 pt-8 border-t border-border text-center">
           <p className="text-xs text-muted-foreground">
-            Care Net Portal · Beta Program · portal@carenetportal.com
+            Care Net Portal · portal@carenetportal.com
           </p>
         </div>
       </div>
