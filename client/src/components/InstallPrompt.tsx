@@ -91,7 +91,7 @@ export default function InstallPrompt() {
               <img src="/icon-192.png" alt="Care Net" className="w-7 h-7 rounded-lg" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground leading-tight">Add to Home Screen</p>
+              <p className="text-sm font-semibold text-foreground leading-tight">Install &amp; Create Shortcut</p>
               <p className="text-xs text-muted-foreground">Care Net Portal</p>
             </div>
           </div>

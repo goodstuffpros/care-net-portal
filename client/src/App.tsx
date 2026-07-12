@@ -168,9 +168,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   // Real MC who just completed setup — start in family portal mode
   const isMCReal = realUser?.role === "primary_family" || realUser?.role === "secondary_family";
   const isClientRole = realUser?.role === "self_care";
-  // CGs attached to a real portal also start in family mode (they're working in a family's portal)
-  const isCGWithPortal = realUser?.role === "caregiver" && !!realUser?.clientId;
-  const startPortalMode: PortalMode = isClientRole ? "client" : (isMCReal || isCGWithPortal) ? "family" : "dedicated";
+  // CGs start in dedicated mode — their own caregiver view with full CG nav
+  const startPortalMode: PortalMode = isClientRole ? "client" : isMCReal ? "family" : "dedicated";
 
   // Admin email list — temporary until isAdmin DB column is wired pre-launch
   const ADMIN_EMAILS = ["goodstuffpros@gmail.com", "becky@carenetportal.com"];
@@ -740,6 +739,17 @@ function RealAuthGate() {
   }, []);
 
   if (checking) return null;
+
+  // No session — if running as installed PWA (standalone), redirect to login
+  // instead of falling into demo mode which creates a confusing loop
+  if (!realUser) {
+    const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
+      (window.navigator as any).standalone === true;
+    if (isStandalone && !window.location.hash.includes("/login")) {
+      window.location.hash = "/login";
+      return null;
+    }
+  }
 
   // Real user who hasn't completed onboarding wizard yet
   // self_care users skip ALL onboarding — they go straight to MainApp
