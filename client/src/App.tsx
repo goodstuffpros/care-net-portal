@@ -212,7 +212,9 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   const [theme, setTheme] = useState<"light" | "dark">(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
   );
-  const [colorTheme, setColorTheme] = useState<ColorTheme>((realUser as any)?._entryColorTheme || "teal");
+  // CG roles always use teal — portal color theme is the MC's choice, not the CG's
+  const isCGRole = realUser?.role === "caregiver" || realUser?.role === "multi_caregiver" || realUser?.role === "temp_caregiver";
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(isCGRole ? "teal" : ((realUser as any)?._entryColorTheme || "teal"));
   const [portalMode, setPortalModeState] = useState<PortalMode>(startPortalMode);
   const [showUpgradeTransition, setShowUpgradeTransition] = useState(false);
   const [navOverlayOpen, setNavOverlayOpen] = useState(false);
@@ -259,7 +261,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     if (realUser?.clientId) {
       setSelectedClientId(realUser.clientId);
     }
-    if ((realUser as any)?._entryColorTheme) {
+    // CG roles always stay teal — don't let portal switch override their color
+    if ((realUser as any)?._entryColorTheme && !isCGRole) {
       setColorTheme((realUser as any)._entryColorTheme as ColorTheme);
     }
     // Skip navigation on first mount — only navigate on actual portal switches
