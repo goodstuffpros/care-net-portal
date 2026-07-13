@@ -16,7 +16,7 @@ import {
   setSessionCookie, clearSessionCookie, getTokenFromRequest,
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
-  emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate,
+  emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate, emailWelcomeTemplate,
   requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, checkPortalAccess, type AuthRequest
 } from "./auth";
 
@@ -295,13 +295,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
       accountCreatedAt: new Date().toISOString(),
     }).where(eq(betaApplications.email, account.email)).run();
 
-    // Send welcome/approval email non-blocking
+    // Send welcome email non-blocking
     const appUrl = process.env.APP_URL || "http://localhost:5000";
     const loginUrl = `${appUrl}/#/login`;
+    const welcomeRole = (newUser.role === "caregiver" || newUser.role === "multi_caregiver" || newUser.role === "temp_caregiver") ? "cg" : newUser.role === "self_care" ? "sc" : "mc";
     sendEmail({
       to: account.email,
-      subject: "You're in — Care Net Portal Beta",
-      html: emailApprovalWelcomeTemplate(app_.name, loginUrl),
+      subject: "You're in — Welcome to Care Net Portal",
+      html: emailWelcomeTemplate(app_.name, loginUrl, welcomeRole),
     }).catch(err => console.error("[auto-approve] email failed:", err?.message));
 
     // Auto-accept connection invite if one was stored on the application

@@ -606,3 +606,59 @@ export function emailPasswordResetTemplate(name: string, resetUrl: string): stri
     </div>
   `;
 }
+
+export function emailWelcomeTemplate(name: string, loginUrl: string, role: "mc" | "sc" | "cg"): string {
+  const roleIntro = role === "cg"
+    ? `You're now set up as a caregiver on Care Net Portal.`
+    : `Your Care Net Portal is ready.`;
+
+  return `
+    <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
+      <div style="background: #01696F; padding: 28px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 22px; font-weight: 700; letter-spacing: -0.3px;">Care Net Portal</h1>
+        <p style="color: rgba(255,255,255,0.75); margin: 6px 0 0; font-size: 13px;">carenetportal.com</p>
+      </div>
+      <div style="background: #fafaf9; padding: 36px 32px; border-radius: 0 0 12px 12px; border: 1px solid #e5e5e3; border-top: none;">
+
+        <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700; color: #1a1a1a;">You're in, ${name}.</h2>
+        <p style="color: #5a5957; font-size: 15px; line-height: 1.6; margin: 0 0 28px;">${roleIntro}</p>
+
+        <div style="border-left: 3px solid #01696F; padding-left: 16px; margin-bottom: 20px;">
+          <p style="color: #1a1a1a; font-size: 15px; line-height: 1.65; margin: 0;">
+            You have likely never seen anything quite like this. We built an onboarding system to help you find your footing — and there's a <strong>Help button on every page</strong> if you get stuck.
+          </p>
+        </div>
+
+        <div style="border-left: 3px solid #01696F; padding-left: 16px; margin-bottom: 20px;">
+          <p style="color: #1a1a1a; font-size: 15px; line-height: 1.65; margin: 0;">
+            This platform is full of tools — but don't feel like you need to use them all on day one. Start with what helps you <em>today</em>. Grow into the rest as you discover what each one can do.
+          </p>
+        </div>
+
+        <div style="border-left: 3px solid #01696F; padding-left: 16px; margin-bottom: 32px;">
+          <p style="color: #1a1a1a; font-size: 15px; line-height: 1.65; margin: 0;">
+            You can do this. Managing care is already hard work. Care Net Portal is here to carry some of that weight with you.
+          </p>
+        </div>
+
+        ${role !== "cg" ? `
+        <div style="background: #f0faf9; border: 1px solid #b2dbd9; border-radius: 10px; padding: 16px 20px; margin-bottom: 28px;">
+          <p style="margin: 0; font-size: 14px; color: #01696F; font-weight: 600;">🎉 Your first month is free.</p>
+          <p style="margin: 6px 0 0; font-size: 13px; color: #4a7a76;">No charge today. Explore everything. Your card won't be billed until day 31.</p>
+        </div>
+        ` : ""}
+
+        <div style="text-align: center; margin-bottom: 28px;">
+          <a href="${loginUrl}" style="display: inline-block; background: #01696F; color: white; text-decoration: none; padding: 15px 36px; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.2px;">
+            Open Care Net Portal →
+          </a>
+        </div>
+
+        <p style="color: #9a9a98; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
+          Questions? Reply to this email or reach us at <a href="mailto:portal@carenetportal.com" style="color: #01696F;">portal@carenetportal.com</a>
+        </p>
+
+      </div>
+    </div>
+  `;
+}
