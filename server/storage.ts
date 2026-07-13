@@ -1640,8 +1640,9 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN subscription_renews_at TEXT`);
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN grace_period_ends_at TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN trial_started_at TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN founder_tier TEXT DEFAULT 'standard'`); } catch { /* already exists */ }
-// Stamp all portals that existed before this migration as beta (free for life)
-try { sqlite.exec(`UPDATE clients SET founder_tier = 'beta' WHERE founder_tier = 'standard' OR founder_tier IS NULL`); } catch { /* already exists */ }
+// NOTE: One-time beta-stamp migration removed July 13, 2026 — all pre-billing portals
+// were already grandfathered. Running this on every restart would flip paying
+// standard-tier clients to free-for-life after Dec 31 2026. Do not restore.
 
 // ── User-Client Relationships Migration ────────────────────────────────
 try {

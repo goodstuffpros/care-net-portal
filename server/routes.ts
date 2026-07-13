@@ -2557,13 +2557,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(client);
   });
   app.post("/api/clients", requireAuth, (req: AuthRequest, res) => {
-    const client = storage.createClient(req.body);
+    // Strip billing/ownership fields — never allow client-submitted values
+    const { founderTier, subscriptionStatus, subscriptionRenewsAt, gracePeriodEndsAt,
+      squareCustomerId, squareCardId, squareSubscriptionId, primaryContactId, caregiverId, ...safeData } = req.body;
+    const client = storage.createClient(safeData);
     res.status(201).json(client);
   });
-  app.patch("/api/clients/:id", requireAuth, (req: AuthRequest, res) => {
+  app.patch("/api/clients/:id", requireAuth, requirePortalAccess(r => Number(r.params.id)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.id);
     const existingClient = storage.getClientById(clientId);
-    const client = storage.updateClient(clientId, req.body);
+    // Strip billing/ownership fields — never allow client-submitted values
+    const { founderTier, subscriptionStatus, subscriptionRenewsAt, gracePeriodEndsAt,
+      squareCustomerId, squareCardId, squareSubscriptionId, primaryContactId, caregiverId, ...safeBody } = req.body;
+    const client = storage.updateClient(clientId, safeBody);
     if (!client) return res.status(404).json({ message: "Client not found" });
 
     const now = new Date().toISOString();
@@ -3745,7 +3751,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(logEntry);
   });
   // Get access log for a document (MC only)
-  app.get("/api/documents/:id/access-log", (req, res) => {
+  app.get("/api/documents/:id/access-log", requireAuth, (req, res) => {
     res.json(storage.getDocumentAccessLog(Number(req.params.id)));
   });
 
@@ -3849,7 +3855,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Shifts — clock in/out
-  app.get("/api/caregivers/:caregiverId/shifts", (req, res) => {
+  app.get("/api/caregivers/:caregiverId/shifts", requireAuth, (req, res) => {
     res.json(storage.getShiftsByCaregiver(Number(req.params.caregiverId)));
   });
   app.get("/api/caregivers/:caregiverId/clients/:clientId/shift/active", (req, res) => {
@@ -3974,7 +3980,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!flag) return res.status(404).json({ message: "Flag not found" });
     res.json(flag);
   });
-  app.get("/api/clients/:clientId/caregivers/:caregiverId/rating", (req, res) => {
+  app.get("/api/clients/:clientId/caregivers/:caregiverId/rating", requireAuth, (req, res) => {
     const score = storage.getRatingScore(Number(req.params.caregiverId), Number(req.params.clientId));
     res.json({ score });
   });
@@ -4053,14 +4059,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!result) return res.status(404).json({ error: "Not found" });
     res.json(result);
   });
-  app.get("/api/medications/:id/history", (req, res) => {
+  app.get("/api/medications/:id/history", requireAuth, (req, res) => {
     res.json(storage.getMedicationHistory(Number(req.params.id)));
   });
   app.get("/api/clients/:clientId/medication-logs", (req, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 100;
     res.json(storage.getMedicationLogs(Number(req.params.clientId), limit));
   });
-  app.get("/api/medications/:id/logs", (req, res) => {
+  app.get("/api/medications/:id/logs", requireAuth, (req, res) => {
     res.json(storage.getMedicationLogsByMed(Number(req.params.id)));
   });
   app.post("/api/clients/:clientId/medication-logs", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
@@ -4094,7 +4100,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Badge System ─────────────────────────────────────────────────────────
 
   // Get badge score for a caregiver (cached or compute fresh)
-  app.get("/api/badge/:caregiverId/client/:clientId", async (req, res) => {
+  app.get("/api/badge/:caregiverId/client/:clientId", requireAuth, async (req, res) => {
     try {
       const score = await getBadgeScore(Number(req.params.caregiverId), Number(req.params.clientId));
       res.json(score);
@@ -4104,7 +4110,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Force recompute
-  app.post("/api/badge/:caregiverId/client/:clientId/compute", async (req, res) => {
+  app.post("/api/badge/:caregiverId/client/:clientId/compute", requireAuth, async (req, res) => {
     try {
       const score = await computeBadgeScore(Number(req.params.caregiverId), Number(req.params.clientId));
       res.json(score);
@@ -4114,7 +4120,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Submit monthly survey
-  app.post("/api/badge/survey", (req, res) => {
+  app.post("/api/badge/survey", requireAuth, (req, res) => {
     const { caregiverId, clientId, submittedByUserId, ...answers } = req.body;
     const month = new Date().toISOString().slice(0, 7); // "2026-04"
 
@@ -4179,12 +4185,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ success: true, unlockedAt: new Date().toISOString() });
   });
 
-  app.get("/api/clients/:clientId/thoughts/unlock-status", (req, res) => {
+  app.get("/api/clients/:clientId/thoughts/unlock-status", requireAuth, (req, res) => {
     res.json({ isUnlocked: storage.isCollectionUnlocked(Number(req.params.clientId)) });
   });
 
   // Unlock status with metadata
-  app.get("/api/clients/:clientId/thoughts/unlock-status-full", (req, res) => {
+  app.get("/api/clients/:clientId/thoughts/unlock-status-full", requireAuth, (req, res) => {
     const clientId = Number(req.params.clientId);
     const thoughts = storage.getThoughtsByClient(clientId);
     const unlocked = thoughts.find(t => t.isUnlocked);
@@ -4213,7 +4219,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Care Scope ────────────────────────────────────────────────────────────
 
   // GET current scope settings for a client/caregiver pair
-  app.get("/api/scope/:clientId/:caregiverId", (req, res) => {
+  app.get("/api/scope/:clientId/:caregiverId", requireAuth, (req, res) => {
     const scope = storage.getCareScope(
       Number(req.params.clientId),
       Number(req.params.caregiverId)
@@ -4262,7 +4268,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Flag Control routes ──────────────────────────────────────────────────
 
   // GET flag control settings
-  app.get("/api/flag-control/:clientId/:caregiverId", (req, res) => {
+  app.get("/api/flag-control/:clientId/:caregiverId", requireAuth, (req, res) => {
     const fc = storage.getFlagControl(
       Number(req.params.clientId),
       Number(req.params.caregiverId)
@@ -4439,7 +4445,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // ── Becky Response Library (Admin) ──────────────────────────────────────
 
-  app.get("/api/becky-library", (req, res) => {
+  app.get("/api/becky-library", requireAuth, (req, res) => {
     const { theme } = req.query;
     const items = storage.getBeckyResponses(theme as string | undefined);
     // Also return all distinct themes
@@ -4448,7 +4454,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json({ items, themes });
   });
 
-  app.post("/api/becky-library", (req, res) => {
+  app.post("/api/becky-library", requireAuth, (req, res) => {
     const { theme, examplePrompt, response } = req.body;
     if (!theme || !examplePrompt || !response) {
       return res.status(400).json({ message: "theme, examplePrompt, and response are required" });
@@ -4466,14 +4472,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(item);
   });
 
-  app.patch("/api/becky-library/:id", (req, res) => {
+  app.patch("/api/becky-library/:id", requireAuth, (req, res) => {
     const id = Number(req.params.id);
     const updated = storage.updateBeckyResponse(id, req.body);
     if (!updated) return res.status(404).json({ message: "Not found" });
     res.json(updated);
   });
 
-  app.delete("/api/becky-library/:id", (req, res) => {
+  app.delete("/api/becky-library/:id", requireAuth, (req, res) => {
     storage.deleteBeckyResponse(Number(req.params.id));
     res.json({ ok: true });
   });
@@ -4550,7 +4556,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Check if survey already submitted this month
-  app.get("/api/badge/survey/status/:caregiverId/client/:clientId", (req, res) => {
+  app.get("/api/badge/survey/status/:caregiverId/client/:clientId", requireAuth, (req, res) => {
     const month = new Date().toISOString().slice(0, 7);
     const existing = db.select().from(badgeSurveys)
       .where(and(
@@ -4608,7 +4614,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH dismiss a pattern (snooze for 7 days)
-  app.patch("/api/patterns/:id/dismiss", (req, res) => {
+  app.patch("/api/patterns/:id/dismiss", requireAuth, (req, res) => {
     const { userId } = req.body;
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4624,7 +4630,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH escalate a pattern (MC override — opens doctor note)
-  app.patch("/api/patterns/:id/escalate", (req, res) => {
+  app.patch("/api/patterns/:id/escalate", requireAuth, (req, res) => {
     const { userId } = req.body;
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4639,7 +4645,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH acknowledge a pattern alert (mark as read by this user)
-  app.patch("/api/patterns/:id/acknowledge", (req, res) => {
+  app.patch("/api/patterns/:id/acknowledge", requireAuth, (req, res) => {
     const { userId, alertLevel } = req.body;
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4660,7 +4666,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH update doctor note text
-  app.patch("/api/patterns/:id/doctor-note", (req, res) => {
+  app.patch("/api/patterns/:id/doctor-note", requireAuth, (req, res) => {
     const { doctorNoteText, sentByUserId } = req.body;
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4682,7 +4688,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // GET pattern preferences for a user
-  app.get("/api/users/:userId/pattern-preferences", (req, res) => {
+  app.get("/api/users/:userId/pattern-preferences", requireAuth, (req, res) => {
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
@@ -4693,7 +4699,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PUT update pattern preferences
-  app.put("/api/users/:userId/pattern-preferences", (req, res) => {
+  app.put("/api/users/:userId/pattern-preferences", requireAuth, (req, res) => {
     const userId = Number(req.params.userId);
     const { clientId, watchSymptoms, watchActivity, watchFood, watchSleep, watchVitals, notifyThreshold } = req.body;
     const Database = require("better-sqlite3");
