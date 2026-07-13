@@ -55,10 +55,8 @@ export default function InstallPrompt() {
     }
 
     // Manual trigger from nav overlay "Add to Home Screen" link
-    // Always show — use ref to get latest deferred prompt
+    // Always show when manually triggered — ignore dismissed flag and standalone check
     const manualHandler = () => {
-      if (isInStandaloneMode()) return;
-      // Clear dismissed flag so manual trigger always works
       localStorage.removeItem(DISMISSED_KEY);
       setShow(true);
     };

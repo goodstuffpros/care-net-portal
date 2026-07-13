@@ -968,13 +968,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <MessageCircleHeart size={14} className="flex-shrink-0" />
           <span>Need help? Contact support</span>
         </button>
+{!window.matchMedia("(display-mode: standalone)").matches && !(window.navigator as any).standalone && (
         <button
           onClick={() => window.dispatchEvent(new CustomEvent("cnp:show-install"))}
           className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
         >
           <Smartphone size={14} className="flex-shrink-0" />
-          <span>Add to Home Screen</span>
+          <span>Install &amp; Add to Home Screen</span>
         </button>
+        )}
         <Link
           href="/notification-prefs"
           className="flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
