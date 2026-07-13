@@ -1,5 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
+import rateLimit from "express-rate-limit";
+import { WebhooksHelper } from "square/wrapper/WebhooksHelper";
 import { paymentsConfig, createSubscription, cancelSubscription, getSubscriptionStatus } from "./payments";
 import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
@@ -32,12 +34,21 @@ function assignFounderTier(): "beta" | "founder" | "standard" {
 
 export function registerRoutes(httpServer: Server, app: Express) {
 
+  // ── Rate limiters ─────────────────────────────────────────────────────────
+  const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many attempts. Please wait 15 minutes and try again." },
+  });
+
   // ══════════════════════════════════════════════════════════════════════════
   // AUTH ROUTES
   // ══════════════════════════════════════════════════════════════════════════
 
   // POST /api/auth/apply — submit beta application + create account + send verification email
-  app.post("/api/auth/apply", async (req: AuthRequest, res) => {
+  app.post("/api/auth/apply", authLimiter, async (req: AuthRequest, res) => {
     const { email, name, role, currentlyInCare, intent, agreedToConfidentiality, password, inviteToken: connectionInviteToken } = req.body;
     // self_managed path may omit currentlyInCare/intent — we auto-fill them
     const resolvedCurrentlyInCare = currentlyInCare || (role === "self_managed" ? "yes" : null);
@@ -123,7 +134,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/auth/login
-  app.post("/api/auth/login", async (req: AuthRequest, res) => {
+  app.post("/api/auth/login", authLimiter, async (req: AuthRequest, res) => {
     const { email, password } = req.body;
     if (!email || !password) return res.status(400).json({ message: "Email and password required" });
 
@@ -406,7 +417,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/auth/forgot-password
-  app.post("/api/auth/forgot-password", async (req: AuthRequest, res) => {
+  app.post("/api/auth/forgot-password", authLimiter, async (req: AuthRequest, res) => {
     const { email } = req.body;
     // Always return success to prevent email enumeration
     res.json({ success: true, message: "If that email is registered, you'll receive a reset link shortly." });
@@ -5069,8 +5080,34 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // POST /api/billing/webhook — Square webhook for subscription events
   // Square sends: subscription.updated, invoice.payment_made, invoice.payment_failed
-  app.post("/api/billing/webhook", async (req, res) => {
+  app.post("/api/billing/webhook", async (req: any, res) => {
     try {
+      // ── Signature verification ───────────────────────────────────────
+      const sigKey = process.env.SQUARE_WEBHOOK_SIGNATURE_KEY;
+      const sigHeader = req.headers["x-square-hmacsha256-signature"] as string | undefined;
+      const webhookUrl = process.env.SQUARE_WEBHOOK_URL || "https://app.carenetportal.com/api/billing/webhook";
+
+      if (sigKey) {
+        if (!sigHeader) {
+          console.warn("[webhook] Missing signature header — rejected");
+          return res.status(401).json({ message: "Missing signature" });
+        }
+        const rawBody = req.rawBody?.toString("utf8") ?? JSON.stringify(req.body);
+        const valid = await WebhooksHelper.verifySignature({
+          requestBody: rawBody,
+          signatureHeader: sigHeader,
+          signatureKey: sigKey,
+          notificationUrl: webhookUrl,
+        });
+        if (!valid) {
+          console.warn("[webhook] Invalid signature — rejected");
+          return res.status(401).json({ message: "Invalid signature" });
+        }
+      } else {
+        console.warn("[webhook] SQUARE_WEBHOOK_SIGNATURE_KEY not set — skipping signature check");
+      }
+
+      const ADMIN_NOTIFY = ["gouldenterprises@yahoo.com", "blgservantgirl@gmail.com"];
       const event = req.body;
       const eventType = event?.type ?? "";
       const data = event?.data?.object ?? {};
@@ -5085,12 +5122,24 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           if (client) {
             const nextMonth = new Date();
             nextMonth.setMonth(nextMonth.getMonth() + 1);
+            const nextRenewal = data?.invoice?.subscription_plan_variation?.phases?.[0]?.end_date
+              ?? nextMonth.toISOString().substring(0, 10);
             db.update(clients).set({
               subscriptionStatus: "active",
               gracePeriodEndsAt: null,
-              subscriptionRenewsAt: data?.invoice?.subscription_plan_variation?.phases?.[0]?.end_date
-                ?? nextMonth.toISOString().substring(0, 10),
+              subscriptionRenewsAt: nextRenewal,
             }).where(eq(clients.id, client.id)).run();
+
+            // Notify admins
+            const fullClient = sqlite.prepare(`SELECT name FROM clients WHERE id = ?`).get(client.id) as any;
+            const ownerEmail = await getOwnerEmail(client.id);
+            ADMIN_NOTIFY.forEach(adminEmail => {
+              sendEmail({
+                to: adminEmail,
+                subject: `CNP payment received (webhook) — ${fullClient?.name || `Portal #${client.id}`}`,
+                html: emailAdminPaymentTemplate(fullClient?.name || `Portal #${client.id}`, ownerEmail || "unknown", 10.00, nextRenewal),
+              }).catch(err => console.error("[webhook] admin notify failed:", err));
+            });
           }
         }
       } else if (eventType === "invoice.payment_failed") {
@@ -5103,10 +5152,34 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           if (client && !client.grace_period_ends_at) {
             const graceEnd = new Date();
             graceEnd.setDate(graceEnd.getDate() + 30);
+            const graceEndStr = graceEnd.toISOString().substring(0, 10);
             db.update(clients).set({
               subscriptionStatus: "grace",
-              gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10),
+              gracePeriodEndsAt: graceEndStr,
             }).where(eq(clients.id, client.id)).run();
+
+            // Notify admins of failure
+            const fullClient = sqlite.prepare(`SELECT name FROM clients WHERE id = ?`).get(client.id) as any;
+            const ownerEmail = await getOwnerEmail(client.id);
+            ADMIN_NOTIFY.forEach(adminEmail => {
+              sendEmail({
+                to: adminEmail,
+                subject: `⚠️ CNP payment FAILED — ${fullClient?.name || `Portal #${client.id}`}`,
+                html: `
+                  <div style="font-family:Arial,sans-serif;max-width:480px;margin:0 auto;color:#1a1a1a;">
+                    <div style="background:#A13544;padding:20px 24px;border-radius:8px 8px 0 0;">
+                      <p style="color:white;margin:0;font-size:13px;font-weight:600;">CARE NET PORTAL — PAYMENT FAILED</p>
+                    </div>
+                    <div style="background:#fafaf9;padding:24px;border-radius:0 0 8px 8px;border:1px solid #e5e5e3;border-top:none;">
+                      <p style="margin:0 0 6px;font-size:16px;font-weight:700;">${fullClient?.name || `Portal #${client.id}`}</p>
+                      <p style="margin:0 0 4px;color:#5a5957;font-size:14px;">${ownerEmail || "unknown"}</p>
+                      <p style="margin:12px 0 0;color:#A13544;font-size:13px;">Grace period ends: ${graceEndStr}</p>
+                      <p style="margin:6px 0 0;color:#9a9a98;font-size:12px;">Customer has been notified. Portal stays active for 30 days.</p>
+                    </div>
+                  </div>
+                `,
+              }).catch(err => console.error("[webhook] admin fail notify failed:", err));
+            });
           }
         }
       } else if (eventType === "subscription.updated") {
