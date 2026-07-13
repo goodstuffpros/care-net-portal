@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Server } from "http";
 import rateLimit from "express-rate-limit";
-import { WebhooksHelper } from "square/wrapper/WebhooksHelper";
+import crypto from "crypto";
 import { paymentsConfig, createSubscription, cancelSubscription, getSubscriptionStatus } from "./payments";
 import { storage } from "./storage";
 import { computeBadgeScore, getBadgeScore } from "./badgeEngine";
@@ -5093,12 +5093,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
           return res.status(401).json({ message: "Missing signature" });
         }
         const rawBody = req.rawBody?.toString("utf8") ?? JSON.stringify(req.body);
-        const valid = await WebhooksHelper.verifySignature({
-          requestBody: rawBody,
-          signatureHeader: sigHeader,
-          signatureKey: sigKey,
-          notificationUrl: webhookUrl,
-        });
+        const hmac = crypto.createHmac("sha256", sigKey);
+        hmac.update(webhookUrl + rawBody);
+        const expected = hmac.digest("base64");
+        const valid = crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(sigHeader));
         if (!valid) {
           console.warn("[webhook] Invalid signature — rejected");
           return res.status(401).json({ message: "Invalid signature" });
