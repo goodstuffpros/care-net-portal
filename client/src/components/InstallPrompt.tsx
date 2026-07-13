@@ -7,8 +7,8 @@
  * - Already installed / dismissed: renders nothing
  */
 
-import { useState, useEffect } from "react";
-import { X, Share, PlusSquare, Download } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
+import { X, Share, PlusSquare, Download, MoreVertical } from "lucide-react";
 
 const DISMISSED_KEY = "cnp_install_dismissed";
 
@@ -31,13 +31,16 @@ export default function InstallPrompt() {
   const [show, setShow] = useState(false);
   const [os, setOs] = useState<"ios" | "android" | "desktop" | "unknown">("unknown");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
+  // Keep a ref so the manual handler always has access to latest prompt
+  const deferredPromptRef = useRef<any>(null);
 
   useEffect(() => {
     setOs(getOS());
 
-    // Capture Android/Chrome install event
+    // Capture Android/Chrome install event — may fire before user taps nav button
     const installHandler = (e: Event) => {
       e.preventDefault();
+      deferredPromptRef.current = e;
       setDeferredPrompt(e);
       if (!isInStandaloneMode() && !localStorage.getItem(DISMISSED_KEY)) setShow(true);
     };
@@ -52,8 +55,12 @@ export default function InstallPrompt() {
     }
 
     // Manual trigger from nav overlay "Add to Home Screen" link
+    // Always show — use ref to get latest deferred prompt
     const manualHandler = () => {
-      if (!isInStandaloneMode()) setShow(true);
+      if (isInStandaloneMode()) return;
+      // Clear dismissed flag so manual trigger always works
+      localStorage.removeItem(DISMISSED_KEY);
+      setShow(true);
     };
     window.addEventListener("cnp:show-install", manualHandler);
 
@@ -69,13 +76,16 @@ export default function InstallPrompt() {
   }
 
   async function handleInstall() {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === "accepted") dismiss();
-      else dismiss(); // dismiss either way
-    } else {
+    const prompt = deferredPromptRef.current || deferredPrompt;
+    if (prompt) {
+      prompt.prompt();
+      const { outcome } = await prompt.userChoice;
+      deferredPromptRef.current = null;
+      setDeferredPrompt(null);
       dismiss();
+    } else {
+      // No deferred prompt available — keep showing manual instructions
+      // (user needs to use browser menu)
     }
   }
 
@@ -117,15 +127,27 @@ export default function InstallPrompt() {
               <span>Tap <strong>Add to Home Screen</strong></span>
             </div>
           </div>
-        ) : (
+        ) : (deferredPromptRef.current || deferredPrompt) ? (
           <p className="text-xs text-muted-foreground mb-4">
             Install Care Net Portal for quick access — works like an app, no App Store needed.
           </p>
+        ) : (
+          <div className="space-y-2 mb-4">
+            <p className="text-xs text-muted-foreground">Install &amp; create a shortcut on your home screen.</p>
+            <div className="flex items-center gap-2 text-xs text-foreground">
+              <MoreVertical size={14} className="text-primary shrink-0" />
+              <span>Tap the <strong>three-dot menu</strong> in Chrome</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs text-foreground">
+              <PlusSquare size={14} className="text-primary shrink-0" />
+              <span>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></span>
+            </div>
+          </div>
         )}
 
         {/* Action buttons */}
         <div className="flex gap-2">
-          {os !== "ios" ? (
+          {os !== "ios" && (deferredPromptRef.current || deferredPrompt) ? (
             <button
               onClick={handleInstall}
               className="flex-1 flex items-center justify-center gap-1.5 bg-primary text-primary-foreground text-xs font-medium py-2 rounded-lg hover:bg-primary/90 transition-colors"
@@ -138,7 +160,7 @@ export default function InstallPrompt() {
             onClick={dismiss}
             className="flex-1 text-xs text-muted-foreground py-2 rounded-lg border border-border hover:bg-muted transition-colors"
           >
-            {os === "ios" ? "Got it" : "Not now"}
+            {os === "ios" ? "Got it" : "Got it"}
           </button>
         </div>
       </div>
