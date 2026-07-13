@@ -662,3 +662,42 @@ export function emailWelcomeTemplate(name: string, loginUrl: string, role: "mc" 
     </div>
   `;
 }
+
+export function emailAdminNewUserTemplate(name: string, email: string, role: string): string {
+  const roleLabel: Record<string, string> = {
+    primary_family: "Main Contact (MC)",
+    secondary_family: "Secondary Family",
+    self_care: "Self-Care",
+    caregiver: "Caregiver",
+    multi_caregiver: "Multi-Portal Caregiver",
+    temp_caregiver: "Temp Caregiver",
+  };
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+      <div style="background: #01696F; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+        <p style="color: white; margin: 0; font-size: 13px; font-weight: 600;">CARE NET PORTAL — NEW USER</p>
+      </div>
+      <div style="background: #fafaf9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e3; border-top: none;">
+        <p style="margin: 0 0 6px; font-size: 16px; font-weight: 700;">${name}</p>
+        <p style="margin: 0 0 4px; color: #5a5957; font-size: 14px;">${email}</p>
+        <p style="margin: 0; color: #01696F; font-size: 13px; font-weight: 600;">${roleLabel[role] || role}</p>
+      </div>
+    </div>
+  `;
+}
+
+export function emailAdminPaymentTemplate(portalName: string, ownerEmail: string, amountDollars: number, nextRenewal: string): string {
+  return `
+    <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; color: #1a1a1a;">
+      <div style="background: #437A22; padding: 20px 24px; border-radius: 8px 8px 0 0;">
+        <p style="color: white; margin: 0; font-size: 13px; font-weight: 600;">CARE NET PORTAL — PAYMENT RECEIVED</p>
+      </div>
+      <div style="background: #fafaf9; padding: 24px; border-radius: 0 0 8px 8px; border: 1px solid #e5e5e3; border-top: none;">
+        <p style="margin: 0 0 6px; font-size: 22px; font-weight: 700; color: #437A22;">$${amountDollars.toFixed(2)}</p>
+        <p style="margin: 0 0 4px; font-size: 14px; font-weight: 600;">${portalName}</p>
+        <p style="margin: 0 0 4px; color: #5a5957; font-size: 13px;">${ownerEmail}</p>
+        <p style="margin: 12px 0 0; color: #9a9a98; font-size: 12px;">Next renewal: ${nextRenewal}</p>
+      </div>
+    </div>
+  `;
+}

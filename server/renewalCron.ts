@@ -13,7 +13,7 @@ import { db } from "./db";
 import { clients, users } from "../shared/schema";
 import { eq, lte, and, isNotNull, ne } from "drizzle-orm";
 import { chargeRenewal } from "./payments";
-import { sendEmail } from "./auth";
+import { sendEmail, emailAdminPaymentTemplate } from "./auth";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -82,6 +82,22 @@ async function renewalJob() {
         .run();
 
       console.log(`[renewalCron] Portal ${portal.id} renewed OK — next: ${result.nextPeriodEnd}`);
+
+      // Notify admins of successful payment
+      const ownerEmail = await getOwnerEmail(portal.id);
+      const ADMIN_NOTIFY = ["gouldenterprises@yahoo.com", "blgservantgirl@gmail.com"];
+      ADMIN_NOTIFY.forEach(adminEmail => {
+        sendEmail({
+          to: adminEmail,
+          subject: `CNP payment received — ${portal.name || `Portal #${portal.id}`}`,
+          html: emailAdminPaymentTemplate(
+            portal.name || `Portal #${portal.id}`,
+            ownerEmail || "unknown",
+            10.00,
+            result.nextPeriodEnd
+          ),
+        }).catch(err => console.error(`[renewalCron] Admin payment notify failed:`, err));
+      });
     } catch (e: any) {
       console.error(`[renewalCron] Charge failed for portal ${portal.id}:`, e.message);
 

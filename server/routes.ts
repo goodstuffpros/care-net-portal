@@ -17,6 +17,7 @@ import {
   verifyJWT, hashToken, generateToken,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
   emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate, emailWelcomeTemplate,
+  emailAdminNewUserTemplate, emailAdminPaymentTemplate,
   requireAuth, requireAuthAccount, requireReAuth, requireAdmin, requirePortalAccess, checkPortalAccess, type AuthRequest
 } from "./auth";
 
@@ -304,6 +305,16 @@ export function registerRoutes(httpServer: Server, app: Express) {
       subject: "You're in — Welcome to Care Net Portal",
       html: emailWelcomeTemplate(app_.name, loginUrl, welcomeRole),
     }).catch(err => console.error("[auto-approve] email failed:", err?.message));
+
+    // Notify admins of new user
+    const ADMIN_NOTIFY = ["gouldenterprises@yahoo.com", "blgservantgirl@gmail.com"];
+    ADMIN_NOTIFY.forEach(adminEmail => {
+      sendEmail({
+        to: adminEmail,
+        subject: `New CNP user — ${newUser.name} (${newUser.role})`,
+        html: emailAdminNewUserTemplate(newUser.name, account.email, newUser.role),
+      }).catch(err => console.error("[admin-notify] new user email failed:", err?.message));
+    });
 
     // Auto-accept connection invite if one was stored on the application
     if (app_.inviteToken) {
