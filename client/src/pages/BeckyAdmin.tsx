@@ -1788,6 +1788,206 @@ function BillingTab() {
   );
 }
 
+// ── Promo Codes Tab ──────────────────────────────────────────────────────────
+function PromoCodesTab() {
+  const qc = useQueryClient();
+  const [creating, setCreating] = useState(false);
+  const [form, setForm] = useState({ code: "", description: "", discountType: "free_months", discountValue: "", maxUses: "", expiresAt: "" });
+  const [applyPortalId, setApplyPortalId] = useState("");
+  const [applyCode, setApplyCode] = useState("");
+  const [applyNote, setApplyNote] = useState("");
+  const [applyMsg, setApplyMsg] = useState<string | null>(null);
+  const [applyErr, setApplyErr] = useState<string | null>(null);
+  const [err, setErr] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
+
+  const { data: codes = [], refetch } = useQuery<any[]>({
+    queryKey: ["/api/promo-codes"],
+    queryFn: () => apiRequest("GET", "/api/promo-codes").then(r => r.json()),
+  });
+
+  async function handleCreate() {
+    setErr(null); setSuccess(null);
+    if (!form.code || !form.discountType) return setErr("Code and type required");
+    if ((form.discountType === "free_months" || form.discountType === "percent_off") && !form.discountValue)
+      return setErr("Value required for this discount type");
+    const res = await apiRequest("POST", "/api/promo-codes", {
+      code: form.code,
+      description: form.description || undefined,
+      discountType: form.discountType,
+      discountValue: form.discountValue ? Number(form.discountValue) : undefined,
+      maxUses: form.maxUses ? Number(form.maxUses) : undefined,
+      expiresAt: form.expiresAt || undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) return setErr(data.message ?? "Failed");
+    setSuccess(`Code "${data.code}" created`);
+    setForm({ code: "", description: "", discountType: "free_months", discountValue: "", maxUses: "", expiresAt: "" });
+    setCreating(false);
+    refetch();
+  }
+
+  async function toggleActive(id: number, current: boolean) {
+    await apiRequest("PATCH", `/api/promo-codes/${id}`, { active: !current });
+    refetch();
+  }
+
+  async function handleDelete(id: number, code: string) {
+    if (!confirm(`Delete code "${code}"? This cannot be undone.`)) return;
+    await apiRequest("DELETE", `/api/promo-codes/${id}`);
+    refetch();
+  }
+
+  async function handleApplyManual() {
+    setApplyMsg(null); setApplyErr(null);
+    if (!applyCode || !applyPortalId) return setApplyErr("Code and portal ID required");
+    const res = await apiRequest("POST", "/api/promo-codes/apply", {
+      code: applyCode,
+      clientId: Number(applyPortalId),
+      note: applyNote || undefined,
+    });
+    const data = await res.json();
+    if (!res.ok) return setApplyErr(data.message ?? "Failed");
+    setApplyMsg("Applied successfully");
+    setApplyCode(""); setApplyPortalId(""); setApplyNote("");
+  }
+
+  const discountLabel = (c: any) => {
+    if (c.discount_type === "free_forever") return "Free forever";
+    if (c.discount_type === "free_months") return `${c.discount_value} month${c.discount_value !== 1 ? "s" : ""} free`;
+    if (c.discount_type === "percent_off") return `${c.discount_value}% off`;
+    return c.discount_type;
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-white font-semibold text-base">Promo Codes</h2>
+        <button onClick={() => setCreating(!creating)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold transition-colors">
+          <Plus size={13} /> New Code
+        </button>
+      </div>
+
+      {err && <p className="text-red-400 text-xs">{err}</p>}
+      {success && <p className="text-green-400 text-xs">{success}</p>}
+
+      {creating && (
+        <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+          <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">New Code</p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-white/50 text-xs mb-1 block">Code</label>
+              <input className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                placeholder="HILLARY50" value={form.code}
+                onChange={e => setForm(f => ({ ...f, code: e.target.value.toUpperCase() }))} />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs mb-1 block">Type</label>
+              <select className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                value={form.discountType} onChange={e => setForm(f => ({ ...f, discountType: e.target.value }))}>
+                <option value="free_months">Free months</option>
+                <option value="percent_off">Percent off</option>
+                <option value="free_forever">Free forever</option>
+              </select>
+            </div>
+            {form.discountType !== "free_forever" && (
+              <div>
+                <label className="text-white/50 text-xs mb-1 block">{form.discountType === "free_months" ? "Months" : "Percent"}</label>
+                <input type="number" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                  placeholder={form.discountType === "free_months" ? "3" : "50"} value={form.discountValue}
+                  onChange={e => setForm(f => ({ ...f, discountValue: e.target.value }))} />
+              </div>
+            )}
+            <div>
+              <label className="text-white/50 text-xs mb-1 block">Max uses (blank = unlimited)</label>
+              <input type="number" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                placeholder="unlimited" value={form.maxUses}
+                onChange={e => setForm(f => ({ ...f, maxUses: e.target.value }))} />
+            </div>
+            <div>
+              <label className="text-white/50 text-xs mb-1 block">Expires (blank = never)</label>
+              <input type="date" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                value={form.expiresAt} onChange={e => setForm(f => ({ ...f, expiresAt: e.target.value }))} />
+            </div>
+            <div className="col-span-2">
+              <label className="text-white/50 text-xs mb-1 block">Internal note (optional)</label>
+              <input className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+                placeholder="e.g. For Hillary's agency families" value={form.description}
+                onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+            </div>
+          </div>
+          <div className="flex gap-2 justify-end">
+            <button onClick={() => setCreating(false)} className="px-3 py-1.5 text-xs text-white/50 hover:text-white">Cancel</button>
+            <button onClick={handleCreate} className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">Create</button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-2">
+        {codes.length === 0 && <p className="text-white/30 text-sm text-center py-6">No promo codes yet.</p>}
+        {codes.map((c: any) => (
+          <div key={c.id} className="bg-white/5 border border-white/10 rounded-xl p-4">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-mono font-bold text-white text-sm">{c.code}</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-teal-900/50 text-teal-300 font-medium">{discountLabel(c)}</span>
+                  {!c.active && <span className="text-xs px-2 py-0.5 rounded-full bg-red-900/40 text-red-400">Inactive</span>}
+                </div>
+                {c.description && <p className="text-white/40 text-xs mt-1">{c.description}</p>}
+                <div className="flex gap-3 mt-1.5 text-white/30 text-xs">
+                  <span>{c.use_count} use{c.use_count !== 1 ? "s" : ""}</span>
+                  {c.max_uses && <span>/ {c.max_uses} max</span>}
+                  {c.expires_at && <span>Expires {new Date(c.expires_at).toLocaleDateString()}</span>}
+                  <span>by {c.created_by_name}</span>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <button onClick={() => toggleActive(c.id, c.active)}
+                  className={`px-2.5 py-1 rounded-lg text-xs font-medium transition-colors ${
+                    c.active ? "bg-white/10 text-white/60 hover:bg-red-900/40 hover:text-red-400" : "bg-teal-900/40 text-teal-400 hover:bg-teal-800/40"
+                  }`}>
+                  {c.active ? "Deactivate" : "Activate"}
+                </button>
+                <button onClick={() => handleDelete(c.id, c.code)} className="p-1.5 text-white/30 hover:text-red-400 transition-colors">
+                  <Trash2 size={13} />
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="bg-white/5 border border-white/10 rounded-xl p-4 space-y-3">
+        <p className="text-white/70 text-xs font-semibold uppercase tracking-wider">Apply to a Portal Manually</p>
+        <p className="text-white/40 text-xs">Apply a code to an existing portal by portal ID. Find the ID in the Billing tab.</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-white/50 text-xs mb-1 block">Portal ID</label>
+            <input type="number" className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+              placeholder="Portal ID" value={applyPortalId} onChange={e => setApplyPortalId(e.target.value)} />
+          </div>
+          <div>
+            <label className="text-white/50 text-xs mb-1 block">Code</label>
+            <input className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+              placeholder="HILLARY50" value={applyCode} onChange={e => setApplyCode(e.target.value.toUpperCase())} />
+          </div>
+          <div className="col-span-2">
+            <label className="text-white/50 text-xs mb-1 block">Note (optional)</label>
+            <input className="w-full bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-white text-sm"
+              placeholder="e.g. Applied at David's request" value={applyNote} onChange={e => setApplyNote(e.target.value)} />
+          </div>
+        </div>
+        {applyErr && <p className="text-red-400 text-xs">{applyErr}</p>}
+        {applyMsg && <p className="text-green-400 text-xs">{applyMsg}</p>}
+        <button onClick={handleApplyManual}
+          className="px-4 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-500 text-white text-xs font-semibold">Apply Code</button>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
   const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement" | "billing">("applications");
@@ -1865,6 +2065,7 @@ export default function BeckyAdminPage() {
               { key: "helpdesk",     icon: <MessageCircleHeart size={14} />,  label: "Help Desk" },
               { key: "cleanup",      icon: <Eraser size={14} />,              label: "Cleanup" },
               { key: "ideas",        icon: <Lightbulb size={14} />,           label: "Ideas" },
+              { key: "promo",        icon: <Tag size={14} />,                  label: "Promo Codes" },
             ] as const).map(tab => (
               <button
                 key={tab.key}
@@ -1900,6 +2101,9 @@ export default function BeckyAdminPage() {
 
         {/* Ideas tab */}
         {activeTab === "ideas" && <IdeasTab />}
+
+        {/* Promo Codes tab */}
+        {activeTab === "promo" && <PromoCodesTab />}
 
         {/* Library tab — only render when on library tab */}
         {activeTab === "library" && (<>

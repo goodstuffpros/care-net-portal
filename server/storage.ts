@@ -1733,3 +1733,32 @@ try {
     created_at TEXT NOT NULL
   )`);
 } catch { /* already exists */ }
+
+// ── Promo Codes Migration ────────────────────────────────────────────────────
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS promo_codes (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    code TEXT NOT NULL UNIQUE,
+    description TEXT,
+    discount_type TEXT NOT NULL,
+    discount_value INTEGER,
+    max_uses INTEGER,
+    expires_at TEXT,
+    active INTEGER DEFAULT 1,
+    created_by_user_id INTEGER NOT NULL,
+    created_at TEXT NOT NULL
+  )`);
+} catch { /* already exists */ }
+
+try {
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS promo_code_uses (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    promo_code_id INTEGER NOT NULL,
+    client_id INTEGER NOT NULL,
+    applied_by_user_id INTEGER NOT NULL,
+    applied_at TEXT NOT NULL,
+    note TEXT
+  )`);
+} catch { /* already exists */ }
+
+try { sqlite.exec(`ALTER TABLE clients ADD COLUMN promo_discount_percent INTEGER`); } catch { /* already exists */ }

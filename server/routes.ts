@@ -5020,7 +5020,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       if (client.subscriptionStatus === "active" && client.squareSubscriptionId)
         return res.status(400).json({ message: "Portal already has an active subscription" });
 
-      const { cardToken } = req.body;
+      const { cardToken, promoCode } = req.body;
       if (!cardToken) return res.status(400).json({ message: "Card token is required" });
 
       const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
@@ -5039,7 +5039,37 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         gracePeriodEndsAt: null,
       }).where(eq(clients.id, user.clientId)).run();
 
-      res.json({ success: true, mode: result.mode, renewsAt: result.currentPeriodEnd });
+      // Apply promo code if provided
+      let promoApplied = false;
+      if (promoCode) {
+        try {
+          const promo = sqlite.prepare(`SELECT * FROM promo_codes WHERE code = ? AND active = 1`).get(promoCode.toUpperCase().trim()) as any;
+          if (promo) {
+            const useCount = (sqlite.prepare(`SELECT COUNT(*) as c FROM promo_code_uses WHERE promo_code_id = ?`).get(promo.id) as any).c;
+            const withinLimit = !promo.max_uses || useCount < promo.max_uses;
+            const notExpired = !promo.expires_at || new Date(promo.expires_at) >= new Date();
+            const notAlreadyUsed = !sqlite.prepare(`SELECT id FROM promo_code_uses WHERE client_id = ?`).get(user.clientId!);
+            if (withinLimit && notExpired && notAlreadyUsed) {
+              if (promo.discount_type === 'free_forever') {
+                sqlite.prepare(`UPDATE clients SET founder_tier = 'beta' WHERE id = ?`).run(user.clientId);
+              } else if (promo.discount_type === 'free_months') {
+                const base = new Date(result.currentPeriodEnd);
+                base.setMonth(base.getMonth() + promo.discount_value);
+                sqlite.prepare(`UPDATE clients SET subscription_renews_at = ? WHERE id = ?`).run(base.toISOString().substring(0, 10), user.clientId);
+              } else if (promo.discount_type === 'percent_off') {
+                sqlite.prepare(`UPDATE clients SET promo_discount_percent = ? WHERE id = ?`).run(promo.discount_value, user.clientId);
+              }
+              sqlite.prepare(`INSERT INTO promo_code_uses (promo_code_id, client_id, applied_by_user_id, applied_at) VALUES (?, ?, ?, ?)`)
+                .run(promo.id, user.clientId, req.authUserId, now);
+              promoApplied = true;
+            }
+          }
+        } catch (pe) {
+          console.error("[subscribe] promo apply error:", pe);
+        }
+      }
+
+      res.json({ success: true, mode: result.mode, renewsAt: result.currentPeriodEnd, promoApplied });
     } catch (e: any) {
       console.error("Subscribe error:", e);
       res.status(500).json({ message: e.message ?? "Subscription failed" });
@@ -5208,5 +5238,171 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
   });
 
+  // ══════════════════════════════════════════════════════════════════════════
+  // PROMO CODES
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // GET /api/promo-codes — list all codes (admin only)
+  app.get("/api/promo-codes", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const codes = sqlite.prepare(`
+      SELECT pc.*,
+        COUNT(pcu.id) as use_count,
+        u.name as created_by_name
+      FROM promo_codes pc
+      LEFT JOIN promo_code_uses pcu ON pcu.promo_code_id = pc.id
+      LEFT JOIN users u ON u.id = pc.created_by_user_id
+      GROUP BY pc.id
+      ORDER BY pc.created_at DESC
+    `).all();
+    res.json(codes);
+  });
+
+  // POST /api/promo-codes — create a new code (admin only)
+  app.post("/api/promo-codes", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const { code, description, discountType, discountValue, maxUses, expiresAt } = req.body;
+    if (!code || !discountType) return res.status(400).json({ message: "code and discountType required" });
+    if (!['free_months', 'percent_off', 'free_forever'].includes(discountType)) {
+      return res.status(400).json({ message: "discountType must be free_months, percent_off, or free_forever" });
+    }
+    try {
+      const result = sqlite.prepare(`
+        INSERT INTO promo_codes (code, description, discount_type, discount_value, max_uses, expires_at, active, created_by_user_id, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?)
+      `).run(
+        code.toUpperCase().trim(),
+        description || null,
+        discountType,
+        discountValue || null,
+        maxUses || null,
+        expiresAt || null,
+        req.authUserId,
+        new Date().toISOString()
+      );
+      res.status(201).json({ id: result.lastInsertRowid, code: code.toUpperCase().trim() });
+    } catch (e: any) {
+      if (e.message?.includes('UNIQUE')) return res.status(409).json({ message: "That code already exists" });
+      throw e;
+    }
+  });
+
+  // PATCH /api/promo-codes/:id — toggle active / update (admin only)
+  app.patch("/api/promo-codes/:id", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const { active, description, maxUses, expiresAt } = req.body;
+    const id = Number(req.params.id);
+    sqlite.prepare(`
+      UPDATE promo_codes SET
+        active = COALESCE(?, active),
+        description = COALESCE(?, description),
+        max_uses = COALESCE(?, max_uses),
+        expires_at = COALESCE(?, expires_at)
+      WHERE id = ?
+    `).run(
+      active !== undefined ? (active ? 1 : 0) : null,
+      description ?? null,
+      maxUses ?? null,
+      expiresAt ?? null,
+      id
+    );
+    res.json({ success: true });
+  });
+
+  // DELETE /api/promo-codes/:id — delete a code (admin only)
+  app.delete("/api/promo-codes/:id", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    sqlite.prepare(`DELETE FROM promo_codes WHERE id = ?`).run(Number(req.params.id));
+    res.json({ success: true });
+  });
+
+  // POST /api/promo-codes/validate — check a code before applying (any auth user)
+  app.post("/api/promo-codes/validate", requireAuth, (req: AuthRequest, res) => {
+    const { code } = req.body;
+    const promo = sqlite.prepare(`SELECT * FROM promo_codes WHERE code = ? AND active = 1`).get(code?.toUpperCase().trim()) as any;
+    if (!promo) return res.status(404).json({ valid: false, message: "Code not found or inactive" });
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      return res.status(400).json({ valid: false, message: "This code has expired" });
+    }
+    if (promo.max_uses) {
+      const useCount = (sqlite.prepare(`SELECT COUNT(*) as c FROM promo_code_uses WHERE promo_code_id = ?`).get(promo.id) as any).c;
+      if (useCount >= promo.max_uses) {
+        return res.status(400).json({ valid: false, message: "This code has reached its usage limit" });
+      }
+    }
+    res.json({
+      valid: true,
+      discountType: promo.discount_type,
+      discountValue: promo.discount_value,
+      description: promo.description,
+    });
+  });
+
+  // POST /api/promo-codes/apply — apply a code to a portal
+  app.post("/api/promo-codes/apply", requireAuth, async (req: AuthRequest, res) => {
+    const { code, clientId, note } = req.body;
+    const isAdmin = ADMIN_USER_IDS.has(req.authUserId!);
+
+    // Validate code
+    const promo = sqlite.prepare(`SELECT * FROM promo_codes WHERE code = ? AND active = 1`).get(code?.toUpperCase().trim()) as any;
+    if (!promo) return res.status(404).json({ message: "Code not found or inactive" });
+    if (promo.expires_at && new Date(promo.expires_at) < new Date()) {
+      return res.status(400).json({ message: "This code has expired" });
+    }
+    if (promo.max_uses) {
+      const useCount = (sqlite.prepare(`SELECT COUNT(*) as c FROM promo_code_uses WHERE promo_code_id = ?`).get(promo.id) as any).c;
+      if (useCount >= promo.max_uses) return res.status(400).json({ message: "Code usage limit reached" });
+    }
+
+    // Non-admins can only apply to their own portal
+    if (!isAdmin) {
+      const relationship = sqlite.prepare(
+        `SELECT * FROM user_client_relationships WHERE user_id = ? AND client_id = ? AND role IN ('mc', 'self_care')`
+      ).get(req.authUserId, clientId);
+      if (!relationship) return res.status(403).json({ message: "You can only apply a code to your own portal" });
+    }
+
+    // Check this portal hasn't already had a promo applied
+    const alreadyUsed = sqlite.prepare(`SELECT id FROM promo_code_uses WHERE client_id = ?`).get(clientId);
+    if (alreadyUsed && !isAdmin) return res.status(400).json({ message: "A promo code has already been applied to this portal" });
+
+    // Apply the discount
+    const client = sqlite.prepare(`SELECT * FROM clients WHERE id = ?`).get(clientId) as any;
+    if (!client) return res.status(404).json({ message: "Portal not found" });
+
+    const now = new Date();
+    if (promo.discount_type === 'free_forever') {
+      sqlite.prepare(`UPDATE clients SET founder_tier = 'beta', subscription_status = 'active' WHERE id = ?`).run(clientId);
+    } else if (promo.discount_type === 'free_months') {
+      // Extend trial or push renewal date forward by N months
+      const baseDate = client.subscription_renews_at ? new Date(client.subscription_renews_at) : now;
+      baseDate.setMonth(baseDate.getMonth() + promo.discount_value);
+      sqlite.prepare(`UPDATE clients SET subscription_renews_at = ?, subscription_status = 'active' WHERE id = ?`)
+        .run(baseDate.toISOString().substring(0, 10), clientId);
+    } else if (promo.discount_type === 'percent_off') {
+      // Store on client for billing reference — handled at charge time
+      sqlite.prepare(`UPDATE clients SET promo_discount_percent = ? WHERE id = ?`)
+        .run(promo.discount_value, clientId);
+    }
+
+    // Record the use
+    sqlite.prepare(`
+      INSERT INTO promo_code_uses (promo_code_id, client_id, applied_by_user_id, applied_at, note)
+      VALUES (?, ?, ?, ?, ?)
+    `).run(promo.id, clientId, req.authUserId, now.toISOString(), note || null);
+
+    res.json({ success: true, discountType: promo.discount_type, discountValue: promo.discount_value });
+  });
+
+  // GET /api/promo-codes/:id/uses — see who used a code (admin only)
+  app.get("/api/promo-codes/:id/uses", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const uses = sqlite.prepare(`
+      SELECT pcu.*, c.name as portal_name, u.name as applied_by_name, u2.email as portal_owner_email
+      FROM promo_code_uses pcu
+      LEFT JOIN clients c ON c.id = pcu.client_id
+      LEFT JOIN users u ON u.id = pcu.applied_by_user_id
+      LEFT JOIN user_client_relationships ucr ON ucr.client_id = pcu.client_id AND ucr.role IN ('mc','self_care')
+      LEFT JOIN users u2 ON u2.id = ucr.user_id
+      WHERE pcu.promo_code_id = ?
+      ORDER BY pcu.applied_at DESC
+    `).all(Number(req.params.id));
+    res.json(uses);
+  });
 
 }

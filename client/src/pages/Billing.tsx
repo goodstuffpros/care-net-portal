@@ -52,6 +52,10 @@ export default function Billing() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [promoCode, setPromoCode] = useState("");
+  const [promoMsg, setPromoMsg] = useState<string | null>(null);
+  const [promoValid, setPromoValid] = useState<boolean | null>(null);
+  const [validatingPromo, setValidatingPromo] = useState(false);
   const setupMode = isSetupMode();
 
   const { data: billing, isLoading: billingLoading } = useQuery<BillingStatus>({
@@ -74,6 +78,31 @@ export default function Billing() {
     onError: (e: any) => setErrorMsg(e.message ?? "Cancellation failed"),
   });
 
+  async function handleValidatePromo() {
+    if (!promoCode.trim()) return;
+    setValidatingPromo(true);
+    setPromoMsg(null);
+    try {
+      const res = await apiRequest("POST", "/api/promo-codes/validate", { code: promoCode.trim() });
+      const data = await res.json();
+      if (!res.ok || !data.valid) {
+        setPromoValid(false);
+        setPromoMsg(data.message ?? "Invalid code");
+      } else {
+        setPromoValid(true);
+        const desc = data.discountType === "free_forever" ? "Free access forever" :
+          data.discountType === "free_months" ? `${data.discountValue} free month${data.discountValue !== 1 ? "s" : ""}` :
+          `${data.discountValue}% off`;
+        setPromoMsg(`✓ ${desc} applied`);
+      }
+    } catch {
+      setPromoValid(false);
+      setPromoMsg("Could not validate code");
+    } finally {
+      setValidatingPromo(false);
+    }
+  }
+
   async function handleSubscribe() {
     if (!cardRef.current || !config) return;
     setErrorMsg(null);
@@ -81,7 +110,10 @@ export default function Billing() {
     setSubscribing(true);
     try {
       const cardToken = config.mode === "simulate" ? "sim_token" : await cardRef.current.tokenize();
-      const res = await apiRequest("POST", "/api/billing/subscribe", { cardToken });
+      const res = await apiRequest("POST", "/api/billing/subscribe", {
+        cardToken,
+        promoCode: promoCode.trim() || undefined,
+      });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message ?? "Subscription failed");
       qc.invalidateQueries({ queryKey: ["/api/billing/status"] });
@@ -198,6 +230,32 @@ export default function Billing() {
             </span>
           </div>
           <SquareCard ref={cardRef} config={config} />
+
+          {/* Promo code */}
+          <div className="space-y-1.5">
+            <div className="flex gap-2">
+              <input
+                type="text"
+                placeholder="Promo code (optional)"
+                value={promoCode}
+                onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoMsg(null); setPromoValid(null); }}
+                className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+              />
+              <button
+                onClick={handleValidatePromo}
+                disabled={!promoCode.trim() || validatingPromo}
+                className="px-3 py-2 rounded-lg border border-border text-sm font-medium text-foreground hover:bg-surface-alt disabled:opacity-40 transition-colors"
+              >
+                {validatingPromo ? "…" : "Apply"}
+              </button>
+            </div>
+            {promoMsg && (
+              <p className={`text-xs font-medium ${promoValid ? "text-green-600 dark:text-green-400" : "text-destructive"}`}>
+                {promoMsg}
+              </p>
+            )}
+          </div>
+
           <button
             onClick={handleSubscribe}
             disabled={subscribing}

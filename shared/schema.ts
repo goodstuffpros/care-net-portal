@@ -1042,3 +1042,28 @@ export const healthHistoryEntries = sqliteTable("health_history_entries", {
 export const insertHealthHistoryEntrySchema = createInsertSchema(healthHistoryEntries).omit({ id: true });
 export type InsertHealthHistoryEntry = z.infer<typeof insertHealthHistoryEntrySchema>;
 export type HealthHistoryEntry = typeof healthHistoryEntries.$inferSelect;
+
+// ── Promo Codes ───────────────────────────────────────────────────────────────
+export const promoCodes = sqliteTable("promo_codes", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull().unique(),                  // e.g. "HILLARY50"
+  description: text("description"),                       // internal note: "For Hillary's agency families"
+  discountType: text("discount_type").notNull(),          // 'free_months' | 'percent_off' | 'free_forever'
+  discountValue: integer("discount_value"),               // months (free_months) or percent (percent_off); null for free_forever
+  maxUses: integer("max_uses"),                           // null = unlimited
+  expiresAt: text("expires_at"),                          // null = never expires
+  active: integer("active", { mode: "boolean" }).default(true),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull(),
+});
+export type PromoCode = typeof promoCodes.$inferSelect;
+
+export const promoCodeUses = sqliteTable("promo_code_uses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  promoCodeId: integer("promo_code_id").notNull(),
+  clientId: integer("client_id").notNull(),               // portal it was applied to
+  appliedByUserId: integer("applied_by_user_id").notNull(), // admin or the MC themselves
+  appliedAt: text("applied_at").notNull(),
+  note: text("note"),                                     // optional context
+});
+export type PromoCodeUse = typeof promoCodeUses.$inferSelect;
