@@ -1,7 +1,7 @@
 // Care Net Portal — Service Worker
-// Minimal cache-first for static assets, network-first for API
+// Network-first for all JS/CSS assets so deploys are picked up immediately
 
-const CACHE = "cnp-v4";
+const CACHE = "cnp-v5";
 const PRECACHE = ["/", "/index.html"];
 
 self.addEventListener("install", e => {
@@ -20,9 +20,19 @@ self.addEventListener("activate", e => {
 
 self.addEventListener("fetch", e => {
   const url = new URL(e.request.url);
+
   // Always network-first for API calls
   if (url.pathname.startsWith("/api/")) return;
-  // Cache-first for everything else
+
+  // Always network-first for JS and CSS — never serve stale bundles
+  if (url.pathname.match(/\.(js|css)$/)) {
+    e.respondWith(
+      fetch(e.request).catch(() => caches.match(e.request))
+    );
+    return;
+  }
+
+  // Cache-first for images, fonts, icons
   e.respondWith(
     caches.match(e.request).then(cached => {
       if (cached) return cached;
