@@ -29,7 +29,8 @@ export function clearAuthToken() {
 }
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const token = getAuthToken();
+  // Check both the app token and the standalone admin token
+  const token = getAuthToken() || (() => { try { return localStorage.getItem("cnp_admin_token"); } catch { return null; } })();
   const headers: Record<string, string> = { ...extra };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
