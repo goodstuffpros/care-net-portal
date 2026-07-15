@@ -1990,7 +1990,7 @@ function PromoCodesTab() {
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function BeckyAdminPage() {
-  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement" | "billing">("applications");
+  const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement" | "billing" | "promo">("applications");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
 
