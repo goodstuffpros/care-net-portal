@@ -299,11 +299,10 @@ export function registerRoutes(httpServer: Server, app: Express) {
       isActive: true,
     }).returning().get();
 
-    // Self-managed signup: create client record, set self_care_mc, mark onboarding done
+    // Self-managed signup: create client record — do NOT mark onboarding done
+    // The onboarding wizard will run, then route SC through billing before entering the app
     if (isSelfManagedApp) {
       storage.createSelfCareClient(newUser.id, app_.name, null, null);
-      db.update(users).set({ onboardingCompletedAt: new Date().toISOString() })
-        .where(eq(users.id, newUser.id)).run();
     }
 
     // Link account to user
@@ -864,13 +863,27 @@ export function registerRoutes(httpServer: Server, app: Express) {
       const user = db.select().from(users).where(eq(users.id, account.userId)).get();
       if (!user) return res.status(401).json({ message: "User not found" });
 
-      // Create the client record, self-linking this user as both caregiver and clientUser
-      const newClient = storage.createSelfCareClient(
-        user.id,
-        clientName.trim(),
-        clientDob || null,
-        clientCondition || null,
-      );
+      // Update existing client record if one was already created during email verification
+      // otherwise create a new one
+      let newClient;
+      const existingClient = user.clientId
+        ? db.select().from(clients).where(eq(clients.id, user.clientId)).get()
+        : null;
+      if (existingClient) {
+        db.update(clients).set({
+          name: clientName.trim(),
+          dateOfBirth: clientDob || null,
+          primaryCondition: clientCondition || null,
+        }).where(eq(clients.id, existingClient.id)).run();
+        newClient = { ...existingClient, name: clientName.trim() };
+      } else {
+        newClient = storage.createSelfCareClient(
+          user.id,
+          clientName.trim(),
+          clientDob || null,
+          clientCondition || null,
+        );
+      }
 
       // Mark onboarding complete
       db.update(users).set({ onboardingCompletedAt: new Date().toISOString() })
