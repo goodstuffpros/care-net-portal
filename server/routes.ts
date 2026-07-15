@@ -1,4 +1,7 @@
 import type { Express } from "express";
+
+// Admin user IDs — module-level so all routes can reference them
+const ADMIN_USER_IDS = new Set([10, 11, 12, 43]);
 import type { Server } from "http";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
@@ -494,7 +497,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // GET /api/admin/whoami — diagnostic: returns the authenticated user ID, email, and admin status
   // No requireAdmin — this is used to debug auth failures from the admin panel
   app.get("/api/admin/whoami", requireAuth, (req: AuthRequest, res) => {
-    const ADMIN_USER_IDS = new Set([10, 11, 12, 43]);
     const account = req.authAccountId
       ? db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId)).get()
       : null;
