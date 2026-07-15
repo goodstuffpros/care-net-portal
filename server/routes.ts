@@ -53,7 +53,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // self_managed path may omit currentlyInCare/intent — we auto-fill them
     const resolvedCurrentlyInCare = currentlyInCare || (role === "self_managed" ? "yes" : null);
     const resolvedIntent = intent || (role === "self_managed" ? "Self-Managed Care signup" : null);
-    if (!email || !name || !role || !resolvedCurrentlyInCare || !resolvedIntent || !agreedToConfidentiality || !password) {
+    if (!email || !name || !role || !resolvedCurrentlyInCare || !resolvedIntent || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
     if (password.length < 8) return res.status(400).json({ message: "Password must be at least 8 characters" });

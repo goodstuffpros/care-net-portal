@@ -563,11 +563,14 @@ export default function ApplyPage() {
               </div>
             )}
 
-            {/* Confidentiality */}
+            {/* Terms agreement */}
             <div className="flex items-start gap-3 rounded-lg border border-border p-4 bg-muted/30">
               <Checkbox id="agree-confidentiality" checked={form.agreedToConfidentiality} onCheckedChange={v => setForm(f => ({ ...f, agreedToConfidentiality: !!v }))} disabled={loading} data-testid="checkbox-confidentiality" />
               <label htmlFor="agree-confidentiality" className="text-sm text-muted-foreground leading-relaxed cursor-pointer">
-                I understand that Care Net Portal is in private beta and I agree to keep my experience confidential. I will not share screenshots, data, or details of the app without permission.
+                I have read and agree to the{" "}
+                <a href="#/terms" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Terms of Service</a>,{" "}
+                <a href="#/privacy" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Privacy Policy</a>, and{" "}
+                <a href="#/beta-agreement" className="text-primary hover:underline" onClick={e => e.stopPropagation()}>Beta User Agreement</a>.
               </label>
             </div>
 
@@ -592,12 +595,7 @@ export default function ApplyPage() {
                 Sign in
               </button>
             </p>
-            <p className="text-xs text-muted-foreground">
-              By applying you agree to our{" "}
-              <a href="#/terms" className="text-primary hover:underline">Terms of Service</a>{", "}
-              <a href="#/privacy" className="text-primary hover:underline">Privacy Policy</a>{" and "}
-              <a href="#/beta-agreement" className="text-primary hover:underline">Beta User Agreement</a>.
-            </p>
+
           </div>
         </div>
       </div>
