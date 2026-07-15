@@ -20,7 +20,6 @@ import {
   ChevronDown, ChevronUp, ClipboardList
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 const CATEGORIES = ["All", "Medical", "Emergency", "Legal", "Insurance", "Personal", "Financial", "Other"] as const;
 
@@ -186,7 +185,7 @@ export default function DocumentsPage() {
             <p className="text-xs text-muted-foreground">Documents · Records · Insurance</p>
           </div>
         </div>
-        <LessonLauncher pageKey="documents" />
+
 
         {/* MC Legal Disclaimer */}
         {isMC && (

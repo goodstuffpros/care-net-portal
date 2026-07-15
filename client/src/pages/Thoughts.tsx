@@ -13,7 +13,6 @@ import {
   ChevronDown, ChevronUp, Sparkles, Gift, X, Check
 } from "lucide-react";
 import type { ThoughtEntry } from "@shared/schema";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 // ── Mood config ───────────────────────────────────────────────────────────────
 
@@ -599,7 +598,7 @@ export default function ThoughtsPage() {
         <p className="text-sm text-muted-foreground mb-4">
           Stories and memories your client shares — a gift being prepared for the family.
         </p>
-        <LessonLauncher pageKey="thoughts" />
+
         <div className="flex items-center gap-2">
           {!isUnlocked && (
             <Button

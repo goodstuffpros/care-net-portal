@@ -20,7 +20,6 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 const CATEGORY_CONFIG = {
   household: { label: "Household", icon: Home, color: "text-blue-600 dark:text-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30 border-blue-200 dark:border-blue-900" },
@@ -281,7 +280,7 @@ export default function Notes() {
         </div>
         {canEdit && (
           <>
-          <LessonLauncher pageKey="notes" />
+
           <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-note-button">

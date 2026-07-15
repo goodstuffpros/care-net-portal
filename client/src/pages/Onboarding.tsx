@@ -103,23 +103,10 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   }
 
   async function enterApp() {
-    if (isSelfManaged) {
-      // SC must go through billing setup — same rule as MC
-      try {
-        const res = await fetch("/api/billing/status", { credentials: "include" });
-        const data = await res.json();
-        // Beta users are free for life — go straight in
-        if (data.founderTier === "beta") {
-          window.location.href = "/#/portal";
-        } else {
-          window.location.href = "/#/billing?setup=1";
-        }
-      } catch {
-        window.location.href = "/#/billing?setup=1";
-      }
-    } else {
-      window.location.href = "/";
-    }
+    // Everyone lands on /portal (Client Profile) first.
+    // The billing gate in App.tsx will intercept SC/MC if they haven’t paid
+    // when they try to navigate away from /portal.
+    window.location.href = "/#/portal";
   }
 
   return (
@@ -351,16 +338,16 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
               </div>
 
               <h1 className="text-xl font-bold text-foreground mb-3">
-                If you did that, you can do everything in this app!
+                {isCG ? "You're all set." : "Your account is ready."}
               </h1>
               <p className="text-sm text-muted-foreground leading-relaxed mb-8 max-w-sm mx-auto">
                 {isSelfManaged
-                  ? "Your care record is ready. You're in full control of your portal. Head to Care Net University to get familiar with the tools."
+                  ? "Next, you’ll fill out your Client Profile — that’s where your care information lives. Take your time. You can always come back and add more."
                   : isCG
                     ? connectedClientName
-                      ? `You're already connected to ${connectedClientName}'s portal. Head to Care Net University to get familiar with the tools.`
-                      : "Your profile is set up. When a Main Contact invites you, your portals will connect automatically. Head to Care Net University to get familiar with the tools."
-                    : "Your profile is ready. Next, you'll set up your loved one's profile — that's the heart of everything in Care Net Portal."}
+                      ? `You’re connected to ${connectedClientName}’s portal. Head in and explore your tools — tap the ? button anytime for help.`
+                      : "Your profile is set up. When a Main Contact invites you, your portals will connect automatically. Tap the ? button anytime for help."
+                    : "Next, you’ll fill out your loved one’s Client Profile — that’s the heart of everything in Care Net Portal. Take your time. You can always add more later."}
               </p>
 
               <Button
@@ -374,11 +361,11 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
                 data-testid="btn-enter-app"
               >
                 {isSelfManaged ? (
-                  <><UserCog className="w-4 h-4 mr-2" />Enter Care Net Portal</>
+                  <><UserCog className="w-4 h-4 mr-2" />Go to My Client Profile</>
                 ) : isCG ? (
-                  <><Briefcase className="w-4 h-4 mr-2" />Enter Care Net Portal</>
+                  <><Briefcase className="w-4 h-4 mr-2" />Enter My Portal</>
                 ) : (
-                  <><Heart className="w-4 h-4 mr-2 fill-current" />Set up my loved one's profile</>
+                  <><Heart className="w-4 h-4 mr-2 fill-current" />Go to Client Profile</>
                 )}
               </Button>
             </div>

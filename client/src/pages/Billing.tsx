@@ -232,24 +232,14 @@ export default function Billing() {
       {/* Subscribe form */}
       {needsPayment && config && (
         <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-          {promoDiscountType !== "free_forever" && (
-            <>
-              <div className="flex items-center gap-2">
-                <CreditCard className="w-4 h-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">
-                  {billing?.hasPaymentMethod ? "Update payment method" : "Add payment method"}
-                </span>
-              </div>
-              <SquareCard ref={cardRef} config={config} />
-            </>
-          )}
 
-          {/* Promo code */}
+          {/* Promo code — always at top so users see it first */}
           <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Have a promo code?</p>
             <div className="flex gap-2">
               <input
                 type="text"
-                placeholder="Promo code (optional)"
+                placeholder="Enter code"
                 value={promoCode}
                 onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoMsg(null); setPromoValid(null); setPromoDiscountType(null); }}
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
@@ -269,6 +259,21 @@ export default function Billing() {
             )}
           </div>
 
+          {/* Card field — hidden when free forever code applied */}
+          {promoDiscountType !== "free_forever" && (
+            <>
+              <div className="border-t border-border pt-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <CreditCard className="w-4 h-4 text-primary" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {billing?.hasPaymentMethod ? "Update payment method" : "Add payment method"}
+                  </span>
+                </div>
+                <SquareCard ref={cardRef} config={config} />
+              </div>
+            </>
+          )}
+
           <button
             onClick={handleSubscribe}
             disabled={subscribing}
@@ -278,11 +283,19 @@ export default function Billing() {
               promoDiscountType === "free_forever" ? "Activate Free Access" :
               "Start free month — $10/month after"}
           </button>
+
           {promoDiscountType !== "free_forever" && (
             <p className="text-xs text-center text-muted-foreground">
               Your card is encrypted by Square and never stored on our servers.
             </p>
           )}
+
+          {/* Unlock note */}
+          <div className="rounded-lg bg-primary/5 border border-primary/20 px-4 py-3 text-center">
+            <p className="text-xs text-primary font-medium">
+              Once your payment info is saved, you'll be able to invite your Main Contact, caregivers, and more.
+            </p>
+          </div>
         </div>
       )}
 

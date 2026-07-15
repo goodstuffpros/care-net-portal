@@ -16,7 +16,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
 import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink, Clock, Stethoscope, Scissors, Pill, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 import ClientListEditor from "@/components/ClientListEditor";
 
@@ -196,6 +195,14 @@ export default function ClientPortalPage() {
     queryKey: ["/api/clients", selectedClientId],
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}`).then(r => r.json()),
   });
+
+  // Billing gate — invite buttons only show when portal is active
+  const { data: billingStatus } = useQuery<{ founderTier: string; subscriptionStatus: string }>({
+    queryKey: ["/api/billing/status"],
+    queryFn: () => apiRequest("GET", "/api/billing/status").then(r => r.json()),
+    staleTime: 60_000,
+  });
+  const portalIsActive = billingStatus?.founderTier === "beta" || billingStatus?.subscriptionStatus === "active";
 
   const { data: allUsers = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ["/api/users"],
@@ -396,6 +403,16 @@ export default function ClientPortalPage() {
   return (
     <div className="w-full overflow-x-hidden">
 
+      {/* ── New user welcome prompt ───────────────────────────────────────── */}
+      {!portalIsActive && (activeUser.role === "self_care" || activeUser.role === "primary_family") && (
+        <div className="mx-4 mt-4 rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-1">
+          <p className="text-sm font-semibold text-primary">Welcome to your Client Profile</p>
+          <p className="text-sm text-muted-foreground">
+            Fill in as much as you’d like here. When you’re ready to explore the rest of your portal, you’ll be guided through one more quick step.
+          </p>
+        </div>
+      )}
+
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <div className="px-4 pt-4 pb-3 border-b border-border space-y-2">
         {/* Showcase mode banner */}
@@ -448,7 +465,7 @@ export default function ClientPortalPage() {
       </nav>
 
       <div className="mt-3">
-        <LessonLauncher pageKey="client-portal" />
+
       </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────────── */}
@@ -1699,7 +1716,7 @@ export default function ClientPortalPage() {
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2 justify-between" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>
             <span className="flex items-center gap-2"><Users size={16} /> Care Team & Family</span>
-            {isPrimaryFC && (
+            {isPrimaryFC && portalIsActive && (
               <Button
                 size="sm"
                 className="h-8 px-3 gap-1.5 text-xs bg-teal-600 hover:bg-teal-700 text-white"
@@ -1990,8 +2007,8 @@ export default function ClientPortalPage() {
       {/* Invite Family Member Sheet (MC only) — shared component */}
       <FamilyInviteSheet open={familyInviteOpen} onOpenChange={setFamilyInviteOpen} />
 
-      {/* ── CLIENT PORTAL ACCESS (MC side) ───────────────────────────────── */}
-      {isPrimaryFC && (
+      {/* ── CLIENT PORTAL ACCESS (MC side) — only when portal is active ─────── */}
+      {isPrimaryFC && portalIsActive && (
         <div className="px-4 pb-4 max-w-4xl mx-auto w-full space-y-6">
           <ClientPortalAccessSection
             clientId={selectedClientId}

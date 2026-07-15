@@ -1,5 +1,4 @@
 import { useApp } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -239,7 +238,7 @@ export default function MessagesPage() {
           <div className="flex items-center justify-between mb-2">
             <h1 className="text-base font-bold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>{t("messages.title")}</h1>
           </div>
-          <LessonLauncher pageKey="messages" />
+
           <Dialog open={newThreadOpen} onOpenChange={setNewThreadOpen}>
             <DialogTrigger asChild>
               <Button size="sm" className="w-full gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="new-thread-btn">

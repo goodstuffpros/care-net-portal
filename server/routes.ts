@@ -96,13 +96,14 @@ export function registerRoutes(httpServer: Server, app: Express) {
       createdAt: new Date().toISOString(),
     }).run();
 
-    // Send verification email
+    // Send unified verify + welcome email
     const appUrl = process.env.APP_URL || "http://localhost:5000";
     const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    const emailRole = (role === "caregiver" || role === "both") ? "cg" : role === "self_managed" ? "sc" : "mc";
     sendEmail({
       to: normalizedEmail,
-      subject: "Verify your Care Net Portal email",
-      html: emailVerifyTemplate(name.trim(), verifyUrl),
+      subject: "Welcome to Care Net Portal — let's get you set up",
+      html: emailVerifyTemplate(name.trim(), verifyUrl, emailRole),
     }).catch(err => console.error("[apply] verification email failed:", err));
 
     res.json({ success: true, message: "Check your email to verify your account and get started.", needsVerification: true });
@@ -126,10 +127,11 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
     const appUrl = process.env.APP_URL || "http://localhost:5000";
     const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    const resendRole = (app_?.role === "caregiver" || app_?.role === "both") ? "cg" : app_?.role === "self_managed" ? "sc" : "mc";
     sendEmail({
       to: account.email,
-      subject: "Verify your Care Net Portal email",
-      html: emailVerifyTemplate(app_?.name || "there", verifyUrl),
+      subject: "Welcome to Care Net Portal — let's get you set up",
+      html: emailVerifyTemplate(app_?.name || "there", verifyUrl, resendRole),
     }).catch(err => console.error("[resend-verification] email failed:", err));
   });
 
@@ -320,15 +322,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       accountCreatedAt: new Date().toISOString(),
     }).where(eq(betaApplications.email, account.email)).run();
 
-    // Send welcome email non-blocking
-    const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const loginUrl = `${appUrl}/#/login`;
-    const welcomeRole = (newUser.role === "caregiver" || newUser.role === "multi_caregiver" || newUser.role === "temp_caregiver") ? "cg" : newUser.role === "self_care" ? "sc" : "mc";
-    sendEmail({
-      to: account.email,
-      subject: "You're in — Welcome to Care Net Portal",
-      html: emailWelcomeTemplate(app_.name, loginUrl, welcomeRole),
-    }).catch(err => console.error("[auto-approve] email failed:", err?.message));
+    // Welcome email is now unified with verify email — no second email sent here
 
     // Notify admins of new user
     const ADMIN_NOTIFY = ["gouldenterprises@yahoo.com", "blgservantgirl@gmail.com"];

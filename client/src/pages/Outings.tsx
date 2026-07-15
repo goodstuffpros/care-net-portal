@@ -15,7 +15,6 @@ import { MapPin, Play, Square, Clock, CheckCircle2, Car } from "lucide-react";
 import { cn } from "@/lib/utils";
 import 'leaflet/dist/leaflet.css';
 import L from 'leaflet';
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 // Fix default marker icons for Leaflet
 delete (L.Icon.Default.prototype as any)._getIconUrl;
@@ -209,7 +208,7 @@ export default function OutingsPage() {
           <p className="text-xs text-muted-foreground truncate">Outings · Location · Family updates</p>
         </div>
       </div>
-      <LessonLauncher pageKey="outings" />
+
 
       {/* Family push notification panel */}
       {!isCaregiver && (

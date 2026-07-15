@@ -232,6 +232,72 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
     document.documentElement.classList.toggle("dark", theme === "dark");
   }, [theme]);
 
+  // ── On mount: redirect unbilled SC/MC to /portal first ───────────────────
+  // So the billing gate has a consistent starting point.
+  useEffect(() => {
+    const isBillableRole = realUser?.role === "self_care" || realUser?.role === "primary_family";
+    if (!isBillableRole) return;
+    // Don’t redirect if already on billing or portal page
+    const currentPath = window.location.hash.replace(/^#/, "").split("?")[0];
+    if (currentPath === "/billing" || currentPath === "/portal") return;
+
+    fetch("/api/billing/status", { credentials: "include" })
+      .then(r => r.json())
+      .then(data => {
+        const isActive = data.founderTier === "beta" || data.subscriptionStatus === "active";
+        if (!isActive) {
+          window.location.hash = "/portal";
+        }
+      })
+      .catch(() => {}); // fail open
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Billing gate — SC and MC portal creators only ────────────────────────
+  // Fires when they navigate away from /portal before billing is complete.
+  // Beta users (free forever) pass straight through.
+  useEffect(() => {
+    const isBillableRole = realUser?.role === "self_care" || realUser?.role === "primary_family";
+    if (!isBillableRole) return;
+
+    let billingActive = false; // cached result
+    let checked = false;
+
+    async function checkBilling() {
+      if (checked) return billingActive;
+      checked = true;
+      try {
+        const res = await fetch("/api/billing/status", { credentials: "include" });
+        const data = await res.json();
+        billingActive = data.founderTier === "beta" || data.subscriptionStatus === "active";
+      } catch {
+        billingActive = true; // fail open — don’t gate on error
+      }
+      return billingActive;
+    }
+
+    const onHashChange = async (e: HashChangeEvent) => {
+      const newHash = new URL(e.newURL).hash;
+      const newPath = newHash.replace(/^#/, "").split("?")[0];
+      const oldHash = new URL(e.oldURL).hash;
+      const oldPath = oldHash.replace(/^#/, "").split("?")[0];
+
+      // Only intercept navigation AWAY from /portal to somewhere else in the app
+      const isLeavingPortal = oldPath === "/portal" && newPath !== "/portal" && newPath !== "/billing";
+      if (!isLeavingPortal) return;
+
+      const isActive = await checkBilling();
+      if (!isActive) {
+        // Block the navigation — redirect to billing
+        e.preventDefault?.();
+        window.location.hash = "/billing?setup=1";
+      }
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, [realUser?.role]);
+
   useEffect(() => {
     const attr = portalMode === "client" ? "client" : colorTheme;
     document.documentElement.setAttribute("data-color-theme", attr);

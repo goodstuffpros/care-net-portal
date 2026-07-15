@@ -1,5 +1,4 @@
 import { useApp, isCaregiverRole } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -510,7 +509,7 @@ export default function VitalsPage() {
         </div>
         {canEdit && (
           <>
-          {!isContributor && <LessonLauncher pageKey="vitals" />}
+          
           <Button
             onClick={() => setAddOpen(true)}
             size="sm"

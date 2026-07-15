@@ -1,5 +1,4 @@
 import { useApp } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -93,7 +92,7 @@ export default function ArchivePage() {
             <p className="text-xs text-muted-foreground truncate">{t("archive.subtitle")}</p>
           </div>
         </div>
-        <LessonLauncher pageKey="archive" />
+
         <Select onValueChange={(period) => { setGenerating(true); generateMutation.mutate(period); }}>
           <SelectTrigger className="w-full gap-2 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90 border-primary" data-testid="generate-summary-trigger">
             <Sparkles size={14} />

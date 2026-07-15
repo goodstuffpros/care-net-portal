@@ -1,5 +1,4 @@
 import { useApp } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -463,7 +462,7 @@ export default function SchedulePage() {
             <p className="text-xs text-muted-foreground truncate">{t("schedule.subtitle")}</p>
           </div>
         </div>
-        <LessonLauncher pageKey="schedule" />
+
         {canEdit && (<Dialog open={addOpen} onOpenChange={setAddOpen}>
           <DialogTrigger asChild>
             <Button size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-event-btn">

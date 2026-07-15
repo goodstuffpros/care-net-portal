@@ -1,5 +1,4 @@
 import { useApp, isCaregiverRole } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -420,7 +419,7 @@ export default function ActivityPage() {
             <p className="text-xs text-muted-foreground truncate">{t("activity.subtitle")}</p>
           </div>
         </div>
-        <LessonLauncher pageKey="activity" />
+
         {/* MC Log Entry Button */}
         {isFamilyPrimary && (
           <Dialog open={mcLogOpen} onOpenChange={setMcLogOpen}>

@@ -1,5 +1,4 @@
 import { Heart, Clock, Shield } from "lucide-react";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 export default function WellbeingPage() {
   return (
@@ -30,7 +29,7 @@ export default function WellbeingPage() {
         </div>
 
         {/* Page Tutorial pill */}
-        <LessonLauncher pageKey="wellbeing" />
+
       </div>
 
       {/* ── Coming Soon banner ──────────────────────────────── */}

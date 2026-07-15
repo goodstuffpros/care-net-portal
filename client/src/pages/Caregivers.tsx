@@ -16,7 +16,6 @@ import { useState } from "react";
 import { UserPlus, Shield, Clock, Users, CalendarClock, AlertCircle, Link2, Mail, Search, UserCheck, Send, UserCog } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
 
 const ROLE_LABELS: Record<string, string> = {
@@ -178,6 +177,14 @@ export default function CaregiversPage() {
     queryFn: () => apiRequest("GET", "/api/users").then(r => r.json()),
   });
 
+  // Billing gate — invite buttons only show when portal is active
+  const { data: billingStatus } = useQuery<{ founderTier: string; subscriptionStatus: string }>({
+    queryKey: ["/api/billing/status"],
+    queryFn: () => apiRequest("GET", "/api/billing/status").then(r => r.json()),
+    staleTime: 60_000,
+  });
+  const portalIsActive = billingStatus?.founderTier === "beta" || billingStatus?.subscriptionStatus === "active";
+
   const caregivers = allUsers.filter(u =>
     u.clientId === selectedClientId &&
     ["caregiver","multi_caregiver","temp_caregiver"].includes(u.role)
@@ -236,7 +243,7 @@ export default function CaregiversPage() {
         </div>
         {(canManage || isFamily) && (
           <>
-          <LessonLauncher pageKey="caregivers" />
+
           <div className="flex flex-wrap gap-2">
           <Dialog open={addOpen} onOpenChange={setAddOpen}>
             {/* Emergency contact form — MC only. CGs cannot add anyone to the care team. */}
@@ -331,8 +338,8 @@ export default function CaregiversPage() {
             </Button>
           )}
 
-          {/* Invite buttons — MC and self_care */}
-          {(isFamily || activeUser.role === "self_care") && (
+          {/* Invite buttons — MC and self_care — only after billing active */}
+          {(isFamily || activeUser.role === "self_care") && portalIsActive && (
             <>
               <Button size="sm" className="gap-2 bg-teal-600 hover:bg-teal-700 text-white" onClick={handleOpenInvite} data-testid="invite-connection-btn">
                 <Link2 size={15} /> Invite a Caregiver

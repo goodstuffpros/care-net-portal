@@ -6,7 +6,6 @@
  */
 
 import { useState } from "react";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useApp } from "@/App";
@@ -475,7 +474,7 @@ export default function CareScope() {
                 : "Your current care scope and flag settings"
               }
             </p>
-<LessonLauncher pageKey="carescope" />
+
           </div>
         </div>
 

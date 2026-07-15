@@ -1,5 +1,4 @@
 import { useApp, isCaregiverRole } from "@/App";
-import { LessonLauncher } from "@/components/LessonLauncher";
 import { useLang } from "@/lib/useLang";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
@@ -1162,7 +1161,7 @@ export default function MedicationsPage() {
         </div>
         {(isCaregiverRole(activeUser.role) || isMC || activeUser.role === "self_care") && (
           <>
-          <LessonLauncher pageKey="medications" />
+
           <Button onClick={() => setAddOpen(true)} size="sm" className="gap-2 w-full bg-teal-600 hover:bg-teal-700 text-white" data-testid="add-med-btn">
             <Plus size={14} />
             {isMC ? "Add to Regimen" : "Add Medication"}

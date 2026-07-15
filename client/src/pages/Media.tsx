@@ -15,7 +15,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { Image, Video, Plus, Mic, MicOff, Trash2, Camera, Film, Circle, Square, RotateCcw, Download, Music } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 // Uploader names resolved from live portalUsers API — no hardcoded names
 
@@ -318,7 +317,7 @@ export default function MediaPage() {
             <p className="text-xs text-muted-foreground truncate">Photos · Videos · Voice</p>
           </div>
         </div>
-        <LessonLauncher pageKey="media" />
+
         <Dialog open={addOpen} onOpenChange={open => {
           setAddOpen(open);
           if (!open) setForm({ type: "photo", url: "", caption: "", voiceNoteText: "", priority: "green" });

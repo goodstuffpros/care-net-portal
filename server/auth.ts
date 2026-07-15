@@ -563,21 +563,37 @@ export function emailDenialTemplate(name: string): string {
   `;
 }
 
-export function emailVerifyTemplate(name: string, verifyUrl: string): string {
+/**
+ * Unified verify + welcome email — one email for all roles.
+ * role: "sc" | "mc" | "cg"
+ */
+export function emailVerifyTemplate(name: string, verifyUrl: string, role: "sc" | "mc" | "cg" = "mc"): string {
+  const isCG = role === "cg";
+  const billingBullet = isCG
+    ? `<li style="margin-bottom:10px;">Your caregiver account is <strong>always free</strong> — portals are paid by the families you support.</li>`
+    : `<li style="margin-bottom:10px;">You'll save a payment method after setup — <strong>nothing is charged for 30 days</strong>. Your first month is completely free.</li>`;
+
   return `
     <div style="font-family: 'DM Sans', Arial, sans-serif; max-width: 560px; margin: 0 auto; color: #1a1a1a;">
-      <div style="background: #1a5f5a; padding: 24px 32px; border-radius: 12px 12px 0 0;">
-        <h1 style="color: white; margin: 0; font-size: 20px; font-weight: 600;">Care Net Portal</h1>
+      <div style="background: #01696F; padding: 26px 32px; border-radius: 12px 12px 0 0;">
+        <h1 style="color: white; margin: 0; font-size: 21px; font-weight: 700; letter-spacing: -0.3px;">Care Net Portal</h1>
+        <p style="color: rgba(255,255,255,0.7); margin: 5px 0 0; font-size: 13px;">carenetportal.com</p>
       </div>
-      <div style="background: #fafaf9; padding: 32px; border-radius: 0 0 12px 12px; border: 1px solid #e5e5e3; border-top: none;">
-        <h2 style="margin: 0 0 12px; font-size: 18px;">Verify your email, ${name}</h2>
-        <p style="color: #4a4a48; line-height: 1.6; margin: 0 0 24px;">
-          Click below to verify your email address and activate your Care Net Portal account.
-        </p>
-        <a href="${verifyUrl}" style="display: inline-block; background: #1a5f5a; color: white; text-decoration: none; padding: 14px 28px; border-radius: 8px; font-weight: 600; font-size: 15px;">
-          Verify Email →
-        </a>
-        <p style="color: #9a9a98; font-size: 13px; margin: 24px 0 0;">
+      <div style="background: #fafaf9; padding: 36px 32px; border-radius: 0 0 12px 12px; border: 1px solid #e5e5e3; border-top: none;">
+        <h2 style="margin: 0 0 8px; font-size: 20px; font-weight: 700;">Welcome to Care Net Portal — let's get you set up</h2>
+        <p style="color: #5a5957; font-size: 15px; line-height: 1.6; margin: 0 0 24px;">Hi ${name},</p>
+        <p style="color: #4a4a48; font-size: 15px; line-height: 1.6; margin: 0 0 20px;">You're one step away from your Care Net Portal account. Click below to verify your email and start a short setup.</p>
+        <ul style="color: #4a4a48; font-size: 14px; line-height: 1.6; margin: 0 0 28px; padding-left: 20px;">
+          <li style="margin-bottom:10px;">You'll fill out a few basics to create your account.</li>
+          ${billingBullet}
+          <li style="margin-bottom:0;">Once you're in, tap the <strong>?</strong> button anytime — an assistant will help you with anything on the site.</li>
+        </ul>
+        <div style="text-align: center; margin-bottom: 28px;">
+          <a href="${verifyUrl}" style="display: inline-block; background: #01696F; color: white; text-decoration: none; padding: 15px 36px; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.2px;">
+            Verify my email →
+          </a>
+        </div>
+        <p style="color: #9a9a98; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
           This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.
         </p>
       </div>

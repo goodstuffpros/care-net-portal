@@ -9,7 +9,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { Award, MessageSquare, Shield, BookOpen, Heart, RefreshCw, ClipboardList, ChevronLeft, ChevronRight, CheckCircle2, Pill, Activity, Calendar, SlidersHorizontal } from "lucide-react";
-import { LessonLauncher } from "@/components/LessonLauncher";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
