@@ -28,8 +28,13 @@ export function clearAuthToken() {
   try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
+function getBestToken(): string | null {
+  // App session token first, then standalone admin token
+  return getAuthToken() || (() => { try { return localStorage.getItem("cnp_admin_token"); } catch { return null; } })();
+}
+
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  const token = getAuthToken();
+  const token = getBestToken();
   const headers: Record<string, string> = { ...extra };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
@@ -58,7 +63,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, { credentials: "include" });
+    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, { credentials: "include", headers: authHeaders() });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

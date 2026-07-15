@@ -102,11 +102,21 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
     }
   }
 
-  function enterApp() {
-    // Full reload so RealAuthGate re-checks session
-    // self_care lands on Client Profile so they can complete their record right away
+  async function enterApp() {
     if (isSelfManaged) {
-      window.location.href = "/#/portal";
+      // SC must go through billing setup — same rule as MC
+      try {
+        const res = await fetch("/api/billing/status", { credentials: "include" });
+        const data = await res.json();
+        // Beta users are free for life — go straight in
+        if (data.founderTier === "beta") {
+          window.location.href = "/#/portal";
+        } else {
+          window.location.href = "/#/billing?setup=1";
+        }
+      } catch {
+        window.location.href = "/#/billing?setup=1";
+      }
     } else {
       window.location.href = "/";
     }

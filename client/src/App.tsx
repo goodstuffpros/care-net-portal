@@ -33,6 +33,7 @@ import WellbeingPage from "@/pages/Wellbeing";
 import UniversityPage from "@/pages/University";
 import PatternsPage from "@/pages/Patterns";
 import BeckyAdminPage from "@/pages/BeckyAdmin";
+import AdminLogin, { getAdminToken, clearAdminToken } from "@/pages/AdminLogin";
 import PricingPage from "@/pages/Pricing";
 import BillingPage from "@/pages/Billing";
 import FamilyPricingPage from "@/pages/FamilyPricing";
@@ -576,16 +577,27 @@ export default function App() {
   // If a ?page= param is present, treat it as the route
   const effectivePath = pageParam ? `/${pageParam}` : hashPath;
 
-  // BeckyAdmin check
-  const isBeckyAdmin =
+  // Admin office — check real pathname first (direct URL visit), then hash path
+  const realPathname = typeof window !== "undefined" ? window.location.pathname : "";
+  const isAdminPath =
+    realPathname === "/admin" ||
+    realPathname.startsWith("/admin/") ||
     effectivePath === "/becky-admin" ||
     effectivePath.startsWith("/becky-admin") ||
     qp.get("admin") === "becky";
 
-  if (isBeckyAdmin) {
+  if (isAdminPath) {
+    const adminToken = getAdminToken();
+    if (!adminToken) {
+      return (
+        <QueryClientProvider client={queryClient}>
+          <AdminLogin onSuccess={() => window.location.reload()} />
+        </QueryClientProvider>
+      );
+    }
     return (
       <QueryClientProvider client={queryClient}>
-        <BeckyAdminPage />
+        <BeckyAdminPage onAdminSignOut={() => { clearAdminToken(); window.location.reload(); }} />
       </QueryClientProvider>
     );
   }
