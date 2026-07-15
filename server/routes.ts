@@ -5035,14 +5035,34 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         return res.status(400).json({ message: "Portal already has an active subscription" });
 
       const { cardToken, promoCode } = req.body;
-      if (!cardToken) return res.status(400).json({ message: "Card token is required" });
-
       const account = db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId!)).get();
       const email = account?.email ?? user.email ?? "";
+      const now = new Date().toISOString();
+
+      // Check if a free_forever promo was supplied — if so, skip Square entirely
+      if (!cardToken && promoCode) {
+        const promo = sqlite.prepare(`SELECT * FROM promo_codes WHERE code = ? AND active = 1`).get(promoCode.toUpperCase().trim()) as any;
+        if (!promo || promo.discount_type !== 'free_forever') {
+          return res.status(400).json({ message: "A valid free-forever promo code is required to activate without a card" });
+        }
+        const useCount = (sqlite.prepare(`SELECT COUNT(*) as c FROM promo_code_uses WHERE promo_code_id = ?`).get(promo.id) as any).c;
+        const withinLimit = !promo.max_uses || useCount < promo.max_uses;
+        const notExpired = !promo.expires_at || new Date(promo.expires_at) >= new Date();
+        const notAlreadyUsed = !sqlite.prepare(`SELECT id FROM promo_code_uses WHERE client_id = ?`).get(user.clientId!);
+        if (!withinLimit || !notExpired) return res.status(400).json({ message: "This promo code is no longer valid" });
+        if (!notAlreadyUsed) return res.status(400).json({ message: "A promo code has already been applied to this portal" });
+        // Mark portal as beta (free for life) — no Square interaction at all
+        sqlite.prepare(`UPDATE clients SET founder_tier = 'beta', subscription_status = 'active', subscription_started_at = ?, grace_period_ends_at = NULL WHERE id = ?`)
+          .run(now, user.clientId);
+        sqlite.prepare(`INSERT INTO promo_code_uses (promo_code_id, client_id, applied_by_user_id, applied_at) VALUES (?, ?, ?, ?)`)
+          .run(promo.id, user.clientId, req.authUserId, now);
+        return res.json({ success: true, mode: 'promo', renewsAt: null, promoApplied: true });
+      }
+
+      if (!cardToken) return res.status(400).json({ message: "Card token is required" });
 
       const result = await createSubscription(cardToken, email, user.name, user.clientId);
 
-      const now = new Date().toISOString();
       db.update(clients).set({
         subscriptionStatus: "active",
         squareCustomerId: result.squareCustomerId,
@@ -5053,7 +5073,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         gracePeriodEndsAt: null,
       }).where(eq(clients.id, user.clientId)).run();
 
-      // Apply promo code if provided
+      // Apply non-free_forever promo codes
       let promoApplied = false;
       if (promoCode) {
         try {
@@ -5064,9 +5084,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
             const notExpired = !promo.expires_at || new Date(promo.expires_at) >= new Date();
             const notAlreadyUsed = !sqlite.prepare(`SELECT id FROM promo_code_uses WHERE client_id = ?`).get(user.clientId!);
             if (withinLimit && notExpired && notAlreadyUsed) {
-              if (promo.discount_type === 'free_forever') {
-                sqlite.prepare(`UPDATE clients SET founder_tier = 'beta' WHERE id = ?`).run(user.clientId);
-              } else if (promo.discount_type === 'free_months') {
+              if (promo.discount_type === 'free_months') {
                 const base = new Date(result.currentPeriodEnd);
                 base.setMonth(base.getMonth() + promo.discount_value);
                 sqlite.prepare(`UPDATE clients SET subscription_renews_at = ? WHERE id = ?`).run(base.toISOString().substring(0, 10), user.clientId);

@@ -55,6 +55,7 @@ export default function Billing() {
   const [promoCode, setPromoCode] = useState("");
   const [promoMsg, setPromoMsg] = useState<string | null>(null);
   const [promoValid, setPromoValid] = useState<boolean | null>(null);
+  const [promoDiscountType, setPromoDiscountType] = useState<string | null>(null);
   const [validatingPromo, setValidatingPromo] = useState(false);
   const setupMode = isSetupMode();
 
@@ -87,13 +88,15 @@ export default function Billing() {
       const data = await res.json();
       if (!res.ok || !data.valid) {
         setPromoValid(false);
+        setPromoDiscountType(null);
         setPromoMsg(data.message ?? "Invalid code");
       } else {
         setPromoValid(true);
-        const desc = data.discountType === "free_forever" ? "Free access forever" :
+        setPromoDiscountType(data.discountType);
+        const desc = data.discountType === "free_forever" ? "Free access forever — no card needed" :
           data.discountType === "free_months" ? `${data.discountValue} free month${data.discountValue !== 1 ? "s" : ""}` :
           `${data.discountValue}% off`;
-        setPromoMsg(`✓ ${desc} applied`);
+        setPromoMsg(`✓ ${desc}`);
       }
     } catch {
       setPromoValid(false);
@@ -104,12 +107,16 @@ export default function Billing() {
   }
 
   async function handleSubscribe() {
-    if (!cardRef.current || !config) return;
+    const isFreeForever = promoDiscountType === "free_forever";
+    if (!isFreeForever && (!cardRef.current || !config)) return;
     setErrorMsg(null);
     setSuccessMsg(null);
     setSubscribing(true);
     try {
-      const cardToken = config.mode === "simulate" ? "sim_token" : await cardRef.current.tokenize();
+      let cardToken: string | null = null;
+      if (!isFreeForever) {
+        cardToken = config!.mode === "simulate" ? "sim_token" : await cardRef.current!.tokenize();
+      }
       const res = await apiRequest("POST", "/api/billing/subscribe", {
         cardToken,
         promoCode: promoCode.trim() || undefined,
@@ -121,7 +128,9 @@ export default function Billing() {
         // Setup flow — go straight to dashboard after card saved
         setTimeout(() => { window.location.href = "/"; }, 1800);
       }
-      setSuccessMsg(`Your first month is free. First charge of $10 on ${formatDate(data.renewsAt)}.`);
+      setSuccessMsg(isFreeForever
+        ? "Free access activated. Welcome to Care Net Portal."
+        : `Your first month is free. First charge of $10 on ${formatDate(data.renewsAt)}.`);
     } catch (e: any) {
       setErrorMsg(e.message ?? "Something went wrong. Please try again.");
     } finally {
@@ -223,13 +232,17 @@ export default function Billing() {
       {/* Subscribe form */}
       {needsPayment && config && (
         <div className="rounded-xl border border-border bg-surface p-5 space-y-4">
-          <div className="flex items-center gap-2">
-            <CreditCard className="w-4 h-4 text-primary" />
-            <span className="text-sm font-semibold text-foreground">
-              {billing?.hasPaymentMethod ? "Update payment method" : "Add payment method"}
-            </span>
-          </div>
-          <SquareCard ref={cardRef} config={config} />
+          {promoDiscountType !== "free_forever" && (
+            <>
+              <div className="flex items-center gap-2">
+                <CreditCard className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold text-foreground">
+                  {billing?.hasPaymentMethod ? "Update payment method" : "Add payment method"}
+                </span>
+              </div>
+              <SquareCard ref={cardRef} config={config} />
+            </>
+          )}
 
           {/* Promo code */}
           <div className="space-y-1.5">
@@ -238,7 +251,7 @@ export default function Billing() {
                 type="text"
                 placeholder="Promo code (optional)"
                 value={promoCode}
-                onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoMsg(null); setPromoValid(null); }}
+                onChange={e => { setPromoCode(e.target.value.toUpperCase()); setPromoMsg(null); setPromoValid(null); setPromoDiscountType(null); }}
                 className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
               />
               <button
@@ -261,11 +274,15 @@ export default function Billing() {
             disabled={subscribing}
             className="w-full rounded-lg bg-primary text-white py-2.5 text-sm font-semibold hover:bg-primary/90 disabled:opacity-50 transition-colors"
           >
-            {subscribing ? "Processing…" : "Start free month — $10/month after"}
+            {subscribing ? "Processing…" :
+              promoDiscountType === "free_forever" ? "Activate Free Access" :
+              "Start free month — $10/month after"}
           </button>
-          <p className="text-xs text-center text-muted-foreground">
-            Your card is encrypted by Square and never stored on our servers.
-          </p>
+          {promoDiscountType !== "free_forever" && (
+            <p className="text-xs text-center text-muted-foreground">
+              Your card is encrypted by Square and never stored on our servers.
+            </p>
+          )}
         </div>
       )}
 
