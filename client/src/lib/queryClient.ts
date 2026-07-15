@@ -29,8 +29,7 @@ export function clearAuthToken() {
 }
 
 function authHeaders(extra?: Record<string, string>): Record<string, string> {
-  // Check both the app token and the standalone admin token
-  const token = getAuthToken() || (() => { try { return localStorage.getItem("cnp_admin_token"); } catch { return null; } })();
+  const token = getAuthToken();
   const headers: Record<string, string> = { ...extra };
   if (token) headers["Authorization"] = `Bearer ${token}`;
   return headers;
@@ -59,10 +58,7 @@ export const getQueryFn: <T>(options: {
 }) => QueryFunction<T> =
   ({ on401: unauthorizedBehavior }) =>
   async ({ queryKey }) => {
-    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, {
-      credentials: "include",
-      headers: authHeaders(),
-    });
+    const res = await fetch(`${API_BASE}${queryKey.join("/")}`, { credentials: "include" });
 
     if (unauthorizedBehavior === "returnNull" && res.status === 401) {
       return null;

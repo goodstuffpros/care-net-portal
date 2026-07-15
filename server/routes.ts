@@ -1,7 +1,4 @@
 import type { Express } from "express";
-
-// Admin user IDs — module-level so all routes can reference them
-const ADMIN_USER_IDS = new Set([10, 11, 12, 43]);
 import type { Server } from "http";
 import rateLimit from "express-rate-limit";
 import crypto from "crypto";
@@ -159,27 +156,6 @@ export function registerRoutes(httpServer: Server, app: Express) {
     // Also return the token in the body so clients can store it in localStorage
     // and send it as Authorization: Bearer — bypasses cookie propagation issues on Android
     res.json({ success: true, token, user: { id: user!.id, name: user!.name, role: user!.role, email: account.email } });
-  });
-
-  // POST /api/auth/admin-login — standalone admin login, independent of app session
-  app.post("/api/auth/admin-login", authLimiter, async (req: AuthRequest, res) => {
-    const { email, password } = req.body;
-    if (!email || !password) return res.status(400).json({ message: "Email and password required" });
-
-    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
-    if (!account || !account.userId) return res.status(401).json({ message: "Invalid credentials" });
-
-    const valid = await verifyPassword(password, account.passwordHash);
-    if (!valid) return res.status(401).json({ message: "Invalid credentials" });
-
-    // Must be an admin user
-    if (!ADMIN_USER_IDS.has(account.userId)) {
-      return res.status(403).json({ message: "Access denied" });
-    }
-
-    const token = await createSession(account.id, req);
-    // Do NOT set cookie — admin session lives in localStorage only
-    res.json({ success: true, token });
   });
 
   // POST /api/auth/logout
@@ -497,6 +473,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   // GET /api/admin/whoami — diagnostic: returns the authenticated user ID, email, and admin status
   // No requireAdmin — this is used to debug auth failures from the admin panel
   app.get("/api/admin/whoami", requireAuth, (req: AuthRequest, res) => {
+    const ADMIN_USER_IDS = new Set([10, 11, 12, 43]);
     const account = req.authAccountId
       ? db.select().from(authAccounts).where(eq(authAccounts.id, req.authAccountId)).get()
       : null;
