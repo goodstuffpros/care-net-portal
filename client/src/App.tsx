@@ -578,11 +578,15 @@ export default function App() {
   const effectivePath = pageParam ? `/${pageParam}` : hashPath;
 
   // Admin office — standalone, independent of app session
+  // Check both the hash path AND the real pathname (for direct URL visits like /admin)
+  const realPathname = typeof window !== "undefined" ? window.location.pathname : "";
   const isAdminPath =
     effectivePath === "/admin" ||
     effectivePath.startsWith("/admin") ||
     effectivePath === "/becky-admin" ||
     effectivePath.startsWith("/becky-admin") ||
+    realPathname === "/admin" ||
+    realPathname.startsWith("/admin") ||
     qp.get("admin") === "becky";
 
   if (isAdminPath) {
