@@ -158,6 +158,27 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true, token, user: { id: user!.id, name: user!.name, role: user!.role, email: account.email } });
   });
 
+  // POST /api/auth/admin-login — standalone admin login, independent of app session
+  app.post("/api/auth/admin-login", authLimiter, async (req: AuthRequest, res) => {
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).json({ message: "Email and password required" });
+
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, email.toLowerCase())).get();
+    if (!account || !account.userId) return res.status(401).json({ message: "Invalid credentials" });
+
+    const valid = await verifyPassword(password, account.passwordHash);
+    if (!valid) return res.status(401).json({ message: "Invalid credentials" });
+
+    // Must be an admin user
+    if (!ADMIN_USER_IDS.has(account.userId)) {
+      return res.status(403).json({ message: "Access denied" });
+    }
+
+    const token = await createSession(account.id, req);
+    // Do NOT set cookie — admin session lives in localStorage only
+    res.json({ success: true, token });
+  });
+
   // POST /api/auth/logout
   app.post("/api/auth/logout", async (req: AuthRequest, res) => {
     const token = getTokenFromRequest(req);

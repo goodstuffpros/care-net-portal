@@ -1989,7 +1989,7 @@ function PromoCodesTab() {
 }
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
-export default function BeckyAdminPage() {
+export default function BeckyAdminPage({ onAdminSignOut }: { onAdminSignOut?: () => void } = {}) {
   const [activeTab, setActiveTab] = useState<"library" | "applications" | "helpdesk" | "cleanup" | "ideas" | "engagement" | "billing" | "promo">("applications");
   const [activeTheme, setActiveTheme] = useState<string>("all");
   const { toast } = useToast();
@@ -2047,8 +2047,12 @@ export default function BeckyAdminPage() {
             </div>
             <button
               onClick={() => {
-                fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                  .finally(() => { window.location.href = "/"; });
+                if (onAdminSignOut) {
+                  onAdminSignOut();
+                } else {
+                  fetch("/api/auth/logout", { method: "POST", credentials: "include" })
+                    .finally(() => { window.location.href = "/"; });
+                }
               }}
               className="text-white/30 hover:text-white/70 text-xs px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-all"
             >
