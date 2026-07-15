@@ -1,18 +1,22 @@
 import { useState } from "react";
-import { apiRequest } from "@/lib/queryClient";
+import { apiRequest, setAuthToken, getAuthToken, clearAuthToken } from "@/lib/queryClient";
 
-const ADMIN_SESSION_KEY = "cnp_admin_token";
+const ADMIN_FLAG_KEY = "cnp_admin_session";
 
 export function getAdminToken() {
-  return localStorage.getItem(ADMIN_SESSION_KEY);
+  // Admin session is flagged separately; token lives in the shared cn_auth_token key
+  const flag = localStorage.getItem(ADMIN_FLAG_KEY);
+  return flag === "1" ? getAuthToken() : null;
 }
 
 export function setAdminToken(token: string) {
-  localStorage.setItem(ADMIN_SESSION_KEY, token);
+  setAuthToken(token); // writes to cn_auth_token so apiRequest picks it up
+  localStorage.setItem(ADMIN_FLAG_KEY, "1");
 }
 
 export function clearAdminToken() {
-  localStorage.removeItem(ADMIN_SESSION_KEY);
+  clearAuthToken();
+  localStorage.removeItem(ADMIN_FLAG_KEY);
 }
 
 export default function AdminLogin({ onSuccess }: { onSuccess: () => void }) {
