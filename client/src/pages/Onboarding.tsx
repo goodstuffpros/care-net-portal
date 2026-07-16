@@ -103,10 +103,10 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   }
 
   async function enterApp() {
-    // Everyone lands on /portal (Client Profile) first.
-    // The billing gate in App.tsx will intercept SC/MC if they haven’t paid
-    // when they try to navigate away from /portal.
-    window.location.href = "/#/portal";
+    // Signal App.tsx that onboarding is complete so the full router activates.
+    // Then navigate to /portal — billing gate intercepts SC/MC on first nav away.
+    onComplete();
+    window.location.hash = "/portal";
   }
 
   return (
