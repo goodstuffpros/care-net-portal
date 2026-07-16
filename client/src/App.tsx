@@ -488,6 +488,12 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         realUserEmail: realUser?.email ?? "",
         onLogout: () => {
           clearAuthToken();
+          // Clear the session cookie client-side as well — belt and suspenders.
+          // The server also clears it, but this ensures it's gone even if the
+          // server response is delayed or the browser has a stale cache.
+          document.cookie = "cn_session=; Max-Age=0; path=/; SameSite=Lax";
+          // Clear React Query cache so no stale auth data survives the reload
+          queryClient.clear();
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
             .finally(() => { window.location.replace("/#/login"); });
         },
