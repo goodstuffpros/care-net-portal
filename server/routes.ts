@@ -501,6 +501,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
     });
   });
 
+  // GET /api/admin/applications/:id/verify-token — get verify token for testing (admin only)
+  app.get("/api/admin/applications/:id/verify-token", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const app_ = db.select().from(betaApplications).where(eq(betaApplications.id, Number(req.params.id))).get();
+    if (!app_) return res.status(404).json({ message: "Application not found" });
+    const account = db.select().from(authAccounts).where(eq(authAccounts.email, app_.email)).get();
+    if (!account) return res.status(404).json({ message: "No auth account found" });
+    return res.json({ email: app_.email, verifyToken: account.emailVerifyToken, verified: account.emailVerified });
+  });
+
   // GET /api/admin/applications — list all beta applications with email verified status
   app.get("/api/admin/applications", requireAuth, requireAdmin, async (req: AuthRequest, res) => {
     const apps = db.select().from(betaApplications).all();
