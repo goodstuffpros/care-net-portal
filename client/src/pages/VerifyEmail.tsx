@@ -58,9 +58,9 @@ export default function VerifyEmailPage({ token }: Props) {
         // Invalidate auth cache so the app re-fetches the session
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         setStage("success");
-        // Redirect to login after a moment — more reliable on mobile where the
-        // email client opens links in a sandboxed in-app browser (no shared cookies)
-        setTimeout(() => navigate("/login?verified=1"), 1800);
+        // Go straight into onboarding — session cookie is already set by the server.
+        // Never redirect to /login — that drops the user and loses the session on mobile.
+        setTimeout(() => navigate("/onboarding"), 1800);
       })
       .catch(() => {
         setStage("error");
@@ -128,7 +128,7 @@ export default function VerifyEmailPage({ token }: Props) {
             {userName ? `You're verified, ${userName}!` : "Email verified!"}
           </h2>
           <p className="text-muted-foreground text-sm leading-relaxed mb-6">
-            Your account is ready. Taking you to sign in — open the app in your regular browser if this doesn't redirect automatically.
+            Your account is ready. Taking you to your setup now…
           </p>
           <div className="flex justify-center">
             <Loader2 className="w-5 h-5 animate-spin text-primary" />
