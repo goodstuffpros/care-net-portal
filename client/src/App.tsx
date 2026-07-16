@@ -839,11 +839,11 @@ function RealAuthGate() {
   }
 
   // Real user who hasn't completed onboarding wizard yet
-  // SC users now go through onboarding (fills Client Profile basics before billing gate)
+  // self_care users skip ALL onboarding — they go straight to MainApp
   // Caregivers/family who already have a clientId (e.g. arrived via invite token) also skip —
   // they have a real portal waiting and can complete their profile inside the app.
   const cgWithPortal = realUser?.clientId && (realUser?.role === "caregiver" || realUser?.role === "multi_caregiver" || realUser?.role === "temp_caregiver");
-  if (realUser && !onboardingDone && !cgWithPortal) {
+  if (realUser && !onboardingDone && realUser.role !== "self_care" && !cgWithPortal) {
     return (
       <QueryClientProvider client={queryClient}>
         <OnboardingWizard
