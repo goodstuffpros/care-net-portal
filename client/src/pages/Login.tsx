@@ -253,15 +253,13 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
                 className="text-primary hover:underline font-medium"
                 data-testid="link-apply"
               >
-                Apply for beta
+                Create an account
               </button>
             </p>
           </div>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-6">
-          Care Net Portal is currently in private beta.
-        </p>
+
       </div>
     </div>
   );

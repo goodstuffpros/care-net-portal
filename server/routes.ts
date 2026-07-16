@@ -34,6 +34,14 @@ function assignFounderTier(): "beta" | "founder" | "standard" {
 
 export function registerRoutes(httpServer: Server, app: Express) {
 
+  // ── Hash-free verify redirect (fixes Yahoo/Gmail mobile link stripping) ──
+  // Email links point to /verify-email/:token (no hash). Server redirects to
+  // the SPA hash route so the app handles it normally.
+  app.get("/verify-email/:token", (req, res) => {
+    const appUrl = process.env.APP_URL || "https://app.carenetportal.com";
+    res.redirect(302, `${appUrl}/#/verify-email/${req.params.token}`);
+  });
+
   // ── Rate limiters ─────────────────────────────────────────────────────────
   const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
@@ -98,7 +106,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     // Send unified verify + welcome email
     const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    const verifyUrl = `${appUrl}/verify-email/${verifyToken}`;
     const emailRole = (role === "caregiver" || role === "both") ? "cg" : role === "self_managed" ? "sc" : "mc";
     sendEmail({
       to: normalizedEmail,
@@ -126,7 +134,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const app_ = db.select().from(betaApplications).where(eq(betaApplications.email, account.email)).get();
     const appUrl = process.env.APP_URL || "http://localhost:5000";
-    const verifyUrl = `${appUrl}/#/verify-email/${verifyToken}`;
+    const verifyUrl = `${appUrl}/verify-email/${verifyToken}`;
     const resendRole = (app_?.role === "caregiver" || app_?.role === "both") ? "cg" : app_?.role === "self_managed" ? "sc" : "mc";
     sendEmail({
       to: account.email,

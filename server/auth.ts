@@ -596,6 +596,10 @@ export function emailVerifyTemplate(name: string, verifyUrl: string, role: "sc" 
         <p style="color: #9a9a98; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
           This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.
         </p>
+        <p style="color: #9a9a98; font-size: 12px; margin: 12px 0 0; line-height: 1.6; text-align: center; word-break: break-all;">
+          Button not working? Copy this link into your browser:<br/>
+          <a href="${verifyUrl}" style="color: #01696F;">${verifyUrl}</a>
+        </p>
       </div>
     </div>
   `;
