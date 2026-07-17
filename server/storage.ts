@@ -1626,6 +1626,7 @@ try { sqlite.exec(`ALTER TABLE clients ADD COLUMN color_theme TEXT DEFAULT 'teal
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN multi_portal_nudge_snoozed_until TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN elevated_until TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN has_seen_mc_invite_prompt INTEGER DEFAULT 0`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE users ADD COLUMN mc_banner_snoozed_until TEXT`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE auth_accounts ADD COLUMN login_count INTEGER DEFAULT 0`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN has_seen_high_five INTEGER DEFAULT 0`); } catch { /* already exists */ }
 try { sqlite.exec(`ALTER TABLE users ADD COLUMN has_seen_open_hand INTEGER DEFAULT 0`); } catch { /* already exists */ }
