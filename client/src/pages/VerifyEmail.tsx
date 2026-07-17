@@ -55,6 +55,8 @@ export default function VerifyEmailPage({ token }: Props) {
           return;
         }
         setUserName(body.user?.name?.split(" ")[0] || "");
+        // Save token to localStorage so Authorization header works reliably on mobile
+        if (body.token) { const { setAuthToken } = await import("@/lib/queryClient"); setAuthToken(body.token); }
         // Invalidate auth cache so the app re-fetches the session
         queryClient.invalidateQueries({ queryKey: ["/api/auth/me"] });
         setStage("success");

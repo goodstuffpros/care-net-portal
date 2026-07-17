@@ -428,7 +428,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
     const sessionToken = await createSession(account.id, req);
     setSessionCookie(res, sessionToken);
 
-    res.json({ success: true, user: { id: newUser.id, name: newUser.name, role: newUser.role } });
+    res.json({ success: true, token: sessionToken, user: { id: newUser.id, name: newUser.name, role: newUser.role } });
   });
 
   // POST /api/auth/forgot-password
