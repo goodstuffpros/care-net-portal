@@ -17,6 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Heart, ChevronRight, Briefcase, CheckCircle2, UserCog } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
+import { DobPicker } from "@/components/DobPicker";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 
@@ -44,6 +45,7 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   const [clientCondition, setClientCondition] = useState("");
 
   const [setupSaving, setSetupSaving] = useState(false);
+  const [showDobError, setShowDobError] = useState(false);
 
   // ── Step machine ────────────────────────────────────────────────────────────
   type Step = "profile" | "client_setup" | "done";
@@ -86,6 +88,7 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   // ── Save self-care client setup ─────────────────────────────────────────────
   async function saveSelfCareSetup() {
     if (!clientName.trim()) return;
+    if (!clientDob) { setShowDobError(true); return; }
     setSetupSaving(true);
     try {
       await apiRequest("POST", "/api/onboarding/self-care-setup", {
@@ -251,16 +254,12 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
                   />
                 </div>
                 <div>
-                  <Label htmlFor="client-dob" className="text-sm font-medium">
-                    Date of birth <span className="text-muted-foreground font-normal">(optional)</span>
-                  </Label>
-                  <Input
+                  <DobPicker
                     id="client-dob"
-                    type="date"
                     value={clientDob}
-                    onChange={(e) => setClientDob(e.target.value)}
-                    className="mt-1.5"
-                    data-testid="input-client-dob"
+                    onChange={(v) => { setClientDob(v); if (v) setShowDobError(false); }}
+                    required
+                    showError={showDobError}
                   />
                 </div>
                 <div>

@@ -17,6 +17,7 @@ import { useState } from "react";
 import { User as UserIcon, Heart, AlertTriangle, Users, Bell, Edit2, Save, X, Shield, Eye, UserCheck, Flag, CheckCircle2, Star, UserPlus, Mail, ArrowUpCircle, UserX, ArrowRightCircle, ChevronRight, AlertCircle, BookOpen, Phone, MapPin, Trash2, Plus, ExternalLink, Clock, Stethoscope, Scissors, Pill, Activity, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import FamilyInviteSheet from "@/components/FamilyInviteSheet";
+import { DobPicker } from "@/components/DobPicker";
 import ClientListEditor from "@/components/ClientListEditor";
 
 // ── Care Directory constants ────────────────────────────────────────────────
@@ -188,6 +189,7 @@ export default function ClientPortalPage() {
 
   const [editingClient, setEditingClient] = useState(false);
   const [editForm, setEditForm] = useState<Partial<Client>>({});
+  const [showDobError, setShowDobError] = useState(false);
   const [excuseFlagId, setExcuseFlagId] = useState<number | null>(null);
   const [excuseNote, setExcuseNote] = useState("");
 
@@ -598,7 +600,12 @@ export default function ClientPortalPage() {
                 </div>
                 <div className="space-y-1.5">
                   <Label>Date of Birth</Label>
-                  <Input type="date" value={editForm.dateOfBirth || ""} onChange={e => setEditForm(f => ({ ...f, dateOfBirth: e.target.value }))} />
+                  <DobPicker
+                    value={editForm.dateOfBirth || ""}
+                    onChange={(v) => { setEditForm(f => ({ ...f, dateOfBirth: v })); if (v) setShowDobError(false); }}
+                    required
+                    showError={showDobError}
+                  />
                 </div>
               </div>
 
@@ -679,7 +686,7 @@ export default function ClientPortalPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button size="sm" onClick={() => updateClientMutation.mutate(editForm)} disabled={updateClientMutation.isPending} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="save-client-btn">
+                <Button size="sm" onClick={() => { if (!editForm.dateOfBirth) { setShowDobError(true); return; } updateClientMutation.mutate(editForm); }} disabled={updateClientMutation.isPending} className="gap-1.5 bg-teal-600 hover:bg-teal-700 text-white" data-testid="save-client-btn">
                   <Save size={13} /> Save Changes
                 </Button>
                 <Button size="sm" variant="ghost" onClick={() => setEditingClient(false)}>

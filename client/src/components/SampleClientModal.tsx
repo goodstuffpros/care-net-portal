@@ -14,6 +14,7 @@ import { useMutation } from "@tanstack/react-query";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Rocket, User } from "lucide-react";
+import { DobPicker } from "@/components/DobPicker";
 
 const CONDITIONS = [
   "Dementia / Alzheimer's",
@@ -101,13 +102,11 @@ export function SampleClientModal({ open, onOpenChange, onCreated }: SampleClien
 
           {/* Date of Birth */}
           <div className="space-y-1.5">
-            <Label htmlFor="sample-dob">Date of Birth</Label>
-            <Input
+            <DobPicker
               id="sample-dob"
-              type="date"
               value={dob}
-              onChange={e => setDob(e.target.value)}
-              data-testid="sample-dob-input"
+              onChange={setDob}
+              required
             />
             <p className="text-xs text-muted-foreground">Used to populate age-appropriate care scenarios.</p>
           </div>

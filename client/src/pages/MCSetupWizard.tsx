@@ -24,6 +24,7 @@ import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
 import { THEME_CONFIG } from "@/lib/portalThemes";
+import { DobPicker } from "@/components/DobPicker";
 
 interface MCSetupProps {
   name: string;
@@ -109,8 +110,11 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
   const [familySentCount, setFamilySentCount] = useState(0);
 
   // ── Step 1: Create client profile ─────────────────────────────────────────
+  const [showDobError, setShowDobError] = useState(false);
+
   async function handleCreateClient() {
     if (!clientName.trim()) return;
+    if (!clientDob) { setShowDobError(true); return; }
     setSaving(true);
     try {
       const res = await apiRequest("POST", "/api/mc/setup", {
@@ -290,18 +294,13 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
             </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="client-dob" className="flex items-center gap-1.5">
-              <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
-              Date of birth <span className="text-muted-foreground font-normal">(optional)</span>
-            </Label>
-            <Input
-              id="client-dob"
-              type="date"
-              value={clientDob}
-              onChange={e => setClientDob(e.target.value)}
-            />
-          </div>
+          <DobPicker
+            id="client-dob"
+            value={clientDob}
+            onChange={(v) => { setClientDob(v); if (v) setShowDobError(false); }}
+            required
+            showError={showDobError}
+          />
 
           <div className="space-y-1.5">
             <Label htmlFor="client-condition" className="flex items-center gap-1.5">
