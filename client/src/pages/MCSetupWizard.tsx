@@ -32,16 +32,16 @@ interface MCSetupProps {
   onComplete: () => void;
 }
 
-type Step = "client-profile" | "care-team";
+type Step = "client-profile";
 
 const RELATIONSHIPS = [
   "Parent", "Spouse / Partner", "Sibling", "Grandparent",
   "Child", "Relative", "Friend", "Other"
 ];
 
-// Progress: client-profile(1), care-team(2)
+// Progress: client-profile only (single step wizard)
 function ProgressBar({ step }: { step: Step }) {
-  const steps: Step[] = ["client-profile", "care-team"];
+  const steps: Step[] = ["client-profile"];
   // Note: "done" step removed — enterPortal() called directly from care-team button
   const current = steps.indexOf(step);
   if (current < 0) return null;
@@ -127,9 +127,10 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
         colorTheme: colorTheme,
       });
       const data = await res.json();
-      if (data.cgLinked) setCgLinked(data.cgLinked);
-      setClientCreated(true);
-      setStep("care-team");
+      // Drop MC on Client Profile page — same as SC path.
+      // Billing gate in App.tsx intercepts on first navigation away.
+      onComplete();
+      window.location.hash = "/portal";
     } catch (e: any) {
       toast({ title: "Something went wrong", description: e.message, variant: "destructive" });
     } finally {
@@ -333,10 +334,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
     );
   }
 
-  // ════════════════════════════════════════════════════════════════════════════
-  // Step 2: Care Team — invite CG + family
-  // ════════════════════════════════════════════════════════════════════════════
-  if (step === "care-team") {
+  if (false && step === "care-team") { // care-team step removed — invites available inside portal after billing
     const allFamilyValid = familyEmails.filter(e => e.trim()).length > 0;
     return (
       <Layout>
