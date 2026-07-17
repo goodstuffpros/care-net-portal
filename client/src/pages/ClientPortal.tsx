@@ -323,6 +323,9 @@ export default function ClientPortalPage() {
       setEditingClient(false);
       toast({ title: "Profile updated" });
     },
+    onError: (err: any) => {
+      toast({ title: "Save failed", description: err?.message || "Could not save changes. Please try again.", variant: "destructive" });
+    },
   });
 
   const updateUserMutation = useMutation({
