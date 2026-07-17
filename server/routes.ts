@@ -3843,6 +3843,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
   });
 
+  // DELETE /api/admin/beta-applications/by-email — remove orphaned beta application (admin only)
+  app.delete("/api/admin/beta-applications/by-email", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const { email } = req.body as { email: string };
+    if (!email) return res.status(400).json({ message: "email required" });
+    const normalized = email.toLowerCase().trim();
+    const result = db.delete(betaApplications).where(eq(betaApplications.email, normalized)).run();
+    res.json({ success: true, deleted: result.changes });
+  });
+
   // DELETE /api/admin/users/:id — full account wipe (admin only)
   // Removes: users row, auth_accounts, auth_sessions, notifications, badge data,
   // connection invites, beta application — leaves client-side care data intact
