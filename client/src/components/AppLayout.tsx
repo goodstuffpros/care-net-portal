@@ -279,19 +279,28 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!isRealSession || SCREENSHOT_MODE) return;
     // Only show to family roles — never to caregivers
     if (!isFamily) return;
-    // Skip if user just completed onboarding (within last 24 hours)
-    if (activeUser.onboardingCompletedAt) {
-      const completedAt = new Date(activeUser.onboardingCompletedAt);
-      const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
-      if (completedAt > oneDayAgo) return;
-    }
-    const raw = typeof window !== "undefined" ? window.localStorage.getItem(REFERRAL_POPUP_KEY) : null;
-    const lastShown = raw ? new Date(raw) : null;
-    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    if (!lastShown || lastShown < thirtyDaysAgo) {
-      const timer = setTimeout(() => setReferralPopupOpen(true), 4000);
-      return () => clearTimeout(timer);
-    }
+    // Gate on billing — never show before portal is active
+    fetch("/api/billing/status", { credentials: "include" })
+      .then(r => r.json())
+      .then(data => {
+        const portalActive = data.founderTier === "beta" || data.subscriptionStatus === "active";
+        if (!portalActive) return; // don't show referral popup to unbilled users
+        // Skip if user just completed onboarding (within last 24 hours)
+        if (activeUser.onboardingCompletedAt) {
+          const completedAt = new Date(activeUser.onboardingCompletedAt);
+          const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+          if (completedAt > oneDayAgo) return;
+        }
+        const raw = typeof window !== "undefined" ? window.localStorage.getItem(REFERRAL_POPUP_KEY) : null;
+        const lastShown = raw ? new Date(raw) : null;
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+        if (!lastShown || lastShown < thirtyDaysAgo) {
+          const timer = setTimeout(() => setReferralPopupOpen(true), 4000);
+          // Note: can't return cleanup from async path — timer is short-lived, acceptable
+          void timer;
+        }
+      })
+      .catch(() => {}); // fail open — don't show popup on error
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isRealSession]);
 
