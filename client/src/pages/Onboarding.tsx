@@ -15,7 +15,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Heart, ChevronRight, Briefcase, CheckCircle2, UserCog, Mail, SkipForward } from "lucide-react";
+import { Heart, ChevronRight, Briefcase, CheckCircle2, UserCog } from "lucide-react";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
@@ -42,7 +42,7 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
   const [clientName, setClientName] = useState("");
   const [clientDob, setClientDob] = useState("");
   const [clientCondition, setClientCondition] = useState("");
-  const [inviteMcEmail, setInviteMcEmail] = useState("");
+
   const [setupSaving, setSetupSaving] = useState(false);
 
   // ── Step machine ────────────────────────────────────────────────────────────
@@ -92,7 +92,7 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
         clientName: clientName.trim(),
         clientDob: clientDob.trim() || undefined,
         clientCondition: clientCondition.trim() || undefined,
-        inviteMcEmail: inviteMcEmail.trim() || undefined,
+
       });
       setStep("done");
     } catch (e: any) {
@@ -278,25 +278,6 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
                 </div>
               </div>
 
-              {/* Optional MC invite */}
-              <div className="rounded-xl border border-border bg-muted/30 p-4 mb-6 space-y-3">
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <p className="text-sm font-medium text-foreground">Invite a family member as Main Contact</p>
-                  <span className="text-xs text-muted-foreground ml-1">(optional)</span>
-                </div>
-                <p className="text-xs text-muted-foreground leading-relaxed">
-                  A Main Contact can see your care record and support you from the background. You stay fully in control — they can't change anything without your permission.
-                </p>
-                <Input
-                  type="email"
-                  placeholder="mom@example.com"
-                  value={inviteMcEmail}
-                  onChange={(e) => setInviteMcEmail(e.target.value)}
-                  data-testid="input-invite-mc-email"
-                />
-              </div>
-
               <div className="space-y-3">
                 <Button
                   className="w-full bg-emerald-600 hover:bg-emerald-700 text-white"
@@ -304,20 +285,9 @@ export default function Onboarding({ email, onComplete, initialRole }: Onboardin
                   onClick={saveSelfCareSetup}
                   data-testid="btn-save-self-care-setup"
                 >
-                  {setupSaving ? "Setting up…" : inviteMcEmail.trim() ? "Set up & send invite" : "Set up my care record"}
+                  {setupSaving ? "Setting up…" : "Set up my care record"}
                   {!setupSaving && <ChevronRight className="w-4 h-4 ml-1" />}
                 </Button>
-                {inviteMcEmail.trim() && (
-                  <button
-                    type="button"
-                    className="w-full text-xs text-muted-foreground hover:text-foreground text-center flex items-center justify-center gap-1"
-                    onClick={() => { setInviteMcEmail(""); saveSelfCareSetup(); }}
-                    disabled={setupSaving}
-                    data-testid="btn-skip-mc-invite"
-                  >
-                    <SkipForward className="w-3 h-3" /> Skip for now — I'll invite them later
-                  </button>
-                )}
               </div>
             </div>
           )}
