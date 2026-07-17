@@ -290,7 +290,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
       if (!isActive) {
         // Block the navigation — redirect to billing
         e.preventDefault?.();
-        window.location.hash = "/billing?setup=1";
+        window.location.hash = "/billing";
       }
     };
 

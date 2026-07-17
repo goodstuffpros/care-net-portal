@@ -193,7 +193,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
         window.location.href = "/";
       } else {
         // Everyone else must set up billing before entering
-        window.location.href = "/#/billing?setup=1";
+        window.location.hash = "/billing";
       }
     } catch {
       // If check fails, just go to dashboard
