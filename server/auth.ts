@@ -588,10 +588,14 @@ export function emailVerifyTemplate(name: string, verifyUrl: string, role: "sc" 
           ${billingBullet}
           <li style="margin-bottom:0;">Once you're in, tap the <strong>?</strong> button anytime — an assistant will help you with anything on the site.</li>
         </ul>
-        <div style="text-align: center; margin-bottom: 28px;">
+        <div style="text-align: center; margin-bottom: 16px;">
           <a href="${verifyUrl}" style="display: inline-block; background: #01696F; color: white; text-decoration: none; padding: 15px 36px; border-radius: 8px; font-weight: 700; font-size: 15px; letter-spacing: 0.2px;">
             Verify my email →
           </a>
+        </div>
+        <div style="background: #f0f9f9; border: 1px solid #c8e6e6; border-radius: 8px; padding: 12px 16px; margin-bottom: 24px; text-align: center;">
+          <p style="color: #01696F; font-size: 13px; font-weight: 600; margin: 0 0 4px;">📱 Opening from Gmail or Yahoo Mail?</p>
+          <p style="color: #4a6a6a; font-size: 13px; line-height: 1.5; margin: 0;">Long-press the button above and choose <strong>Open in Chrome</strong> (or your default browser) for the best experience.</p>
         </div>
         <p style="color: #9a9a98; font-size: 13px; margin: 0; line-height: 1.6; text-align: center;">
           This link expires in 24 hours. If you didn't create this account, you can safely ignore this email.

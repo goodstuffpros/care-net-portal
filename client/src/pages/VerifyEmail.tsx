@@ -62,7 +62,9 @@ export default function VerifyEmailPage({ token }: Props) {
         setStage("success");
         // Go straight into onboarding — session cookie is already set by the server.
         // Never redirect to /login — that drops the user and loses the session on mobile.
-        setTimeout(() => navigate("/onboarding"), 1800);
+        // Include session token in URL so in-app browser webviews can bootstrap auth
+        const sessionParam = body.token ? `?session=${encodeURIComponent(body.token)}` : "";
+        setTimeout(() => navigate(`/onboarding${sessionParam}`), 1800);
       })
       .catch(() => {
         setStage("error");

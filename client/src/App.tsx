@@ -2,7 +2,7 @@ import { Switch, Route, Router, useLocation } from "wouter";
 import { stopBecky } from "@/lib/ttsUtils";
 import { useHashLocation } from "wouter/use-hash-location";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { queryClient, apiRequest, clearAuthToken, getAuthToken } from "@/lib/queryClient";
+import { queryClient, apiRequest, clearAuthToken, getAuthToken, setAuthToken } from "@/lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
 import { AlarmEngine } from "@/components/AlarmEngine";
 import InstallPrompt from "@/components/InstallPrompt";
@@ -762,6 +762,20 @@ function RealAuthGate() {
 
   // If user clicked "Go to University" from pre-connection, let them into the demo
   const demoPreview = typeof window !== "undefined" && sessionStorage.getItem("cnp_demo_preview") === "1";
+
+  // Bootstrap session token from URL if present — handles in-app browser webviews
+  // that block cookies and localStorage. Token travels in hash query: /#/onboarding?session=xxx
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const hashQuery = window.location.hash.split("?")[1] || "";
+    const params = new URLSearchParams(hashQuery);
+    const sessionToken = params.get("session");
+    if (sessionToken && !getAuthToken()) {
+      setAuthToken(sessionToken);
+      // Strip the ?session= param from the URL cleanly
+      window.location.hash = window.location.hash.split("?")[0];
+    }
+  }, []);
 
   useEffect(() => {
     const justLoggedIn = sessionStorage.getItem("cnp_just_logged_in") === "1";
