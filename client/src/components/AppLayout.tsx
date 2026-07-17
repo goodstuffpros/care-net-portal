@@ -44,6 +44,7 @@ import { WellbeingModal, ProactiveNudgeBanner } from "@/components/WellbeingModa
 import { NeedAMomentModal } from "@/components/NeedAMomentModal";
 import DemoBanner from "@/components/DemoBanner";
 import DemoApplyCTA from "@/components/DemoApplyCTA";
+import McInviteBanner from "@/components/McInviteBanner";
 
 const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; emergency?: boolean }[] = [
   { path: "/", labelKey: "nav.dashboard", icon: LayoutDashboard },
@@ -1563,6 +1564,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span>You have temporary Main Contact access through {new Date(elevationExpiresAt).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" })}.</span>
           </div>
         )}
+
+        {/* MC Invite Banner — SC users only, 14-day window, snoozes 24h on dismiss */}
+        <McInviteBanner />
 
         {/* Page Content */}
         <main className="flex-1 overflow-y-auto overflow-x-hidden pb-28" style={{ paddingBottom: "calc(7rem + env(safe-area-inset-bottom, 0px))" }}>

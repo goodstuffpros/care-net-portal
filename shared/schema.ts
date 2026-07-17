@@ -28,6 +28,7 @@ export const users = sqliteTable("users", {
   permissionLevel: text("permission_level"), // self_care users only: 'observer' | 'contributor' | 'self_care_mc' | null
   contributorWelcomeSeen: integer("contributor_welcome_seen", { mode: "boolean" }).default(false), // Phase 2: tracks if graduation banner has been dismissed
   multiPortalNudgeSnoozedUntil: text("multi_portal_nudge_snoozed_until"), // ISO date — null = show card; set to future date on "Remind me later"
+  mcBannerSnoozedUntil: text("mc_banner_snoozed_until"), // ISO date — SC only; null = show banner; set to tomorrow on dismiss; clears when MC joins
   elevatedUntil: text("elevated_until"), // ISO datetime — secondary FM temporarily elevated to MC authority; null = not elevated
   hasSeenMcInvitePrompt: integer("has_seen_mc_invite_prompt", { mode: "boolean" }).default(false), // self_care only — one-time post-signup MC invite popup
 });

@@ -238,7 +238,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const acctExtras = sqlite.prepare(`SELECT login_count FROM auth_accounts WHERE id = ?`).get(account.id) as any;
     const userExtras = sqlite.prepare(`SELECT has_seen_high_five, has_seen_open_hand FROM users WHERE id = ?`).get(user.id) as any;
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false, loginCount: acctExtras?.login_count ?? 0, hasSeenHighFive: userExtras?.has_seen_high_five ?? false, hasSeenOpenHand: userExtras?.has_seen_open_hand ?? false });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, mcBannerSnoozedUntil: user.mcBannerSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false, loginCount: acctExtras?.login_count ?? 0, hasSeenHighFive: userExtras?.has_seen_high_five ?? false, hasSeenOpenHand: userExtras?.has_seen_open_hand ?? false });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password
@@ -2844,6 +2844,15 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.patch("/api/users/me/contributor-welcome-seen", requireAuth, (req: AuthRequest, res) => {
     const updated = storage.updateUser(req.authUserId!, { contributorWelcomeSeen: true });
     res.json({ success: true, contributorWelcomeSeen: updated?.contributorWelcomeSeen });
+  });
+
+  // PATCH /api/users/me/snooze-mc-banner — snooze the MC invite banner for 24 hours
+  app.patch("/api/users/me/snooze-mc-banner", requireAuth, (req: AuthRequest, res) => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    const snoozedUntil = tomorrow.toISOString();
+    storage.updateUser(req.authUserId!, { mcBannerSnoozedUntil: snoozedUntil });
+    res.json({ success: true, mcBannerSnoozedUntil: snoozedUntil });
   });
 
   app.patch("/api/users/me/seen-mc-invite", requireAuth, (req: AuthRequest, res) => {

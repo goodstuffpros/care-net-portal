@@ -110,6 +110,8 @@ interface AppContextType {
   returnToCareHome: () => void;
   switchPortal: (clientId: number, colorTheme: string) => void;
   multiPortalNudgeSnoozedUntil: string | null;
+  mcBannerSnoozedUntil: string | null;
+  setMcBannerSnoozedUntil: (val: string | null) => void;
   portalMode: PortalMode;
   setPortalMode: (mode: PortalMode) => void;
   showUpgradeTransition: boolean;
@@ -155,6 +157,7 @@ interface RealUser {
   mcSetupCompletedAt?: string | null;
   carePathChoice?: string | null;
   multiPortalNudgeSnoozedUntil?: string | null;
+  mcBannerSnoozedUntil?: string | null;
   elevatedUntil?: string | null;
   hasSeenMcInvitePrompt?: boolean;
   loginCount?: number;
@@ -207,6 +210,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   }, [realUser?.permissionLevel]);
   const [contributorWelcomeSeen, setContributorWelcomeSeen] = useState<boolean>(realUser?.contributorWelcomeSeen ?? false);
   const [hasSeenMcInvitePrompt, setHasSeenMcInvitePrompt] = useState<boolean>(realUser?.hasSeenMcInvitePrompt ?? false);
+  const [mcBannerSnoozedUntil, setMcBannerSnoozedUntil] = useState<string | null>((realUser as any)?.mcBannerSnoozedUntil ?? null);
   const [hasSeenHighFive, setHasSeenHighFive] = useState<boolean>(realUser?.hasSeenHighFive ?? false);
   const [hasSeenOpenHand, setHasSeenOpenHand] = useState<boolean>(realUser?.hasSeenOpenHand ?? false);
   const loginCount = realUser?.loginCount ?? 0;
@@ -461,6 +465,8 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
         returnToCareHome: onReturnToCareHome ?? (() => {}),
         switchPortal: onSwitchPortal ?? (() => {}),
         multiPortalNudgeSnoozedUntil: (realUser as any)?.multiPortalNudgeSnoozedUntil ?? null,
+        mcBannerSnoozedUntil,
+        setMcBannerSnoozedUntil,
 
         portalMode,
         setPortalMode,
@@ -799,6 +805,7 @@ function RealAuthGate() {
             mcSetupCompletedAt: data.mcSetupCompletedAt ?? null,
             carePathChoice: data.carePathChoice ?? null,
             multiPortalNudgeSnoozedUntil: data.multiPortalNudgeSnoozedUntil ?? null,
+            mcBannerSnoozedUntil: data.mcBannerSnoozedUntil ?? null,
             hasSeenMcInvitePrompt: data.hasSeenMcInvitePrompt ?? false,
             loginCount: data.loginCount ?? 0,
             hasSeenHighFive: data.hasSeenHighFive ?? false,
