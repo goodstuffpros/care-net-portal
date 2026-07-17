@@ -1,15 +1,19 @@
 /**
  * DobPicker — three-dropdown date of birth picker (Month / Day / Year)
  *
+ * Keeps internal state for each dropdown so partial selections persist visually.
+ * Only calls onChange with a full "YYYY-MM-DD" string when all three are chosen,
+ * or "" when the user clears back to placeholders.
+ *
  * Props:
- *   value       — ISO date string "YYYY-MM-DD" or ""
- *   onChange    — called with "YYYY-MM-DD" when all three parts are set, or "" when cleared
- *   required    — if true, shows "Required" label suffix and exposes hasError for parent validation
+ *   value       — ISO date string "YYYY-MM-DD" or "" (used to seed initial state)
+ *   onChange    — called with "YYYY-MM-DD" when all three parts are set, or "" when incomplete
+ *   required    — if true, shows "Required" label suffix
  *   showError   — parent passes true after a failed submit attempt to show inline message
  *   id          — base id for accessibility
  */
 
-import { useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Label } from "@/components/ui/label";
 
 interface DobPickerProps {
@@ -28,8 +32,8 @@ const MONTHS = [
 ];
 
 function daysInMonth(month: number, year: number): number {
-  if (!month || !year) return 31;
-  return new Date(year, month, 0).getDate();
+  if (!month) return 31;
+  return new Date(year || 2000, month, 0).getDate();
 }
 
 function parseValue(value: string): { year: number; month: number; day: number } {
@@ -42,11 +46,6 @@ function parseValue(value: string): { year: number; month: number; day: number }
   };
 }
 
-function toIso(year: number, month: number, day: number): string {
-  if (!year || !month || !day) return "";
-  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-}
-
 export function DobPicker({
   value,
   onChange,
@@ -56,7 +55,19 @@ export function DobPicker({
   label = "Date of birth",
   className = "",
 }: DobPickerProps) {
-  const { year, month, day } = parseValue(value);
+  // Internal state — each dropdown is independent so partial selections persist
+  const parsed = parseValue(value);
+  const [month, setMonth] = useState<number>(parsed.month);
+  const [day, setDay] = useState<number>(parsed.day);
+  const [year, setYear] = useState<number>(parsed.year);
+
+  // Seed from value prop only on mount (or when value changes from outside)
+  useEffect(() => {
+    const p = parseValue(value);
+    setMonth(p.month);
+    setDay(p.day);
+    setYear(p.year);
+  }, [value]);
 
   const currentYear = new Date().getFullYear();
   const years = useMemo(() => {
@@ -72,22 +83,34 @@ export function DobPicker({
     return arr;
   }, [maxDay]);
 
+  function emit(m: number, d: number, y: number) {
+    if (m && d && y) {
+      onChange(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+    } else {
+      onChange("");
+    }
+  }
+
   function handleMonth(e: React.ChangeEvent<HTMLSelectElement>) {
     const m = parseInt(e.target.value) || 0;
     // Clamp day if it exceeds days in new month
     const maxD = daysInMonth(m, year);
     const clampedDay = day > maxD ? maxD : day;
-    onChange(toIso(year, m, clampedDay));
+    setMonth(m);
+    if (clampedDay !== day) setDay(clampedDay);
+    emit(m, clampedDay, year);
   }
 
   function handleDay(e: React.ChangeEvent<HTMLSelectElement>) {
     const d = parseInt(e.target.value) || 0;
-    onChange(toIso(year, month, d));
+    setDay(d);
+    emit(month, d, year);
   }
 
   function handleYear(e: React.ChangeEvent<HTMLSelectElement>) {
     const y = parseInt(e.target.value) || 0;
-    onChange(toIso(y, month, day));
+    setYear(y);
+    emit(month, day, y);
   }
 
   const isIncomplete = !year || !month || !day;
