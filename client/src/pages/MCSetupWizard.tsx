@@ -32,7 +32,7 @@ interface MCSetupProps {
   onComplete: () => void;
 }
 
-type Step = "client-profile" | "care-team" | "done";
+type Step = "client-profile" | "care-team";
 
 const RELATIONSHIPS = [
   "Parent", "Spouse / Partner", "Sibling", "Grandparent",
@@ -42,6 +42,7 @@ const RELATIONSHIPS = [
 // Progress: client-profile(1), care-team(2)
 function ProgressBar({ step }: { step: Step }) {
   const steps: Step[] = ["client-profile", "care-team"];
+  // Note: "done" step removed — enterPortal() called directly from care-team button
   const current = steps.indexOf(step);
   if (current < 0) return null;
   return (
@@ -476,7 +477,7 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
 
         {/* Actions */}
         <Button
-          onClick={() => setStep("done")}
+          onClick={() => enterPortal()}
           className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
           data-testid="btn-care-team-next"
         >
@@ -489,44 +490,6 @@ export default function MCSetupWizard({ name, email, onComplete }: MCSetupProps)
             You can invite more people from the Care Team page at any time.
           </p>
         )}
-      </Layout>
-    );
-  }
-
-  // ════════════════════════════════════════════════════════════════════════════
-  // Step 3: Done
-  // ════════════════════════════════════════════════════════════════════════════
-  if (step === "done") {
-    return (
-      <Layout>
-        <div className="text-center">
-          <div className="w-16 h-16 rounded-full bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mx-auto mb-5">
-            <CheckCircle2 className="w-8 h-8 text-rose-500" />
-          </div>
-          <h2 className="text-xl font-bold text-foreground mb-2">
-            {clientName}'s portal is ready.
-          </h2>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-2">
-            {cgLinked
-              ? `${cgLinked.cgName} has been added to your care team.`
-              : cgSent
-              ? `Your caregiver will receive an email invitation. Once they accept, your portals will connect automatically.`
-              : `You can invite your caregiver and family members at any time from the Care Team page.`}
-          </p>
-          <p className="text-sm text-muted-foreground leading-relaxed max-w-sm mx-auto mb-8">
-            Start exploring — your dashboard, care log, and schedule are ready for you.
-          </p>
-
-          <Button
-            onClick={enterPortal}
-            className="w-full bg-rose-600 hover:bg-rose-700 text-white gap-2"
-            data-testid="btn-enter-portal"
-          >
-            <Heart className="w-4 h-4 fill-white/30" />
-            Enter Care Net Portal
-            <ArrowRight className="w-4 h-4" />
-          </Button>
-        </div>
       </Layout>
     );
   }
