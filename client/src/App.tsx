@@ -500,6 +500,10 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
           document.cookie = "cn_session=; Max-Age=0; path=/; SameSite=Lax";
           // Clear React Query cache so no stale auth data survives the reload
           queryClient.clear();
+          // Clear service worker caches so next user doesn't get stale auth state
+          if (typeof caches !== "undefined") {
+            caches.keys().then(keys => Promise.all(keys.map(k => caches.delete(k))));
+          }
           fetch("/api/auth/logout", { method: "POST", credentials: "include" })
             .finally(() => { window.location.replace("/#/login"); });
         },
