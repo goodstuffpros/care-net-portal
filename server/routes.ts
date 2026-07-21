@@ -699,7 +699,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
 
       res.json({ success: true, role, log });
-    } catch(e: any) { res.status(500).json({ message: e.message }); }
+    } catch(e: any) { console.error("[role-switch]", e); res.status(500).json({ message: "An unexpected error occurred." }); }
   });
 
   // POST /api/admin/repair/portal-membership — one-time repair endpoint
@@ -781,7 +781,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
       }
 
       res.json({ success: true, results });
-    } catch(e: any) { res.status(500).json({ message: e.message }); }
+    } catch(e: any) { console.error("[bulk-action]", e); res.status(500).json({ message: "An unexpected error occurred." }); }
   });
 
   // ── Onboarding ─────────────────────────────────────────────────────────────
@@ -2194,7 +2194,8 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
 
       res.json(rows);
     } catch (e: any) {
-      res.status(500).json({ message: e.message });
+      console.error("[activity-query]", e);
+      res.status(500).json({ message: "An unexpected error occurred." });
     }
   });
 
@@ -3939,7 +3940,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.get("/api/caregivers/:caregiverId/shifts", requireAuth, (req, res) => {
     res.json(storage.getShiftsByCaregiver(Number(req.params.caregiverId)));
   });
-  app.get("/api/caregivers/:caregiverId/clients/:clientId/shift/active", (req, res) => {
+  app.get("/api/caregivers/:caregiverId/clients/:clientId/shift/active", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const shift = storage.getActiveShift(Number(req.params.caregiverId), Number(req.params.clientId));
     res.json(shift || null);
   });
@@ -4143,7 +4144,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   app.get("/api/medications/:id/history", requireAuth, (req, res) => {
     res.json(storage.getMedicationHistory(Number(req.params.id)));
   });
-  app.get("/api/clients/:clientId/medication-logs", (req, res) => {
+  app.get("/api/clients/:clientId/medication-logs", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const limit = req.query.limit ? Number(req.query.limit) : 100;
     res.json(storage.getMedicationLogs(Number(req.params.clientId), limit));
   });
@@ -4240,9 +4241,18 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   app.post("/api/clients/:clientId/thoughts", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
+    // Whitelist fields — do not spread req.body to prevent privilege escalation
+    const { title, body, mood, tags, entryType, voiceNoteUrl, voiceTranscript } = req.body;
     const data = {
-      ...req.body,
       clientId: Number(req.params.clientId),
+      recordedByUserId: req.authUser!.id,
+      title: title ?? null,
+      body: body ?? "",
+      mood: mood ?? null,
+      tags: tags ?? null,
+      entryType: entryType ?? "text",
+      voiceNoteUrl: voiceNoteUrl ?? null,
+      voiceTranscript: voiceTranscript ?? null,
       recordedAt: new Date().toISOString(),
     };
     res.status(201).json(storage.createThought(data));
@@ -4260,18 +4270,18 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Unlock entire collection (caregiver-initiated, end of care)
-  app.post("/api/clients/:clientId/thoughts/unlock", requireAuth, (req: AuthRequest, res) => {
+  app.post("/api/clients/:clientId/thoughts/unlock", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const { unlockedByUserId, unlockNote } = req.body;
     storage.unlockAllThoughts(Number(req.params.clientId), unlockedByUserId, unlockNote);
     res.json({ success: true, unlockedAt: new Date().toISOString() });
   });
 
-  app.get("/api/clients/:clientId/thoughts/unlock-status", requireAuth, (req, res) => {
+  app.get("/api/clients/:clientId/thoughts/unlock-status", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json({ isUnlocked: storage.isCollectionUnlocked(Number(req.params.clientId)) });
   });
 
   // Unlock status with metadata
-  app.get("/api/clients/:clientId/thoughts/unlock-status-full", requireAuth, (req, res) => {
+  app.get("/api/clients/:clientId/thoughts/unlock-status-full", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const thoughts = storage.getThoughtsByClient(clientId);
     const unlocked = thoughts.find(t => t.isUnlocked);
@@ -4283,7 +4293,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // ── Caregiver Profiles ─────────────────────────────────────────────────────
-  app.get("/api/caregivers/:userId/profile", (req, res) => {
+  app.get("/api/caregivers/:userId/profile", requireAuth, (req: AuthRequest, res) => {
     const profile = storage.getCaregiverProfile(Number(req.params.userId));
     res.json(profile ?? null);
   });
@@ -4300,7 +4310,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Care Scope ────────────────────────────────────────────────────────────
 
   // GET current scope settings for a client/caregiver pair
-  app.get("/api/scope/:clientId/:caregiverId", requireAuth, (req, res) => {
+  app.get("/api/scope/:clientId/:caregiverId", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const scope = storage.getCareScope(
       Number(req.params.clientId),
       Number(req.params.caregiverId)
@@ -4322,7 +4332,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PUT update scope (Primary FC only — enforcement is client-side for demo)
-  app.put("/api/scope/:clientId/:caregiverId", requireAuth, (req: AuthRequest, res) => {
+  app.put("/api/scope/:clientId/:caregiverId", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const { updatedByUserId, ...data } = req.body;
     const scope = storage.upsertCareScope(
       Number(req.params.clientId),
@@ -4334,7 +4344,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // POST caregiver requests a scope change (awaits family approval)
-  app.post("/api/scope/:clientId/:caregiverId/request", requireAuth, (req: AuthRequest, res) => {
+  app.post("/api/scope/:clientId/:caregiverId/request", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const { module, requestedState, reason, caregiverId } = req.body;
     const pendingRequest = JSON.stringify({ module, requestedState, reason, requestedAt: new Date().toISOString() });
     const scope = storage.upsertCareScope(
@@ -4349,7 +4359,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Flag Control routes ──────────────────────────────────────────────────
 
   // GET flag control settings
-  app.get("/api/flag-control/:clientId/:caregiverId", requireAuth, (req, res) => {
+  app.get("/api/flag-control/:clientId/:caregiverId", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const fc = storage.getFlagControl(
       Number(req.params.clientId),
       Number(req.params.caregiverId)
@@ -4367,7 +4377,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PUT update flag control (Primary FC only — enforcement client-side for demo)
-  app.put("/api/flag-control/:clientId/:caregiverId", requireAuth, (req: AuthRequest, res) => {
+  app.put("/api/flag-control/:clientId/:caregiverId", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const { updatedByUserId, ...data } = req.body;
     const fc = storage.upsertFlagControl(
       Number(req.params.clientId),
@@ -4567,7 +4577,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // ── ElevenLabs TTS — Becky's voice ────────────────────────────────────────
   // Proxies TTS requests server-side so the API key is never exposed to the browser
-  app.post("/api/tts/becky", async (req, res) => {
+  app.post("/api/tts/becky", requireAuth, async (req: AuthRequest, res) => {
     const { text } = req.body;
     if (!text || typeof text !== "string") {
       return res.status(400).json({ message: "text is required" });
@@ -4617,22 +4627,30 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   // ── Care Net University ──────────────────────────────────────────────────
 
   // POST — mark a lesson complete, award Knowledge points
-  app.post("/api/university/complete", (req, res) => {
-    const { userId, lessonId, trackId, knowledgePoints } = req.body;
-    if (!userId || !lessonId || !trackId) {
-      return res.status(400).json({ message: "userId, lessonId, and trackId are required" });
+  app.post("/api/university/complete", requireAuth, (req: AuthRequest, res) => {
+    // Derive userId from session — do not trust client-supplied userId
+    const userId = req.authUser!.id;
+    const { lessonId, trackId, knowledgePoints } = req.body;
+    if (!lessonId || !trackId) {
+      return res.status(400).json({ message: "lessonId and trackId are required" });
     }
     const record = storage.completeLesson(
-      Number(userId), String(lessonId), String(trackId), Number(knowledgePoints) || 0
+      userId, String(lessonId), String(trackId), Number(knowledgePoints) || 0
     );
-    const totalPoints = storage.getTotalKnowledgePoints(Number(userId));
+    const totalPoints = storage.getTotalKnowledgePoints(userId);
     res.json({ record, totalPoints });
   });
 
   // GET — completed lessons for a user
-  app.get("/api/university/progress/:userId", (req, res) => {
-    const completed = storage.getCompletedLessons(Number(req.params.userId));
-    const totalPoints = storage.getTotalKnowledgePoints(Number(req.params.userId));
+  app.get("/api/university/progress/:userId", requireAuth, (req: AuthRequest, res) => {
+    // Only allow users to read their own progress
+    const requestedId = Number(req.params.userId);
+    const meId = req.authUser!.id;
+    if (requestedId !== meId && !ADMIN_USER_IDS.has(meId)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
+    const completed = storage.getCompletedLessons(requestedId);
+    const totalPoints = storage.getTotalKnowledgePoints(requestedId);
     res.json({ completed, totalPoints });
   });
 
@@ -4667,7 +4685,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // GET observation tags for a client (last 30 days)
-  app.get("/api/clients/:clientId/observation-tags", (req, res) => {
+  app.get("/api/clients/:clientId/observation-tags", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
     const Database = require("better-sqlite3");
     const path = require("path");
@@ -4690,7 +4708,8 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       await runPatternEngine(clientId);
       res.json({ success: true });
     } catch (e: any) {
-      res.status(500).json({ error: e.message });
+      console.error("[pattern-engine]", e);
+      res.status(500).json({ error: "An unexpected error occurred." });
     }
   });
 
@@ -4769,12 +4788,18 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // GET pattern preferences for a user
-  app.get("/api/users/:userId/pattern-preferences", requireAuth, (req, res) => {
+  app.get("/api/users/:userId/pattern-preferences", requireAuth, (req: AuthRequest, res) => {
+    // Only allow users to read their own preferences
+    const requestedId = Number(req.params.userId);
+    const meId = req.authUser!.id;
+    if (requestedId !== meId && !ADMIN_USER_IDS.has(meId)) {
+      return res.status(403).json({ message: "Forbidden" });
+    }
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
     const rawDb = new Database(dbPath);
-    const prefs = rawDb.prepare(`SELECT * FROM pattern_preferences WHERE user_id=?`).get(req.params.userId);
+    const prefs = rawDb.prepare(`SELECT * FROM pattern_preferences WHERE user_id=?`).get(requestedId);
     rawDb.close();
     res.json(prefs || null);
   });
@@ -5052,7 +5077,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         trialStartedAt: client.trialStartedAt ?? null,
         hasPaymentMethod: !!client.squareCustomerId,
       });
-    } catch (e: any) { res.status(500).json({ message: e.message }); }
+    } catch (e: any) { console.error("[billing-status]", e); res.status(500).json({ message: "An unexpected error occurred." }); }
   });
 
   // POST /api/billing/subscribe — capture card token + start subscription
@@ -5148,7 +5173,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       res.json({ success: true, mode: result.mode, renewsAt: result.currentPeriodEnd, promoApplied });
     } catch (e: any) {
       console.error("Subscribe error:", e);
-      res.status(500).json({ message: e.message ?? "Subscription failed" });
+      res.status(500).json({ message: "Subscription failed. Please try again." });
     }
   });
 
@@ -5180,7 +5205,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       res.json({ success: true, gracePeriodEndsAt: graceEnd.toISOString().substring(0, 10) });
     } catch (e: any) {
       console.error("Cancel error:", e);
-      res.status(500).json({ message: e.message ?? "Cancellation failed" });
+      res.status(500).json({ message: "Cancellation failed. Please try again." });
     }
   });
 
@@ -5310,7 +5335,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
       res.json({ received: true });
     } catch (e: any) {
       console.error("Webhook error:", e);
-      res.status(500).json({ message: e.message });
+      res.status(500).json({ message: "Webhook processing error." });
     }
   });
 
