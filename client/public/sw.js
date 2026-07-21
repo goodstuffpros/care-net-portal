@@ -1,7 +1,7 @@
 // Care Net Portal — Service Worker
 // Minimal cache-first for static assets, network-first for API
 
-const CACHE = "cnp-v2";
+const CACHE = "cnp-v3";
 const PRECACHE = ["/", "/index.html"];
 
 self.addEventListener("install", e => {
