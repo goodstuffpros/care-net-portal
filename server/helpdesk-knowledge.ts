@@ -245,7 +245,7 @@ Yes. Go to your profile or settings and look for the Care Team or Invite section
 ### Clock In / Shifts
 
 **How do I clock in for a shift?**
-Caregivers: Look for the Clock In button in your navigation bar or at the top of your dashboard. Tap it to start your shift. The system records your start time. Tap Clock Out when your shift ends.
+Caregivers: Look for the Clock In button in two places — a small green pill in the top bar (next to the portal name), or in the sidebar when it is open. Tap either one to start your shift. The system records your start time automatically. When your shift ends, the same button becomes Clock Out.
 
 **I forgot to clock in — can I add my hours manually?**
 Contact your Main Contact or use the Help escalation below. Manual time adjustments are handled by the Care Net Portal support team.
@@ -289,7 +289,7 @@ A: Make sure your full name is filled in — that is the only required field on 
 A: The Main Contact sends invitations to caregivers and family members. When an invited person signs up and accepts, both portals connect automatically. The caregiver sees the care side; the family sees the family side. Everything is shared in real time.
 
 **Q: I don't see a Clock In button.**
-A: Clock In is a caregiver-only feature. Family contacts and self-care users will not see it — that is by design.
+A: Clock In is a caregiver-only feature. If you are a caregiver and still don't see it, look in the top bar (a small green pill near the portal name) or open the sidebar. Family contacts and self-care users will not see it — that is by design.
 
 **Q: Can anyone sign up on their own?**
 A: Caregivers and Main Contacts can sign up directly. Secondary Family Members and Self-Care users arriving from a family invitation must be invited first — there is no open signup path for those roles.

@@ -189,10 +189,9 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
     try { wake.start(); } catch {}
   }, [voiceSupported, open]);
 
-  // Wake word listener is NOT auto-started on mount — only starts after the user
-  // has opened the HelpDesk at least once (opt-in to mic permission).
-  // If hfmActive is passed from AppLayout, that already handles "Hey CareNet" globally — skip the built-in listener.
-  const [wakeListenerEnabled, setWakeListenerEnabled] = useState(false);
+  // Wake word listener is handled exclusively by AppLayout's HFM system.
+  // HelpDesk does NOT run its own wake listener — doing so causes the browser
+  // to prompt for mic permission whenever the panel is closed, which is unexpected.
 
   useEffect(() => {
     return () => {
@@ -201,32 +200,17 @@ export default function HelpDesk({ hfmActive }: HelpDeskProps = {}) {
     };
   }, []);
 
-  // Stop wake listener while chat is open, or when AppLayout's HFM is managing it
-  useEffect(() => {
-    if (!wakeListenerEnabled || hfmActive) {
-      wakeRecognitionRef.current?.abort();
-      return;
-    }
-    if (open) {
-      wakeRecognitionRef.current?.abort();
-    } else {
-      startWakeWordListener();
-    }
-  }, [open, wakeListenerEnabled, hfmActive]);
-
   // Listen for external open trigger
   useEffect(() => {
     const handler = () => handleOpen();
     window.addEventListener("cnp:open-helpdesk", handler);
     return () => window.removeEventListener("cnp:open-helpdesk", handler);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [messages.length, wakeListenerEnabled]);
+  }, [messages.length]);
 
   // Show welcome message on first open
   function handleOpen() {
     setOpen(true);
-    // Enable wake word listener after first explicit open (opt-in to mic permission)
-    if (!wakeListenerEnabled) setWakeListenerEnabled(true);
     if (messages.length === 0) {
       setMessages([{
         id: generateId(),
