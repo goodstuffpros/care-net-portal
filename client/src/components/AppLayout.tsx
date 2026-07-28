@@ -792,27 +792,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         )}
       </div>
 
-      {/* Client Selector (caregiver/facilitator roles) */}
-      {isCaregiverRole(activeUser.role) && (
-        <div className="px-3 py-3 border-b border-sidebar-border">
-          <div className="text-xs text-sidebar-foreground/40 uppercase tracking-wider mb-2 px-2">Active Client</div>
-          <div className="flex flex-col gap-1">
-            {/* Real client selector — populated from activeUser.clientId (single client per CG for now) */}
-            {activeUser.clientId ? (
-              <button
-                data-testid={`client-selector-${activeUser.clientId}`}
-                onClick={() => setSelectedClientId(activeUser.clientId!)}
-                className={cn("flex items-center justify-between text-xs py-2 px-3 rounded-md transition-all", "bg-sidebar-primary/20 text-sidebar-primary border border-sidebar-primary/30")}
-              >
-                <span>My Client</span>
-              </button>
-            ) : (
-              <div className="text-xs text-sidebar-foreground/40 px-2">No client connected</div>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Clock In / Clock Out — caregiver roles only */}
       {isCaregiverRole(activeUser.role) && (
         <div className="px-3 py-3 border-b border-sidebar-border">
@@ -1108,39 +1087,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </DropdownMenu>
       </div>
 
-      {/* Sticky Clock In/Out — always visible at bottom of sidebar for CG roles */}
-      {isCaregiverRole(activeUser.role) && (
-        <div className="flex-shrink-0 px-3 py-3 border-t border-sidebar-border">
-          {activeShift ? (
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-2 px-1">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse flex-shrink-0" />
-                <span className="text-xs font-medium text-emerald-400">{t("shift.onShift")}</span>
-                <span className="ml-auto text-xs font-mono text-emerald-300">{formatElapsed(shiftElapsed)}</span>
-              </div>
-              <button
-                data-testid="sidebar-footer-clock-out-btn"
-                onClick={() => clockOutMutation.mutate(activeShift.id)}
-                disabled={clockOutMutation.isPending}
-                className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-red-500/15 hover:bg-red-500/25 text-red-400 border border-red-500/30 text-sm font-semibold transition-colors"
-              >
-                <LogOut size={14} />
-                {clockOutMutation.isPending ? t("shift.clockingOut") : t("shift.clockOut")}
-              </button>
-            </div>
-          ) : (
-            <button
-              data-testid="sidebar-footer-clock-in-btn"
-              onClick={() => clockInMutation.mutate()}
-              disabled={clockInMutation.isPending}
-              className="w-full flex items-center justify-center gap-2 py-2.5 px-3 rounded-lg bg-emerald-500/15 hover:bg-emerald-500/25 text-emerald-400 border border-emerald-500/30 text-sm font-semibold transition-colors"
-            >
-              <LogIn size={14} />
-              {clockInMutation.isPending ? t("shift.clockingIn") : t("shift.clockIn")}
-            </button>
-          )}
-        </div>
-      )}
     </aside>
   );
 
