@@ -113,7 +113,7 @@ export default function InstallPrompt({ ready = false }: Props) {
               <img src="/icon-192.png" alt="Care Net" className="w-7 h-7 rounded-lg" />
             </div>
             <div>
-              <p className="text-sm font-semibold text-foreground leading-tight">Install &amp; Create Shortcut</p>
+              <p className="text-sm font-semibold text-foreground leading-tight">Make this an app on your home screen</p>
               <p className="text-xs text-muted-foreground">Care Net Portal</p>
             </div>
           </div>
@@ -129,30 +129,30 @@ export default function InstallPrompt({ ready = false }: Props) {
         {/* Instructions by platform */}
         {os === "ios" ? (
           <div className="space-y-2 mb-4">
-            <p className="text-xs text-muted-foreground">Open Care Net Portal like an app — no App Store needed.</p>
+            <p className="text-xs text-muted-foreground">Tap the button below to add Care Net Portal to your home screen — it opens just like any other app.</p>
             <div className="flex items-center gap-2 text-xs text-foreground">
               <Share size={14} className="text-primary shrink-0" />
-              <span>Tap the <strong>Share</strong> button in Safari</span>
+              <span>Tap the <strong>Share</strong> button at the bottom of Safari</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-foreground">
               <PlusSquare size={14} className="text-primary shrink-0" />
-              <span>Tap <strong>Add to Home Screen</strong></span>
+              <span>Then tap <strong>Add to Home Screen</strong></span>
             </div>
           </div>
         ) : (deferredPromptRef.current || deferredPrompt) ? (
           <p className="text-xs text-muted-foreground mb-4">
-            Install Care Net Portal for quick access — works like an app, no App Store needed.
+            Tap <strong>Add</strong> to put Care Net Portal on your home screen — it opens just like any other app, no App Store needed.
           </p>
         ) : (
           <div className="space-y-2 mb-4">
-            <p className="text-xs text-muted-foreground">Install &amp; create a shortcut on your home screen.</p>
+            <p className="text-xs text-muted-foreground">Add Care Net Portal to your home screen so it opens like any other app.</p>
             <div className="flex items-center gap-2 text-xs text-foreground">
               <MoreVertical size={14} className="text-primary shrink-0" />
               <span>Tap the <strong>three-dot menu</strong> in Chrome</span>
             </div>
             <div className="flex items-center gap-2 text-xs text-foreground">
               <PlusSquare size={14} className="text-primary shrink-0" />
-              <span>Tap <strong>Install app</strong> or <strong>Add to Home screen</strong></span>
+              <span>Then tap <strong>Add to Home screen</strong></span>
             </div>
           </div>
         )}
