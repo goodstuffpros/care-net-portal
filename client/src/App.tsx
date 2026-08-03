@@ -68,6 +68,7 @@ import MCSetupWizard from "@/pages/MCSetupWizard";
 import AppLayout from "@/components/AppLayout";
 import CareHomePage from "@/pages/CareHome";
 
+
 // Role types
 export type UserRole = "caregiver" | "temp_caregiver" | "multi_caregiver" | "primary_family" | "secondary_family" | "self_care";
 
@@ -512,7 +513,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
       }}>
         <LangProvider>
         <AlarmEngine />
-        <InstallPrompt />
+        <InstallPrompt ready={true} />
         <Router hook={useHashLocation}>
           <AppLayout>
             <Switch>

@@ -27,32 +27,30 @@ function isInStandaloneMode(): boolean {
   );
 }
 
-export default function InstallPrompt() {
+interface Props {
+  /** Only show the prompt once this is true — i.e. after onboarding is complete */
+  ready?: boolean;
+}
+
+export default function InstallPrompt({ ready = false }: Props) {
   const [show, setShow] = useState(false);
   const [os, setOs] = useState<"ios" | "android" | "desktop" | "unknown">("unknown");
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   // Keep a ref so the manual handler always has access to latest prompt
   const deferredPromptRef = useRef<any>(null);
+  const [promptCaptured, setPromptCaptured] = useState(false);
 
   useEffect(() => {
     setOs(getOS());
 
-    // Capture Android/Chrome install event — may fire before user taps nav button
+    // Capture Android/Chrome install event — store it but don't show yet
     const installHandler = (e: Event) => {
       e.preventDefault();
       deferredPromptRef.current = e;
       setDeferredPrompt(e);
-      if (!isInStandaloneMode() && !localStorage.getItem(DISMISSED_KEY)) setShow(true);
+      setPromptCaptured(true);
     };
     window.addEventListener("beforeinstallprompt", installHandler);
-
-    // iOS — show after a short delay on first visit
-    const ua = navigator.userAgent;
-    if (/iphone|ipad|ipod/i.test(ua) && !/CriOS/i.test(ua)) {
-      if (!isInStandaloneMode() && !localStorage.getItem(DISMISSED_KEY)) {
-        setTimeout(() => setShow(true), 2000);
-      }
-    }
 
     // Manual trigger from nav overlay "Add to Home Screen" link
     // Always show when manually triggered — ignore dismissed flag and standalone check
@@ -67,6 +65,22 @@ export default function InstallPrompt() {
       window.removeEventListener("cnp:show-install", manualHandler);
     };
   }, []);
+
+  // Show only after `ready` — i.e. after onboarding wizard completes
+  useEffect(() => {
+    if (!ready) return;
+    if (isInStandaloneMode()) return;
+    if (localStorage.getItem(DISMISSED_KEY)) return;
+
+    const ua = navigator.userAgent;
+    const isIOS = /iphone|ipad|ipod/i.test(ua) && !/CriOS/i.test(ua);
+
+    if (isIOS || promptCaptured) {
+      // Delay so it doesn't appear the instant the portal loads
+      const t = setTimeout(() => setShow(true), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [ready, promptCaptured]);
 
   function dismiss() {
     localStorage.setItem(DISMISSED_KEY, "1");
