@@ -1031,7 +1031,7 @@ function DiscontinueDialog({
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>
             <Button variant="destructive" size="sm" className="flex-1"
-              disabled={isPending || !reason || !note.trim()}
+              disabled={isPending || !reason}
               onClick={() => onSubmit({ reason, note, date })} data-testid="discontinue-submit">
               {isPending ? <Loader2 size={13} className="animate-spin mr-1" /> : <XCircle size={13} className="mr-1" />}
               Discontinue
