@@ -2051,7 +2051,7 @@ export default function BeckyAdminPage({ onAdminSignOut }: { onAdminSignOut?: ()
                   onAdminSignOut();
                 } else {
                   fetch("/api/auth/logout", { method: "POST", credentials: "include" })
-                    .finally(() => { window.location.href = "/"; });
+                    .finally(() => { window.location.replace("/#/login"); });
                 }
               }}
               className="text-white/30 hover:text-white/70 text-xs px-2 py-1 rounded border border-white/10 hover:border-white/30 transition-all"
