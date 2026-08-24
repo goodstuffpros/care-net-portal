@@ -2574,26 +2574,18 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // Users
   // GET /api/users — scoped to the caller's care circle (auth required)
-  app.get("/api/users", async (req: AuthRequest, res) => {
+  // Uses standard requireAuth middleware — req.authUserId is always populated before handler runs
+  app.get("/api/users", requireAuth, (req: AuthRequest, res) => {
+    if (!req.authUserId) return res.status(401).json({ message: "Not authenticated" });
     const allUsers = storage.getUsers();
-    try {
-      const token = getTokenFromRequest(req as any);
-      if (token) {
-        const payload = await verifyJWT(token);
-        if (payload) {
-          const account = db.select().from(authAccounts).where(eq(authAccounts.id, payload.authAccountId)).get();
-          if (account?.userId) {
-            const me = allUsers.find(u => u.id === account.userId);
-            if (me?.clientId) {
-              return res.json(allUsers.filter(u => u.clientId === me.clientId));
-            } else if (me) {
-              return res.json([me]);
-            }
-          }
-        }
-      }
-    } catch (_) { /* ignore */ }
-    return res.status(401).json({ message: "Not authenticated" });
+    const me = allUsers.find(u => u.id === req.authUserId);
+    if (!me) return res.status(401).json({ message: "User not found" });
+    if (me.clientId) {
+      // Return only users in this portal
+      return res.json(allUsers.filter(u => u.clientId === me.clientId));
+    }
+    // MC/CG without a clientId — return just themselves
+    return res.json([me]);
   });
   app.get("/api/users/:id", requireAuth, (req: AuthRequest, res) => {
     const user = storage.getUserById(Number(req.params.id));
@@ -3238,7 +3230,14 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
   app.post("/api/clients/:clientId/schedule", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     const clientId = Number(req.params.clientId);
-    const event = storage.createScheduleEvent({ ...req.body, clientId });
+    const { title, type, scheduledAt, recurrence, notes, priority, isCompleted, completedAt,
+      completedByUserId, location, reminderMinutes, alarmEnabled, caregiverResponsible,
+      responsibilityNote, addedByRole } = req.body;
+    const event = storage.createScheduleEvent({
+      title, type, scheduledAt, recurrence, notes, priority, isCompleted, completedAt,
+      completedByUserId, location, reminderMinutes, alarmEnabled, caregiverResponsible,
+      responsibilityNote, clientId
+    });
 
     // If added by MC (primary_family), notify all caregivers for this client
     if (req.body.addedByRole === "primary_family") {
@@ -3514,7 +3513,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getChatThreadsByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/threads", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const thread = storage.createChatThread({ ...req.body, clientId: Number(req.params.clientId) });
+    const { name, members, createdByUserId, isOpen, createdAt: threadCreatedAt } = req.body;
+    const thread = storage.createChatThread({
+      name, members, createdByUserId, isOpen,
+      createdAt: threadCreatedAt || new Date().toISOString(),
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(thread);
   });
   app.patch("/api/threads/:id", requireAuth, (req: AuthRequest, res) => {
@@ -3552,7 +3556,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getMessagesByThread(Number(req.params.threadId)));
   });
   app.post("/api/threads/:threadId/messages", requireAuth, (req: AuthRequest, res) => {
-    const msg = storage.createMessage({ ...req.body, threadId: Number(req.params.threadId) });
+    const { senderId, content, messageType, mediaUrl, priority: msgPriority, sentAt, isRead, readAt, readByUserIds } = req.body;
+    const msg = storage.createMessage({
+      senderId, content, messageType, mediaUrl, priority: msgPriority, sentAt, isRead, readAt, readByUserIds,
+      threadId: Number(req.params.threadId)
+    });
     res.status(201).json(msg);
   });
   app.patch("/api/messages/:id/read", requireAuth, (req: AuthRequest, res) => {
@@ -3577,7 +3585,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getMediaByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/media", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const item = storage.createMediaItem({ ...req.body, clientId: Number(req.params.clientId) });
+    const { uploadedByUserId, type: mediaType, url, caption, voiceNoteText, priority: mediaPriority, uploadedAt } = req.body;
+    const item = storage.createMediaItem({
+      uploadedByUserId, type: mediaType, url, caption, voiceNoteText, priority: mediaPriority, uploadedAt,
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(item);
   });
   app.delete("/api/media/:id", requireAuth, (req: AuthRequest, res) => {
@@ -3737,7 +3749,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getArchiveSummariesByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/archive", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const summary = storage.createArchiveSummary({ ...req.body, clientId: Number(req.params.clientId) });
+    const { period, periodLabel, summaryText, summaryTextMedical, highlights, generatedAt } = req.body;
+    const summary = storage.createArchiveSummary({
+      period, periodLabel, summaryText, summaryTextMedical, highlights, generatedAt,
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(summary);
   });
 
@@ -3746,7 +3762,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getMiscNotesByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/notes", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const note = storage.createMiscNote({ ...req.body, clientId: Number(req.params.clientId) });
+    const { authorId, title: noteTitle, body: noteBody, category: noteCategory, isPinned, isResolved, resolvedAt, createdAt: noteCreatedAt } = req.body;
+    const note = storage.createMiscNote({
+      authorId, title: noteTitle, body: noteBody, category: noteCategory, isPinned, isResolved, resolvedAt,
+      createdAt: noteCreatedAt || new Date().toISOString(),
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(note);
   });
   app.patch("/api/notes/:id", requireAuth, (req: AuthRequest, res) => {
@@ -3769,7 +3790,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getDocumentsByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/documents", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const doc = storage.createDocument({ ...req.body, clientId: Number(req.params.clientId) });
+    const { title: docTitle, category: docCategory, description, fileType, uploadedByUserId: docUploadedBy, uploadedAt: docUploadedAt, isConfidential, cgAccess } = req.body;
+    const doc = storage.createDocument({
+      title: docTitle, category: docCategory, description, fileType,
+      uploadedByUserId: docUploadedBy, uploadedAt: docUploadedAt, isConfidential, cgAccess,
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(doc);
   });
   app.delete("/api/documents/:id", requireAuth, (req: AuthRequest, res) => {
@@ -3919,7 +3945,13 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(active || null);
   });
   app.post("/api/clients/:clientId/outings", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const outing = storage.createOuting({ ...req.body, clientId: Number(req.params.clientId) });
+    const { caregiverId: outingCgId, type: outingType, note: outingNote, status: outingStatus,
+      startedAt, endedAt, durationMinutes, lastLatitude, lastLongitude, lastLocationLabel } = req.body;
+    const outing = storage.createOuting({
+      caregiverId: outingCgId, type: outingType, note: outingNote, status: outingStatus,
+      startedAt, endedAt, durationMinutes, lastLatitude, lastLongitude, lastLocationLabel,
+      clientId: Number(req.params.clientId)
+    });
     res.status(201).json(outing);
   });
   app.patch("/api/outings/:id", requireAuth, (req: AuthRequest, res) => {
@@ -4035,7 +4067,13 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     res.json(storage.getCareFlagsByCaregiver(Number(req.params.caregiverId), Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/flags", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
-    const flag = storage.createCareFlag({ ...req.body, clientId: Number(req.params.clientId) });
+    const { caregiverId: flagCgId, flagType, category: flagCategory, reason, referenceId, referenceType,
+      triggeredAt, isExcused, excuseNote, excusedByUserId, excusedAt } = req.body;
+    const flag = storage.createCareFlag({
+      caregiverId: flagCgId, flagType, category: flagCategory, reason, referenceId, referenceType,
+      triggeredAt, isExcused, excuseNote, excusedByUserId, excusedAt,
+      clientId: Number(req.params.clientId)
+    });
     // After creating a yellow flag, check if it triggers a red flag (3 unexcused yellows in same category in 30 days)
     if (flag.flagType === 'yellow') {
       const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
@@ -4714,8 +4752,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH dismiss a pattern (snooze for 7 days)
-  app.patch("/api/patterns/:id/dismiss", requireAuth, (req, res) => {
-    const { userId } = req.body;
+  app.patch("/api/patterns/:id/dismiss", requireAuth, (req: AuthRequest, res) => {
+    // Use session-verified userId — never trust userId from req.body
+    const userId = req.authUserId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
@@ -4730,8 +4770,10 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH escalate a pattern (MC override — opens doctor note)
-  app.patch("/api/patterns/:id/escalate", requireAuth, (req, res) => {
-    const { userId } = req.body;
+  app.patch("/api/patterns/:id/escalate", requireAuth, (req: AuthRequest, res) => {
+    // Use session-verified userId — never trust userId from req.body
+    const userId = req.authUserId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
@@ -4745,8 +4787,11 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH acknowledge a pattern alert (mark as read by this user)
-  app.patch("/api/patterns/:id/acknowledge", requireAuth, (req, res) => {
-    const { userId, alertLevel } = req.body;
+  app.patch("/api/patterns/:id/acknowledge", requireAuth, (req: AuthRequest, res) => {
+    // Use session-verified userId — never trust userId from req.body
+    const userId = req.authUserId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+    const { alertLevel } = req.body;
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
@@ -4766,15 +4811,19 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // PATCH update doctor note text
-  app.patch("/api/patterns/:id/doctor-note", requireAuth, (req, res) => {
-    const { doctorNoteText, sentByUserId } = req.body;
+  app.patch("/api/patterns/:id/doctor-note", requireAuth, (req: AuthRequest, res) => {
+    const { doctorNoteText } = req.body;
+    // Use session-verified userId for sent-by attribution — never trust sentByUserId from req.body
+    const sentByUserId = req.authUserId;
+    if (!sentByUserId) return res.status(401).json({ message: "Not authenticated" });
+    const isSending = !!doctorNoteText && req.body.markAsSent === true;
     const Database = require("better-sqlite3");
     const path = require("path");
     const dbPath = path.resolve(process.cwd(), "data.db");
     const rawDb = new Database(dbPath);
     const now = new Date().toISOString();
-    if (sentByUserId) {
-      // Mark as sent
+    if (isSending) {
+      // Mark as sent with verified user attribution
       rawDb.prepare(
         `UPDATE health_patterns SET doctor_note_text=?, doctor_note_sent_at=?, doctor_note_sent_by_user_id=?, status='escalated', escalated_at=?, updated_at=? WHERE id=?`
       ).run(doctorNoteText, now, sentByUserId, now, now, req.params.id);

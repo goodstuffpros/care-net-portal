@@ -143,7 +143,6 @@ function PatternCard({
 
   const acknowledgeMutation = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/patterns/${pattern.id}/acknowledge`, {
-      userId: activeUser.id,
       alertLevel: highestAlert || "manual",
     }),
     onSuccess: () => setAcknowledged(true),
@@ -152,7 +151,7 @@ function PatternCard({
   const sendNoteMutation = useMutation({
     mutationFn: () => apiRequest("PATCH", `/api/patterns/${pattern.id}/doctor-note`, {
       doctorNoteText: noteText,
-      sentByUserId: activeUser.id,
+      markAsSent: true,
     }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", pattern.client_id, "patterns"] });
@@ -502,7 +501,7 @@ export default function Patterns({ activeUser, selectedClientId, clientName }: P
   });
 
   const dismissMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("PATCH", `/api/patterns/${id}/dismiss`, { userId: activeUser.id }),
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/patterns/${id}/dismiss`, {}),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "patterns"] });
       toast({ title: "Snoozed for 7 days", description: "This pattern will resurface automatically if it continues." });
@@ -510,7 +509,7 @@ export default function Patterns({ activeUser, selectedClientId, clientName }: P
   });
 
   const escalateMutation = useMutation({
-    mutationFn: (id: number) => apiRequest("PATCH", `/api/patterns/${id}/escalate`, { userId: activeUser.id }),
+    mutationFn: (id: number) => apiRequest("PATCH", `/api/patterns/${id}/escalate`, {}),
     onSuccess: (_, id) => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "patterns"] });
       toast({ title: "Pattern escalated", description: "The doctor note is ready to review." });
