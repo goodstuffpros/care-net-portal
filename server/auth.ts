@@ -13,10 +13,8 @@ import { authAccounts, authSessions, users, userClientRelationships } from "../s
 import { eq, and, gt } from "drizzle-orm";
 
 // ── Admin identity ─────────────────────────────────────────────────────────
-// David (user 12) and Becky (user 11) are the only admins.
 // Auth checks by user ID — not email — to avoid spoofing.
-// Admin user IDs: Becky (11 = blgservantgirl@gmail.com, 43 = beckylgould01@gmail.com) + David (12 = davidpromail@yahoo.com)
-const ADMIN_USER_IDS = new Set([10, 11, 12, 43]); // 10=David (gouldenterprises), 11=Becky, 12=davidpromail, 43=Becky test
+const ADMIN_USER_IDS = new Set([10, 43]); // 10=David (gouldenterprises@yahoo.com), 43=Becky (beckylgould01@gmail.com)
 
 // ── Constants ─────────────────────────────────────────────────────────────
 
