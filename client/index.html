@@ -26,7 +26,17 @@
     <script>
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js').catch(() => {});
+          navigator.serviceWorker.register('/sw.js').then(reg => {
+            // When a new service worker takes control, reload silently.
+            // This ensures deployed updates reach users without a manual hard refresh.
+            navigator.serviceWorker.addEventListener('controllerchange', () => {
+              window.location.reload();
+            });
+            // Also check for updates every time the page becomes visible
+            document.addEventListener('visibilitychange', () => {
+              if (document.visibilityState === 'visible') reg.update();
+            });
+          }).catch(() => {});
         });
       }
     </script>

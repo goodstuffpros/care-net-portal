@@ -78,8 +78,11 @@ export const queryClient = new QueryClient({
     queries: {
       queryFn: getQueryFn({ on401: "throw" }),
       refetchInterval: false,
-      refetchOnWindowFocus: false,
-      staleTime: Infinity,
+      // Refetch when user returns to the app (switches tabs, comes back from phone screen)
+      // This ensures data like the Care Team page reflects server state without a hard refresh
+      refetchOnWindowFocus: true,
+      // Data is considered fresh for 60 seconds — after that, background refetch on next access
+      staleTime: 60_000,
       retry: false,
     },
     mutations: {

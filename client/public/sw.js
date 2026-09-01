@@ -1,7 +1,7 @@
 // Care Net Portal — Service Worker
 // Network-first for HTML, cache-first for static assets, never cache API
 
-const CACHE = "cnp-v4";
+const CACHE = "cnp-v5";
 
 // These are NEVER cached — always fetched fresh from network
 const NEVER_CACHE = ["/", "/index.html"];
