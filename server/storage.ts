@@ -1130,10 +1130,27 @@ export const storage: IStorage = {
   createArchiveSummary: (data) => db.insert(archiveSummaries).values(data).returning().get(),
 
   // Caregiver profiles
-  getCaregiversByClientId: (clientId) => db.select().from(users)
-    .where(eq(users.clientId, clientId))
-    .all()
-    .filter(u => ['caregiver','temp_caregiver','multi_caregiver'].includes(u.role) && u.isActive !== false),
+  // Finds caregivers via BOTH users.clientId (single-portal CGs) and
+  // user_client_relationships (multi-portal CGs linked via admin)
+  getCaregiversByClientId: (clientId) => {
+    const cgRoles = ['caregiver','temp_caregiver','multi_caregiver'];
+    // Primary path: users whose clientId column points here
+    const direct = db.select().from(users)
+      .where(eq(users.clientId, clientId))
+      .all()
+      .filter(u => cgRoles.includes(u.role) && u.isActive !== false);
+    // Secondary path: users linked via userClientRelationships (multi-portal CGs)
+    const linked = sqlite.prepare(`
+      SELECT u.* FROM users u
+      INNER JOIN user_client_relationships ucr ON ucr.user_id = u.id
+      WHERE ucr.client_id = ? AND ucr.role = 'caregiver'
+        AND u.is_active IS NOT 0
+    `).all(clientId) as typeof direct;
+    // Merge, deduplicate by id
+    const seen = new Set(direct.map(u => u.id));
+    const extra = linked.filter(u => !seen.has(u.id) && cgRoles.includes(u.role));
+    return [...direct, ...extra];
+  },
 
   // Misc Notes
   getMiscNotesByClient: (clientId) => db.select().from(miscNotes).where(eq(miscNotes.clientId, clientId)).orderBy(desc(miscNotes.createdAt)).all(),
