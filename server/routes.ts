@@ -2599,8 +2599,12 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
 
     if (me.clientId) {
-      // Return only users in this portal
-      return res.json(allUsers.filter(u => u.clientId === me.clientId));
+      // Return users in this portal, plus any multi-portal CGs linked via relationships
+      const directUsers = allUsers.filter(u => u.clientId === me.clientId);
+      const directIds = new Set(directUsers.map(u => u.id));
+      const portalCaregivers = storage.getCaregiversByClientId(me.clientId);
+      const extraCgs = portalCaregivers.filter(u => !directIds.has(u.id));
+      return res.json([...directUsers, ...extraCgs]);
     }
     // MC/CG without a clientId — return just themselves
     return res.json([me]);

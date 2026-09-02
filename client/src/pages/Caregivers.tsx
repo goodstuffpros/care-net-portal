@@ -172,19 +172,9 @@ export default function CaregiversPage() {
     tempAccessStart: "", tempAccessEnd: "", tempAccessReason: "vacation",
   });
 
-  // For multi-portal CGs, pass ?clientId= so the server returns the correct portal's users.
-  // For everyone else, the server scopes results automatically from their session.
-  const isMultiPortalCG = isCaregiverRole(activeUser?.role) && activeUser?.clientId !== selectedClientId;
-  const usersQueryKey = isMultiPortalCG
-    ? ["/api/users", String(selectedClientId)]
-    : ["/api/users"];
-  const usersUrl = isMultiPortalCG
-    ? `/api/users?clientId=${selectedClientId}`
-    : "/api/users";
-
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
-    queryKey: usersQueryKey,
-    queryFn: () => apiRequest("GET", usersUrl).then(r => r.json()),
+    queryKey: ["/api/users"],
+    queryFn: () => apiRequest("GET", "/api/users").then(r => r.json()),
   });
 
   // Billing gate — invite buttons only show when portal is active
@@ -195,15 +185,13 @@ export default function CaregiversPage() {
   });
   const portalIsActive = billingStatus?.founderTier === "beta" || billingStatus?.subscriptionStatus === "active";
 
-  // When viewing as a multi-portal CG, the server already scoped the list to this portal.
-  // In that case skip the clientId filter so linked CGs (whose clientId differs) still appear.
-  const caregivers = allUsers.filter(u =>
-    (isMultiPortalCG || u.clientId === selectedClientId) &&
-    ["caregiver","multi_caregiver","temp_caregiver"].includes(u.role)
-  );
+  const cgRoles = ["caregiver","multi_caregiver","temp_caregiver"];
+  // Server may include multi-portal CGs whose clientId differs from selectedClientId.
+  // Include any CG the server returned, regardless of their own clientId.
+  const caregivers = allUsers.filter(u => cgRoles.includes(u.role));
 
   const mainContacts = allUsers.filter(u =>
-    (isMultiPortalCG || u.clientId === selectedClientId) &&
+    u.clientId === selectedClientId &&
     u.role === "primary_family"
   );
 
