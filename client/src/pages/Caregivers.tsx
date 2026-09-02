@@ -172,9 +172,12 @@ export default function CaregiversPage() {
     tempAccessStart: "", tempAccessEnd: "", tempAccessReason: "vacation",
   });
 
+  // Always pass selectedClientId so the server returns the correct portal's users.
+  // Critical for multi-portal CGs whose DB clientId differs from the portal they're viewing.
   const { data: allUsers = [], isLoading } = useQuery<User[]>({
-    queryKey: ["/api/users"],
-    queryFn: () => apiRequest("GET", "/api/users").then(r => r.json()),
+    queryKey: ["/api/users", String(selectedClientId)],
+    queryFn: () => apiRequest("GET", `/api/users?clientId=${selectedClientId}`).then(r => r.json()),
+    enabled: !!selectedClientId,
   });
 
   // Billing gate — invite buttons only show when portal is active
