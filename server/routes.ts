@@ -2574,12 +2574,30 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
 
   // Users
   // GET /api/users — scoped to the caller's care circle (auth required)
+  // Accepts optional ?clientId= for multi-portal CGs viewing a non-primary portal.
   // Uses standard requireAuth middleware — req.authUserId is always populated before handler runs
   app.get("/api/users", requireAuth, (req: AuthRequest, res) => {
     if (!req.authUserId) return res.status(401).json({ message: "Not authenticated" });
     const allUsers = storage.getUsers();
     const me = allUsers.find(u => u.id === req.authUserId);
     if (!me) return res.status(401).json({ message: "User not found" });
+
+    // Multi-portal CG requesting a specific portal's users
+    const requestedClientId = req.query.clientId ? Number(req.query.clientId) : null;
+    if (requestedClientId && !isNaN(requestedClientId)) {
+      // Verify caller has access to the requested portal
+      if (!checkPortalAccess(req, requestedClientId)) {
+        return res.status(403).json({ message: "Access denied to that portal" });
+      }
+      // Also include multi-portal CGs linked via relationships
+      const portalCaregivers = storage.getCaregiversByClientId(requestedClientId);
+      const cgIds = new Set(portalCaregivers.map(u => u.id));
+      const directUsers = allUsers.filter(u => u.clientId === requestedClientId);
+      const directIds = new Set(directUsers.map(u => u.id));
+      const extraCgs = portalCaregivers.filter(u => !directIds.has(u.id));
+      return res.json([...directUsers, ...extraCgs]);
+    }
+
     if (me.clientId) {
       // Return only users in this portal
       return res.json(allUsers.filter(u => u.clientId === me.clientId));
