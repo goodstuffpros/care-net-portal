@@ -1140,15 +1140,44 @@ export const storage: IStorage = {
       .all()
       .filter(u => cgRoles.includes(u.role) && u.isActive !== false);
     // Secondary path: users linked via userClientRelationships (multi-portal CGs)
-    const linked = sqlite.prepare(`
+    // Raw SQLite returns snake_case columns — map them to camelCase to match Drizzle output
+    const linkedRaw = sqlite.prepare(`
       SELECT u.* FROM users u
       INNER JOIN user_client_relationships ucr ON ucr.user_id = u.id
       WHERE ucr.client_id = ? AND ucr.role = 'caregiver'
         AND u.is_active IS NOT 0
-    `).all(clientId) as typeof direct;
+    `).all(clientId) as Record<string, unknown>[];
+    const linked = linkedRaw.map(r => ({
+      id: r.id,
+      name: r.name,
+      role: r.role,
+      email: r.email,
+      phone: r.phone ?? null,
+      avatarInitials: r.avatar_initials ?? null,
+      clientId: r.client_id,
+      notificationPrefs: r.notification_prefs ?? null,
+      fontSizePreference: r.font_size_preference ?? 'normal',
+      isActive: r.is_active !== 0,
+      onboardingCompletedAt: r.onboarding_completed_at ?? null,
+      mcSetupCompletedAt: r.mc_setup_completed_at ?? null,
+      carePathChoice: r.care_path_choice ?? null,
+      tempAccessStart: r.temp_access_start ?? null,
+      tempAccessEnd: r.temp_access_end ?? null,
+      tempAccessReason: r.temp_access_reason ?? null,
+      seenModules: r.seen_modules ?? '[]',
+      navOrder: r.nav_order ?? '[]',
+      timezone: r.timezone ?? null,
+      sampleClientId: r.sample_client_id ?? null,
+      permissionLevel: r.permission_level ?? null,
+      contributorWelcomeSeen: r.contributor_welcome_seen === 1,
+      multiPortalNudgeSnoozedUntil: r.multi_portal_nudge_snoozed_until ?? null,
+      mcBannerSnoozedUntil: r.mc_banner_snoozed_until ?? null,
+      elevatedUntil: r.elevated_until ?? null,
+      hasSeenMcInvitePrompt: r.has_seen_mc_invite_prompt === 1,
+    })) as typeof direct;
     // Merge, deduplicate by id
     const seen = new Set(direct.map(u => u.id));
-    const extra = linked.filter(u => !seen.has(u.id) && cgRoles.includes(u.role));
+    const extra = linked.filter(u => !seen.has(u.id) && cgRoles.includes(u.role as string));
     return [...direct, ...extra];
   },
 
