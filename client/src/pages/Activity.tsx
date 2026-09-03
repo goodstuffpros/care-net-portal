@@ -53,6 +53,7 @@ const ADDENDUM_TAG_LABELS: Record<string, string> = {
   wrong_data: "Wrong Data",
   additional_detail: "Additional Detail",
   timing_correction: "Timing Correction",
+  strikethrough: "Strikethrough / Error",
 };
 
 function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number; currentUserId: number; logAuthorId: number }) {
@@ -61,7 +62,12 @@ function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number;
   const [showForm, setShowForm] = useState(false);
   const [tag, setTag] = useState("");
   const [note, setNote] = useState("");
+  // Strikethrough-specific fields
+  const [struckText, setStruckText] = useState("");
+  const [correctedText, setCorrectedText] = useState("");
+  const [initials, setInitials] = useState("");
   const isAuthor = currentUserId === logAuthorId;
+  const isStrikethrough = tag === "strikethrough";
 
   const { data: addendums = [], refetch } = useQuery<ActivityLogAddendum[]>({
     queryKey: ["/api/activity/addendums", logId],
@@ -70,15 +76,36 @@ function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number;
     staleTime: 30000,
   });
 
+  function resetForm() {
+    setNote(""); setTag(""); setShowForm(false);
+    setStruckText(""); setCorrectedText(""); setInitials("");
+  }
+
   const submitMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/activity/${logId}/addendums`, { tag, note }),
+    mutationFn: () => apiRequest("POST", `/api/activity/${logId}/addendums`, {
+      tag,
+      note,
+      ...(isStrikethrough && { struckText, correctedText, initials }),
+    }),
     onSuccess: () => {
-      setNote(""); setTag(""); setShowForm(false);
+      resetForm();
       refetch();
-      toast({ title: "Addendum saved" });
+      toast({ title: "Saved" });
     },
-    onError: () => toast({ title: "Failed to save addendum", variant: "destructive" }),
+    onError: () => toast({ title: "Failed to save", variant: "destructive" }),
   });
+
+  const canSubmit = isStrikethrough
+    ? tag && note.trim() && struckText.trim() && initials.trim() && !submitMutation.isPending
+    : tag && note.trim() && !submitMutation.isPending;
+
+  // Format timestamp as: BLG 10:22 am 9/2/26
+  function formatStrikeAttribution(a: ActivityLogAddendum) {
+    const d = new Date(a.createdAt);
+    const time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }).toLowerCase();
+    const date = `${d.getMonth() + 1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`;
+    return `${(a as any).initials} ${time} ${date}`;
+  }
 
   return (
     <div className="mt-2 border-t border-border/30 pt-2">
@@ -94,12 +121,38 @@ function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number;
         <div className="mt-2 space-y-2">
           {/* Existing addendums */}
           {addendums.map(a => (
-            <div key={a.id} className="ml-3 pl-3 border-l-2 border-amber-400/40 space-y-0.5">
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
-                {ADDENDUM_TAG_LABELS[a.tag] ?? a.tag}
-              </span>
-              <p className="text-xs text-muted-foreground leading-relaxed">{a.note}</p>
-              <p className="text-[10px] text-muted-foreground/60">{new Date(a.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+            <div key={a.id} className={`ml-3 pl-3 space-y-0.5 ${
+              (a as any).tag === "strikethrough"
+                ? "border-l-2 border-red-300/60 dark:border-red-800/60"
+                : "border-l-2 border-amber-400/40"
+            }`}>
+              {(a as any).tag === "strikethrough" ? (
+                // Strikethrough display
+                <div className="space-y-0.5">
+                  <p className="text-xs">
+                    <span className="line-through text-muted-foreground/70">{(a as any).struckText}</span>
+                    {" "}
+                    <span className="text-[10px] text-muted-foreground/50">— {formatStrikeAttribution(a)}</span>
+                  </p>
+                  {(a as any).correctedText && (
+                    <p className="text-xs text-muted-foreground">
+                      <span className="font-medium text-foreground/70">Correction:</span> {(a as any).correctedText}
+                    </p>
+                  )}
+                  {a.note && (
+                    <p className="text-xs text-muted-foreground/70 italic">{a.note}</p>
+                  )}
+                </div>
+              ) : (
+                // Standard addendum display
+                <>
+                  <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-50 text-amber-700 border border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                    {ADDENDUM_TAG_LABELS[a.tag] ?? a.tag}
+                  </span>
+                  <p className="text-xs text-muted-foreground leading-relaxed">{a.note}</p>
+                  <p className="text-[10px] text-muted-foreground/60">{new Date(a.createdAt).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+                </>
+              )}
             </div>
           ))}
 
@@ -116,7 +169,7 @@ function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number;
           {/* Addendum form */}
           {isAuthor && showForm && (
             <div className="ml-3 space-y-2 pt-1">
-              <Select value={tag} onValueChange={setTag}>
+              <Select value={tag} onValueChange={v => { setTag(v); }}>
                 <SelectTrigger className="h-8 text-xs">
                   <SelectValue placeholder="Select reason" />
                 </SelectTrigger>
@@ -126,22 +179,60 @@ function AddendumSection({ logId, currentUserId, logAuthorId }: { logId: number;
                   ))}
                 </SelectContent>
               </Select>
+
+              {/* Strikethrough extra fields */}
+              {isStrikethrough && (
+                <div className="space-y-2 p-2 bg-red-50/50 dark:bg-red-950/20 rounded border border-red-200/40 dark:border-red-800/30">
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">Words to cross out</p>
+                    <input
+                      type="text"
+                      value={struckText}
+                      onChange={e => setStruckText(e.target.value)}
+                      placeholder="e.g. Metoprolol 50mg"
+                      className="w-full h-8 px-2 text-xs rounded border border-input bg-background"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">Corrected text (optional)</p>
+                    <input
+                      type="text"
+                      value={correctedText}
+                      onChange={e => setCorrectedText(e.target.value)}
+                      placeholder="e.g. Metoprolol 25mg"
+                      className="w-full h-8 px-2 text-xs rounded border border-input bg-background"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-muted-foreground mb-1">Your initials</p>
+                    <input
+                      type="text"
+                      value={initials}
+                      onChange={e => setInitials(e.target.value.toUpperCase())}
+                      placeholder="e.g. BLG"
+                      maxLength={6}
+                      className="w-24 h-8 px-2 text-xs rounded border border-input bg-background uppercase"
+                    />
+                  </div>
+                </div>
+              )}
+
               <Textarea
                 value={note}
                 onChange={e => setNote(e.target.value)}
-                placeholder="Add your note here…"
-                className="text-xs min-h-[64px]"
+                placeholder={isStrikethrough ? "Reason for correction…" : "Add your note here…"}
+                className="text-xs min-h-[56px]"
               />
               <div className="flex gap-2">
                 <Button
                   size="sm"
                   className="h-7 text-xs"
-                  disabled={!tag || !note.trim() || submitMutation.isPending}
+                  disabled={!canSubmit}
                   onClick={() => submitMutation.mutate()}
                 >
                   {submitMutation.isPending ? "Saving…" : "Save"}
                 </Button>
-                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowForm(false); setTag(""); setNote(""); }}>
+                <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={resetForm}>
                   Cancel
                 </Button>
               </div>

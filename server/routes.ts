@@ -3516,15 +3516,25 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     if (!checkPortalAccess(req, log.clientId)) return res.status(403).json({ message: "Access denied" });
     // Only the original author can add an addendum
     if (log.loggedByUserId !== req.authUserId) return res.status(403).json({ message: "Only the original author can add an addendum" });
-    const { tag, note } = req.body;
+    const { tag, note, struckText, correctedText, initials } = req.body;
     if (!tag || !note?.trim()) return res.status(400).json({ message: "tag and note are required" });
-    const VALID_TAGS = ["typo", "incomplete", "wrong_data", "additional_detail", "timing_correction"];
+    const VALID_TAGS = ["typo", "incomplete", "wrong_data", "additional_detail", "timing_correction", "strikethrough"];
     if (!VALID_TAGS.includes(tag)) return res.status(400).json({ message: "Invalid tag" });
+    // Strikethrough requires struckText and initials
+    if (tag === "strikethrough") {
+      if (!struckText?.trim()) return res.status(400).json({ message: "struckText is required for strikethrough" });
+      if (!initials?.trim()) return res.status(400).json({ message: "initials is required for strikethrough" });
+    }
     const addendum = storage.createAddendum({
       activityLogId: Number(req.params.id),
       authorUserId: req.authUserId!,
       tag,
       note: note.trim(),
+      ...(tag === "strikethrough" && {
+        struckText: struckText.trim(),
+        correctedText: correctedText?.trim() || "",
+        initials: initials.trim(),
+      }),
       createdAt: new Date().toISOString(),
     });
     res.status(201).json(addendum);

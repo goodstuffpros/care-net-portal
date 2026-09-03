@@ -151,8 +151,12 @@ export const activityLogAddendums = sqliteTable("activity_log_addendums", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   activityLogId: integer("activity_log_id").notNull(), // parent entry
   authorUserId: integer("author_user_id").notNull(),   // must match original loggedByUserId
-  tag: text("tag").notNull(),                          // 'typo' | 'incomplete' | 'wrong_data' | 'additional_detail' | 'timing_correction'
+  tag: text("tag").notNull(),                          // 'typo' | 'incomplete' | 'wrong_data' | 'additional_detail' | 'timing_correction' | 'strikethrough'
   note: text("note").notNull(),
+  // Strikethrough fields — only populated when tag = 'strikethrough'
+  struckText: text("struck_text"),       // the exact words being crossed out
+  correctedText: text("corrected_text"), // the replacement text
+  initials: text("initials"),            // author initials, e.g. "BLG"
   createdAt: text("created_at").notNull(),
 });
 export type ActivityLogAddendum = typeof activityLogAddendums.$inferSelect;

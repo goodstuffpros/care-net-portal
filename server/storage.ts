@@ -111,6 +111,9 @@ sqlite.exec(`
     author_user_id INTEGER NOT NULL,
     tag TEXT NOT NULL,
     note TEXT NOT NULL,
+    struck_text TEXT,
+    corrected_text TEXT,
+    initials TEXT,
     created_at TEXT NOT NULL
   );
   CREATE TABLE IF NOT EXISTS chat_threads (
@@ -1089,7 +1092,7 @@ export const storage: IStorage = {
   // Addendums
   getAddendumsByActivityLog: (activityLogId: number): ActivityLogAddendum[] =>
     db.select().from(activityLogAddendums).where(eq(activityLogAddendums.activityLogId, activityLogId)).orderBy(asc(activityLogAddendums.createdAt)).all(),
-  createAddendum: (data: { activityLogId: number; authorUserId: number; tag: string; note: string; createdAt: string }): ActivityLogAddendum =>
+  createAddendum: (data: { activityLogId: number; authorUserId: number; tag: string; note: string; struckText?: string; correctedText?: string; initials?: string; createdAt: string }): ActivityLogAddendum =>
     db.insert(activityLogAddendums).values(data).returning().get(),
 
   // Chat Threads
@@ -1809,3 +1812,8 @@ try {
 } catch { /* already exists */ }
 
 try { sqlite.exec(`ALTER TABLE clients ADD COLUMN promo_discount_percent INTEGER`); } catch { /* already exists */ }
+
+// activity_log_addendums — strikethrough fields (September 2026)
+try { sqlite.exec(`ALTER TABLE activity_log_addendums ADD COLUMN struck_text TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE activity_log_addendums ADD COLUMN corrected_text TEXT`); } catch { /* already exists */ }
+try { sqlite.exec(`ALTER TABLE activity_log_addendums ADD COLUMN initials TEXT`); } catch { /* already exists */ }
