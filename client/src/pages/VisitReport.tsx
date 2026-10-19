@@ -195,7 +195,10 @@ export default function VisitReportPage() {
       const name = visitReportFileName(data.client.name);
       const file = new File([doc.output("blob")], name, { type: "application/pdf" });
       const nav = navigator as any;
-      if (nav.canShare && nav.canShare({ files: [file] })) {
+      // Phones/tablets: open the share sheet (text, email, AirDrop, Files…). Computers: download.
+      const isTouch = window.matchMedia?.("(pointer: coarse)").matches;
+      if (isTouch && nav.canShare && nav.canShare({ files: [file] })) {
+        setBusy(false);
         try { await nav.share({ files: [file], title: "Doctor Visit Report" }); return; }
         catch (e: any) { if (e?.name === "AbortError") return; }
       }
