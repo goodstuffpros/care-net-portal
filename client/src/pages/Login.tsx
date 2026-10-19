@@ -35,6 +35,24 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
   const [needsVerification, setNeedsVerification] = useState(false);
   const [resendLoading, setResendLoading] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+  // After 3 wrong tries, offer a reset link right on the login screen
+  const [failCount, setFailCount] = useState(0);
+  const [resetSending, setResetSending] = useState(false);
+  const [resetSentTo, setResetSentTo] = useState<string | null>(null);
+
+  async function sendResetLink() {
+    const to = email.trim();
+    if (!to) return;
+    setResetSending(true);
+    try {
+      await apiRequest("POST", "/api/auth/forgot-password", { email: to });
+      setResetSentTo(to);
+    } catch (err: any) {
+      toast({ title: "Could not send the reset link", description: (err?.message || "").replace(/^\d+: /, "").replace(/^\{.*"message":"([^"]+)".*\}$/, "$1") || "Please try again in a few minutes.", variant: "destructive" });
+    } finally {
+      setResetSending(false);
+    }
+  }
 
   async function handleSubmit(e?: React.FormEvent) {
     e?.preventDefault();
@@ -93,6 +111,9 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
         ? "Incorrect email or password. Try again or use Forgot password."
         : rawMsg.replace(/^\d+: /, "").replace(/^\{.*\}$/, "Login failed — please try again.");
       setLoginError(friendlyMsg);
+      if (rawMsg.includes("Invalid email or password") || rawMsg.includes("Too many attempts")) {
+        setFailCount(n => rawMsg.includes("Too many attempts") ? Math.max(n + 1, 3) : n + 1);
+      }
     } finally {
       setLoading(false);
     }
@@ -233,6 +254,29 @@ export default function LoginPage({ onLoginSuccess }: LoginPageProps = {}) {
                 </p>
               )}
             </div>
+
+            {/* Reset offer — appears after 3 failed sign-in attempts */}
+            {failCount >= 3 && email.trim() && (
+              <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3" data-testid="reset-offer">
+                {resetSentTo ? (
+                  <div className="flex gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+                    <p className="text-sm text-foreground">
+                      If <strong>{resetSentTo}</strong> has an account, a reset link is on its way. Check your inbox and spam folder. The link works for 1 hour.
+                    </p>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm text-foreground">
+                      Having trouble signing in? We can email a password reset link to <strong className="break-all">{email.trim()}</strong>.
+                    </p>
+                    <Button type="button" onClick={sendResetLink} disabled={resetSending} className="w-full" data-testid="button-send-reset">
+                      {resetSending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />Sending…</> : <><Mail className="w-4 h-4 mr-2" />Email me a reset link</>}
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
 
             <Button
               type="button"

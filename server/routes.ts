@@ -51,6 +51,15 @@ export function registerRoutes(httpServer: Server, app: Express) {
     message: { message: "Too many attempts. Please wait 15 minutes and try again." },
   });
 
+  // Reset emails get their own limit so failed logins never block a password reset
+  const resetLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { message: "Too many reset requests. Please wait 15 minutes and try again." },
+  });
+
   // Admin user IDs — defined at route-registration scope so all endpoints can reference it
   const ADMIN_USER_IDS = new Set([10, 43]); // keep in sync with server/auth.ts
 
@@ -435,7 +444,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // POST /api/auth/forgot-password
-  app.post("/api/auth/forgot-password", authLimiter, async (req: AuthRequest, res) => {
+  app.post("/api/auth/forgot-password", resetLimiter, async (req: AuthRequest, res) => {
     const { email } = req.body;
     // Always return success to prevent email enumeration
     res.json({ success: true, message: "If that email is registered, you'll receive a reset link shortly." });
