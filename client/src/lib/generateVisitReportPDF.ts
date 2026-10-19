@@ -99,7 +99,7 @@ function parseList(json?: string | null): string[] {
   try {
     const arr = JSON.parse(json ?? "[]");
     if (!Array.isArray(arr)) return [];
-    return arr.map((a: any) => typeof a === "string" ? a : [a.name, a.severity ? `(${a.severity})` : "", a.reaction ? `- ${a.reaction}` : ""].filter(Boolean).join(" ")).filter(Boolean);
+    return arr.map((a: any) => (typeof a === "string" ? a : [String(a.name ?? "").trim(), a.severity ? `(${a.severity})` : "", a.reaction ? `- ${a.reaction}` : ""].filter(Boolean).join(" ")).trim()).filter(Boolean);
   } catch { return []; }
 }
 
@@ -157,7 +157,7 @@ export function buildVisitReportPDF(input: VisitReportInput): jsPDF {
   const facts = [
     dob && `Date of birth: ${dob}`,
     input.client.primaryCondition && `Condition: ${input.client.primaryCondition}`,
-  ].filter(Boolean).join("     ");
+  ].filter(Boolean).join("   |   ");
   if (facts) text(facts, { size: 10, color: muted, gap: 2 });
   const allergies = parseList(input.client.allergies);
   text(`Allergies: ${allergies.length ? allergies.join("; ") : "None recorded"}`, { size: 10, color: allergies.length ? red : muted, bold: allergies.length > 0, gap: 2 });
@@ -192,8 +192,9 @@ export function buildVisitReportPDF(input: VisitReportInput): jsPDF {
       .sort((a, b) => a.loggedAt.localeCompare(b.loggedAt));
     for (const e of list) {
       const tag = e.isEmergency ? "Emergency" : priorityLabel(e.priority);
-      const summary = e.description ? ` - ${e.description.length > 140 ? e.description.slice(0, 137) + "..." : e.description}` : "";
-      text(`${fmtDate(e.loggedAt)}  [${tag}]  ${e.title}${summary}`, { size: 10, indent: 4, gap: 2, color: e.priority === "red" || e.isEmergency ? red : ink });
+      const flat = (e.description ?? "").replace(/\s+/g, " ").trim();
+      const summary = flat ? ` - ${flat.length > 140 ? flat.slice(0, 137).trimEnd() + "..." : flat}` : "";
+      text(`${fmtDate(e.loggedAt)}  [${tag}]  ${e.title.trim()}${summary}`, { size: 10, indent: 4, gap: 2, color: e.priority === "red" || e.isEmergency ? red : ink });
     }
     text("Full details for each entry are in the timeline that follows.", { size: 9, color: muted });
   }
@@ -236,7 +237,7 @@ export function buildVisitReportPDF(input: VisitReportInput): jsPDF {
     for (const e of [...entries].sort((a, b) => a.loggedAt.localeCompare(b.loggedAt))) {
       const day = new Date(e.loggedAt).toDateString();
       if (day !== lastDay) {
-        ensure(30);
+        ensure(70); // keep the date heading with its first entry
         y += 6;
         text(new Date(e.loggedAt).toLocaleDateString([], { weekday: "long", month: "long", day: "numeric", year: "numeric" }), { size: 10.5, bold: true, color: teal, gap: 2 });
         lastDay = day;
