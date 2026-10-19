@@ -16,6 +16,7 @@ import ActivityPage from "@/pages/Activity";
 import MessagesPage from "@/pages/Messages";
 import MediaPage from "@/pages/Media";
 import ArchivePage from "@/pages/Archive";
+import VisitReportPage from "@/pages/VisitReport";
 import ClientPortalPage from "@/pages/ClientPortal";
 import CaregiversPage from "@/pages/Caregivers";
 import NotesPage from "@/pages/Notes";
@@ -523,6 +524,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
               <Route path="/messages" component={MessagesPage} />
               <Route path="/media" component={MediaPage} />
               <Route path="/archive" component={ArchivePage} />
+              <Route path="/visit-report" component={VisitReportPage} />
               <Route path="/portal" component={ClientPortalPage} />
               <Route path="/caregivers" component={CaregiversPage} />
               <Route path="/notes" component={NotesPage} />

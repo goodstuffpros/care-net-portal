@@ -16,7 +16,7 @@ import {
   Timer, LogIn, LogOut, Radio, Activity, Pill, Award, BookHeart, BookOpen, SlidersHorizontal,
   NotebookPen, CalendarDays, GraduationCap, Link2, Copy, Check, Share2, Gift, Send,
   Megaphone, Globe, ChevronRight, Search, ArrowRightCircle, AlertCircle, Siren, MessageSquare, Home,
-  Phone, FileText, CreditCard, Smartphone
+  Phone, FileText, CreditCard, Smartphone, Stethoscope
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
@@ -55,6 +55,7 @@ const NAV_ITEMS_CAREGIVER: { path: string; labelKey: TranslationKey; icon: any; 
   { path: "/media", labelKey: "nav.media", icon: Image },
   { path: "/outings", labelKey: "nav.outings", icon: MapPin },
   { path: "/archive", labelKey: "nav.archive", icon: Archive },
+  { path: "/visit-report", labelKey: "nav.visitReport", icon: Stethoscope },
   { path: "/medications", labelKey: "nav.medications", icon: Pill },
   { path: "/vitals", labelKey: "nav.vitals", icon: Activity },
   { path: "/badges", labelKey: "nav.badges", icon: Award },
@@ -81,6 +82,7 @@ const NAV_ITEMS_PRECARE: { path: string; labelKey: TranslationKey; icon: any; em
   { path: "/media", labelKey: "nav.media", icon: Image },
   { path: "/outings", labelKey: "nav.outings", icon: MapPin },
   { path: "/archive", labelKey: "nav.archive", icon: Archive },
+  { path: "/visit-report", labelKey: "nav.visitReport", icon: Stethoscope },
   { path: "/medications", labelKey: "nav.medications", icon: Pill },
   { path: "/vitals", labelKey: "nav.vitals", icon: Activity },
   { path: "/badges", labelKey: "nav.badges", icon: Award },
@@ -716,14 +718,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     { path: "/media", labelKey: "nav.media" as TranslationKey, icon: Image },
     { path: "/patterns", labelKey: "nav.patterns" as TranslationKey, icon: Sparkles },
     { path: "/archive", labelKey: "nav.archive" as TranslationKey, icon: Archive },
+    { path: "/visit-report", labelKey: "nav.visitReport" as TranslationKey, icon: Stethoscope },
     { path: "/university", labelKey: "nav.university" as TranslationKey, icon: GraduationCap },
     { path: "/portal", labelKey: "nav.portal" as TranslationKey, icon: User },
     { path: "/caregivers", labelKey: "nav.caregivers" as TranslationKey, icon: Users },
   ];
 
+  // Doctor Visit Report — only the person the portal is for, or their Main Contact
+  const canVisitReport = activeUser.role === "self_care" || activeUser.role === "primary_family" || !!activeUser.isAdmin;
   const NAV_ITEMS = (() => {
     if (isClientMode) return CLIENT_NAV_ITEMS;
     let items = rawNavItems;
+    if (!canVisitReport) items = items.filter(n => n.path !== "/visit-report");
     if (isFamily) items = items.filter(n => n.path !== "/thoughts" && n.path !== "/my-profile");
     if (isFamilyPortal) items = items.filter(n => n.path !== "/badges" && n.path !== "/care-scope" && n.path !== "/my-profile" && n.path !== "/archive");
     // University always visible to caregiver + MC; ensure it's in family nav

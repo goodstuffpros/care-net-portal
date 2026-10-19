@@ -52,7 +52,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
   });
 
   // Admin user IDs — defined at route-registration scope so all endpoints can reference it
-  const ADMIN_USER_IDS = new Set([10, 11, 12, 43]);
+  const ADMIN_USER_IDS = new Set([10, 43]); // keep in sync with server/auth.ts
 
   // ══════════════════════════════════════════════════════════════════════════
   // AUTH ROUTES
@@ -1928,6 +1928,155 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // POST /api/clients/:clientId/health-history — add new entry
+  // ── Doctor Visit Report ─────────────────────────────────────────────────────
+  // Only the person the portal is about (self_care) and the Main Contact can
+  // prepare or read a visit report. Admins pass for support.
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS visit_questions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    client_id INTEGER NOT NULL,
+    author_user_id INTEGER NOT NULL,
+    text TEXT NOT NULL,
+    resolved_at TEXT,
+    created_at TEXT NOT NULL
+  )`);
+
+  function canPrepareVisitReport(req: AuthRequest, clientId: number): boolean {
+    if (!req.authUserId) return false;
+    if (ADMIN_USER_IDS.has(req.authUserId)) return true;
+    if (!checkPortalAccess(req, clientId)) return false;
+    const me = sqlite.prepare(`SELECT role, client_id FROM users WHERE id = ?`).get(req.authUserId) as any;
+    const rel = sqlite.prepare(`SELECT role FROM user_client_relationships WHERE user_id = ? AND client_id = ?`).get(req.authUserId, clientId) as any;
+    const client = sqlite.prepare(`SELECT primary_contact_id, client_user_id FROM clients WHERE id = ?`).get(clientId) as any;
+    if (client && (client.primary_contact_id === req.authUserId || client.client_user_id === req.authUserId)) return true;
+    if (rel && (rel.role === "mc" || rel.role === "self_care" || rel.role === "primary_family")) return true;
+    if (me && me.client_id === clientId && (me.role === "self_care" || me.role === "primary_family")) return true;
+    return false;
+  }
+
+  // Apply strikethrough corrections so reports show corrected wording only
+  function applyCorrections(text: string | null, strikes: any[]): string {
+    let out = text ?? "";
+    for (const s of strikes) {
+      if (s.struck_text && out.includes(s.struck_text)) {
+        out = out.split(s.struck_text).join(s.corrected_text ?? "");
+      }
+    }
+    return out.replace(/\s{2,}/g, " ").trim();
+  }
+
+  // GET /api/clients/:clientId/visit-report?from=YYYY-MM-DD&to=YYYY-MM-DD
+  app.get("/api/clients/:clientId/visit-report", requireAuth, (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      if (!clientId || !canPrepareVisitReport(req, clientId)) return res.status(403).json({ message: "Only the portal owner or Main Contact can prepare a visit report" });
+      const from = typeof req.query.from === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.from) ? req.query.from : "1900-01-01";
+      const to = typeof req.query.to === "string" && /^\d{4}-\d{2}-\d{2}$/.test(req.query.to) ? req.query.to : "2999-12-31";
+      // Inclusive day range; loggedAt is ISO. Pad a day either side, then filter by local date on the client.
+      const fromIso = new Date(new Date(from + "T00:00:00Z").getTime() - 86400000).toISOString();
+      const toIso = new Date(new Date(to + "T23:59:59Z").getTime() + 86400000).toISOString();
+
+      const client = sqlite.prepare(`SELECT id, name, date_of_birth, primary_condition, blood_type, allergies, diagnoses, assistive_devices FROM clients WHERE id = ?`).get(clientId) as any;
+      if (!client) return res.status(404).json({ message: "Portal not found" });
+
+      const userRows = sqlite.prepare(`SELECT id, name, role FROM users`).all() as any[];
+      const nameOf = new Map(userRows.map(u => [u.id, u]));
+
+      const logs = sqlite.prepare(`
+        SELECT id, title, description, notes, priority, category, logged_at, logged_by_user_id, logged_by_role,
+               is_emergency, emergency_type, pending_review
+        FROM activity_logs WHERE client_id = ? AND logged_at >= ? AND logged_at <= ?
+        ORDER BY logged_at ASC`).all(clientId, fromIso, toIso) as any[];
+
+      const ids = logs.map(l => l.id);
+      const addRows = ids.length
+        ? sqlite.prepare(`SELECT * FROM activity_log_addendums WHERE activity_log_id IN (${ids.map(() => "?").join(",")}) ORDER BY created_at ASC`).all(...ids) as any[]
+        : [];
+
+      const entries = logs.filter(l => !l.pending_review).map(l => {
+        const mine = addRows.filter(a => a.activity_log_id === l.id);
+        const strikes = mine.filter(a => a.tag === "strikethrough");
+        const author = nameOf.get(l.logged_by_user_id);
+        return {
+          id: l.id,
+          title: applyCorrections(l.title, strikes),
+          description: applyCorrections(l.description, strikes),
+          notes: applyCorrections(l.notes, strikes),
+          priority: l.priority,
+          category: l.category,
+          loggedAt: l.logged_at,
+          loggedByName: author?.name ?? "Unknown",
+          loggedByRole: l.logged_by_role ?? author?.role ?? null,
+          isEmergency: !!l.is_emergency,
+          emergencyType: l.emergency_type ?? null,
+          // Corrections whose words weren't found in the entry are listed as a correction line
+          corrections: strikes
+            .filter(s => s.struck_text && ![l.title, l.description, l.notes].some(t => (t ?? "").includes(s.struck_text)) || false)
+            .map(s => ({ correctedText: s.corrected_text, createdAt: s.created_at })),
+          addenda: mine.filter(a => a.tag !== "strikethrough").map(a => ({ tag: a.tag, note: a.note, createdAt: a.created_at })),
+        };
+      });
+
+      const medications = (sqlite.prepare(`
+        SELECT id, name, generic_name, form, dosage_amount, dosage_unit, strength, schedule_type, frequency, frequency_note,
+               scheduled_times, prescribing_physician, purpose, instructions, status, start_date, discontinued_date, discontinued_reason
+        FROM medications WHERE client_id = ?`).all(clientId) as any[])
+        .filter(m => m.status === "active" || (m.discontinued_date && m.discontinued_date >= from));
+
+      const healthHistory = sqlite.prepare(`
+        SELECT id, entry_type, title, date_approx, date_year, date_month, date_day, facility, provider, outcome, notes, is_significant
+        FROM health_history_entries WHERE client_id = ?
+        ORDER BY date_year DESC, COALESCE(date_month,0) DESC, COALESCE(date_day,0) DESC`).all(clientId);
+
+      const questions = sqlite.prepare(`SELECT id, text, author_user_id, created_at FROM visit_questions WHERE client_id = ? AND resolved_at IS NULL ORDER BY created_at ASC`).all(clientId);
+
+      const me = nameOf.get(req.authUserId!);
+      console.log(`[visit-report] user ${req.authUserId} prepared report data for client ${clientId} (${from} to ${to}, ${entries.length} entries)`);
+      res.json({
+        client: {
+          name: client.name, dateOfBirth: client.date_of_birth, primaryCondition: client.primary_condition,
+          bloodType: client.blood_type, allergies: client.allergies, diagnoses: client.diagnoses, assistiveDevices: client.assistive_devices,
+        },
+        preparedBy: { name: me?.name ?? "", role: me?.role ?? "" },
+        entries, medications, healthHistory, questions,
+      });
+    } catch (err: any) {
+      console.error("[visit-report]", err);
+      res.status(500).json({ message: "Could not load report data" });
+    }
+  });
+
+  // Questions for the doctor — a running list kept between visits
+  app.get("/api/clients/:clientId/visit-questions", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    if (!canPrepareVisitReport(req, clientId)) return res.status(403).json({ message: "Access denied" });
+    res.json(sqlite.prepare(`SELECT id, text, author_user_id AS authorUserId, created_at AS createdAt FROM visit_questions WHERE client_id = ? AND resolved_at IS NULL ORDER BY created_at ASC`).all(clientId));
+  });
+  app.post("/api/clients/:clientId/visit-questions", requireAuth, (req: AuthRequest, res) => {
+    const clientId = Number(req.params.clientId);
+    if (!canPrepareVisitReport(req, clientId)) return res.status(403).json({ message: "Access denied" });
+    const text = typeof req.body?.text === "string" ? req.body.text.trim().slice(0, 500) : "";
+    if (!text) return res.status(400).json({ message: "Question text is required" });
+    const now = new Date().toISOString();
+    const r = sqlite.prepare(`INSERT INTO visit_questions (client_id, author_user_id, text, created_at) VALUES (?, ?, ?, ?)`).run(clientId, req.authUserId, text, now);
+    res.status(201).json({ id: Number(r.lastInsertRowid), text, authorUserId: req.authUserId, createdAt: now });
+  });
+  // Mark asked/answered (hides it from future reports) — kept, not deleted
+  app.patch("/api/visit-questions/:id/resolve", requireAuth, (req: AuthRequest, res) => {
+    const q = sqlite.prepare(`SELECT * FROM visit_questions WHERE id = ?`).get(Number(req.params.id)) as any;
+    if (!q) return res.status(404).json({ message: "Not found" });
+    if (!canPrepareVisitReport(req, q.client_id)) return res.status(403).json({ message: "Access denied" });
+    sqlite.prepare(`UPDATE visit_questions SET resolved_at = ? WHERE id = ?`).run(new Date().toISOString(), q.id);
+    res.json({ success: true });
+  });
+  app.delete("/api/visit-questions/:id", requireAuth, (req: AuthRequest, res) => {
+    const q = sqlite.prepare(`SELECT * FROM visit_questions WHERE id = ?`).get(Number(req.params.id)) as any;
+    if (!q) return res.status(404).json({ message: "Not found" });
+    if (!canPrepareVisitReport(req, q.client_id)) return res.status(403).json({ message: "Access denied" });
+    if (q.author_user_id !== req.authUserId && !ADMIN_USER_IDS.has(req.authUserId!)) return res.status(403).json({ message: "Only the person who wrote it can delete it" });
+    sqlite.prepare(`DELETE FROM visit_questions WHERE id = ?`).run(q.id);
+    res.json({ success: true });
+  });
+
   app.post("/api/clients/:clientId/health-history", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     try {
       const clientId = Number(req.params.clientId);

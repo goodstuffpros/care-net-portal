@@ -93,18 +93,11 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        <Select onValueChange={(period) => { setGenerating(true); generateMutation.mutate(period); }}>
-          <SelectTrigger className="w-full gap-2 h-9 text-sm bg-primary text-primary-foreground hover:bg-primary/90 border-primary" data-testid="generate-summary-trigger">
-            <Sparkles size={14} />
-            <span>{t("archive.generateSummary")}</span>
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="day">Today's Summary</SelectItem>
-            <SelectItem value="week">This Week</SelectItem>
-            <SelectItem value="month">This Month</SelectItem>
-            <SelectItem value="year">This Year</SelectItem>
-          </SelectContent>
-        </Select>
+        {/* Template "Generate Summary" removed Oct 2026 — it inserted sample text, not real data.
+            Real reports now live in Doctor Visit Report (/visit-report). */}
+        {(activeUser.role === "self_care" || activeUser.role === "primary_family" || activeUser.isAdmin) && <a href="#/visit-report" className="flex items-center justify-center gap-2 w-full h-9 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90">
+          <Stethoscope size={14} /> Create a Doctor Visit Report
+        </a>}
       </div>
 
       {/* View mode toggle */}
@@ -229,17 +222,7 @@ export default function ArchivePage() {
                   </div>
                 </div>
               )}
-              {summary.period === "month" && client && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full gap-2 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400 hover:bg-teal-50 dark:hover:bg-teal-950/30"
-                  onClick={() => generateDoctorPDF(summary, client)}
-                  data-testid={`export-doctor-pdf-${summary.id}`}
-                >
-                  <FileDown size={14} /> {t("archive.exportDoctor")}
-                </Button>
-              )}
+              {/* "Export for Doctor" removed — it exported template text. Use Doctor Visit Report. */}
             </CardContent>
           </Card>
         );

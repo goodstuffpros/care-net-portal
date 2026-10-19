@@ -34,6 +34,7 @@ const PAGE_LABELS: Record<string, string> = {
   "/messages": "Messages",
   "/media": "Media",
   "/archive": "Archive",
+  "/visit-report": "Doctor Visit Report",
   "/medications": "Medications",
   "/vitals": "Vitals",
   "/patterns": "Health Patterns",
