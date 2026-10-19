@@ -4030,7 +4030,11 @@ Return JSON with exactly these keys:
           generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" },
         }),
       });
-      if (!r.ok) { console.error("[summary] gemini", r.status, (await r.text()).slice(0, 300)); return res.status(502).json({ message: "The summary couldn't be written right now. Please try again in a minute." }); }
+      if (!r.ok) {
+        const errText = (await r.text()).slice(0, 400);
+        console.error("[summary] gemini", r.status, errText);
+        return res.status(502).json({ message: "The summary couldn't be written right now. Please try again in a minute.", ...(ADMIN_USER_IDS.has(req.authUserId!) ? { detail: `${r.status} ${errText}` } : {}) });
+      }
       const data = await r.json() as any;
       const raw = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "";
       let out: any;
