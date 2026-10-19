@@ -9,20 +9,13 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { Archive, Sparkles, Calendar, Clock, TrendingUp, Star, Stethoscope, Users, Volume2, FileDown } from "lucide-react";
+import { Archive, Sparkles, Calendar, Clock, TrendingUp, Star, Stethoscope, Users, Volume2, FileDown, Trash2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
-import { generateDoctorPDF } from "@/lib/generateDoctorPDF";
+import { generateMedicalSummaryPDF } from "@/lib/generateMedicalSummaryPDF";
 
 const PERIOD_ICONS: Record<string, typeof Calendar> = {
-  day: Clock, week: Calendar, month: TrendingUp, year: Star,
-};
-
-const MEDICAL_SUMMARIES: Record<string, string> = {
-  day: "Patient presented stable hemodynamic status throughout the 24-hour care period. ADL assistance provided per care plan. Pharmacological regimen administered per prescribed schedule without adverse events. One safety incident documented (fall-risk behavior, no injury). Vital signs within acceptable parameters: BP 138/84 mmHg. Cognitive status: baseline per MCI diagnosis. No acute changes in neurological presentation. PRN analgesic administered for mild cephalgia, resolved within 60 minutes.",
-  week: "7-day care summary: Pharmacological adherence rate 100%. Two scheduled physiotherapy sessions completed; functional improvement noted in UE grip strength (L side). One safety incident documented involving unsupported ambulation attempt; no injury sustained, family notified per protocol. Hemodynamic monitoring: mean BP trending elevated (138/86 mmHg avg); flagged for attending neurologist review at upcoming appointment. Cognitive baseline stable. Affect: euthymic, increased social interaction noted.",
-  month: "30-day clinical summary: Medication reconciliation current. ADL performance: moderate assistance required for bathing, grooming; independent for oral feeding with setup. Physiotherapy goals progressing on established timeline. Neurologist follow-up completed; pharmacological adjustments under consideration. No hospitalizations or acute medical events. Caregiver–patient rapport well-established.",
-  year: "Annual care documentation review: Longitudinal functional assessment indicates stable trajectory with incremental decline in left-side motor function consistent with post-CVA prognosis. Medication regimen reviewed and updated three times over reporting period. All scheduled specialist consultations completed. No emergency department visits or acute hospitalizations. Psychosocial wellbeing: positive family engagement maintained. Care plan updated Q4 months per interdisciplinary review.",
+  day: Clock, week: Calendar, month: TrendingUp, quarter: Star, year: Star,
 };
 
 export default function ArchivePage() {
@@ -44,40 +37,28 @@ export default function ArchivePage() {
     queryFn: () => apiRequest("GET", `/api/clients/${selectedClientId}/archive`).then(r => r.json()),
   });
 
+  const [genPeriod, setGenPeriod] = useState<string | null>(null);
   const generateMutation = useMutation({
-    mutationFn: (period: string) => {
-      const labels: Record<string, string> = {
-        day: new Date().toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }),
-        week: "Week of " + new Date().toLocaleDateString([], { month: "long", day: "numeric" }),
-        month: new Date().toLocaleDateString([], { month: "long", year: "numeric" }),
-        year: new Date().getFullYear().toString(),
-      };
-      const summaryTemplates: Record<string, string> = {
-        day: "Today's care session was completed successfully. Morning medications were administered on time. Physical therapy exercises were performed. The client's mood was positive throughout the day. All scheduled activities were logged. No urgent incidents to report.",
-        week: "This week's care provided stable and consistent support. All daily medications were administered as scheduled with 100% adherence. Two therapy sessions were completed with noted progress. One minor incident was documented and communicated to the family. The client's overall wellbeing remained positive.",
-        month: "Monthly summary shows consistent care quality. Medication adherence: 98%. Physical therapy goals progressing on target. Family communication maintained through daily updates. Two medical appointments attended. The client's condition remains stable with continued improvement in mobility.",
-        year: "Annual care review reflects sustained quality of care. All major health goals were achieved or remain in progress. Strong family communication and engagement was maintained throughout the year. Key milestones were achieved and the care plan was updated three times to reflect evolving needs.",
-      };
-      const highlights: Record<string, string[]> = {
-        day: ["Medications: ✓ On time", "PT exercises completed", "Good appetite and mood", "No incidents"],
-        week: ["Medication adherence: 100%", "2 therapy sessions completed", "1 minor incident documented", "Mood: Positive"],
-        month: ["Medication adherence: 98%", "PT goals on track", "2 medical appointments", "Condition: Stable"],
-        year: ["All care goals met", "Family engagement high", "Care plan updated 3×", "Strong progress overall"],
-      };
-      return apiRequest("POST", `/api/clients/${selectedClientId}/archive`, {
-        period,
-        periodLabel: labels[period],
-        summaryText: summaryTemplates[period],
-        summaryTextMedical: MEDICAL_SUMMARIES[period],
-        highlights: JSON.stringify(highlights[period]),
-        generatedAt: new Date().toISOString(),
-      });
+    mutationFn: async (period: string) => {
+      const r = await apiRequest("POST", `/api/clients/${selectedClientId}/archive/generate`, { period });
+      return r.json();
     },
+    onMutate: (period) => { setGenerating(true); setGenPeriod(period); },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "archive"] });
-      setGenerating(false);
-      toast({ title: "Summary generated", description: "Both plain-language and clinical versions created." });
+      toast({ title: "Summary ready", description: "Plain-language and medical versions were written from your care log." });
     },
+    onError: (err: any) => {
+      const msg = String(err?.message || "").replace(/^\d+: /, "");
+      let text = msg;
+      try { text = JSON.parse(msg).message || msg; } catch {}
+      toast({ title: "Couldn't create the summary", description: text || "Please try again.", variant: "destructive" });
+    },
+    onSettled: () => { setGenerating(false); setGenPeriod(null); },
+  });
+  const deleteMutation = useMutation({
+    mutationFn: (id: number) => apiRequest("DELETE", `/api/archive/${id}`),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["/api/clients", selectedClientId, "archive"] }),
   });
 
   const filtered = filterPeriod === "all" ? summaries : summaries.filter(s => s.period === filterPeriod);
@@ -93,10 +74,21 @@ export default function ArchivePage() {
           </div>
         </div>
 
-        {/* Template "Generate Summary" removed Oct 2026 — it inserted sample text, not real data.
-            Real reports now live in Doctor Visit Report (/visit-report). */}
-        {(activeUser.role === "self_care" || activeUser.role === "primary_family" || activeUser.isAdmin) && <a href="#/visit-report" className="flex items-center justify-center gap-2 w-full h-9 rounded-md text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90">
-          <Stethoscope size={14} /> Create a Doctor Visit Report
+        {/* Generate Summary — written by AI strictly from this portal's records */}
+        <div className="space-y-1.5">
+          <div className="text-xs font-semibold text-foreground">Generate a summary</div>
+          <div className="grid grid-cols-3 gap-2">
+            {[["week", "Last 7 days"], ["month", "Last 30 days"], ["quarter", "Last 90 days"]].map(([p, label]) => (
+              <Button key={p} size="sm" variant={genPeriod === p ? "default" : "outline"} disabled={generating}
+                onClick={() => generateMutation.mutate(p)} data-testid={`generate-${p}`} className="h-9 text-xs">
+                {genPeriod === p ? <><Sparkles size={13} className="animate-pulse" /> Writing…</> : label}
+              </Button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">{generating ? "Reading your care log and writing both versions. This takes about 15 seconds." : "Creates a plain-language version for family and a medical version for providers, using only what's in your care log, vitals, and medications."}</p>
+        </div>
+        {(activeUser.role === "self_care" || activeUser.role === "primary_family" || activeUser.isAdmin) && <a href="#/visit-report" className="flex items-center justify-center gap-2 w-full h-9 rounded-md text-sm font-medium border border-border hover:bg-muted">
+          <Stethoscope size={14} /> Or build a Doctor Visit Report
         </a>}
       </div>
 
@@ -127,13 +119,13 @@ export default function ArchivePage() {
 
       {/* Filters */}
       <div className="flex gap-2 flex-wrap">
-        {["all", "day", "week", "month", "year"].map(p => (
+        {["all", "week", "month", "quarter"].map(p => (
           <button key={p} onClick={() => setFilterPeriod(p)}
             className={cn("px-3 py-1.5 rounded-full text-xs font-medium border transition-colors",
               filterPeriod === p ? "bg-primary text-primary-foreground border-primary" : "bg-background border-border text-muted-foreground hover:text-foreground"
             )} data-testid={`archive-filter-${p}`}
           >
-            {p === "all" ? "All" : p.charAt(0).toUpperCase() + p.slice(1)}
+            {({ all: "All", week: "7 days", month: "30 days", quarter: "90 days" } as Record<string, string>)[p]}
           </button>
         ))}
       </div>
@@ -145,8 +137,8 @@ export default function ArchivePage() {
             <div className="flex items-center gap-3">
               <Sparkles size={20} className="text-primary animate-pulse" />
               <div>
-                <div className="font-medium text-sm">Generating CareNet Summaries...</div>
-                <div className="text-xs text-muted-foreground mt-0.5">Creating both plain-language and clinical versions.</div>
+                <div className="font-medium text-sm">Writing your summary…</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Reading the care log, vitals, and medications for this period.</div>
               </div>
             </div>
           </CardContent>
@@ -160,7 +152,7 @@ export default function ArchivePage() {
         <div className="text-center py-16 text-muted-foreground">
           <Archive size={40} className="mx-auto mb-3 opacity-25" />
           <p className="font-medium">No summaries yet</p>
-          <p className="text-sm mt-1">Use 'Generate' to create CareNet care summaries.</p>
+          <p className="text-sm mt-1">Choose 7, 30, or 90 days above to create one.</p>
         </div>
       ) : filtered.map(summary => {
         const Icon = PERIOD_ICONS[summary.period] || Calendar;
@@ -206,7 +198,7 @@ export default function ArchivePage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className={cn("text-sm leading-relaxed", summaryView === "medical" ? "text-foreground font-mono text-xs bg-muted/40 p-3 rounded-lg" : "text-muted-foreground")}>
+              <p className={cn("text-sm leading-relaxed whitespace-pre-line", summaryView === "medical" ? "text-foreground bg-muted/40 p-3 rounded-lg" : "text-muted-foreground")}>
                 {displayText}
               </p>
               {highlights.length > 0 && summaryView === "plain" && (
@@ -222,7 +214,16 @@ export default function ArchivePage() {
                   </div>
                 </div>
               )}
-              {/* "Export for Doctor" removed — it exported template text. Use Doctor Visit Report. */}
+              <div className="grid grid-cols-[1fr_auto] gap-2">
+                <Button variant="outline" size="sm" className="gap-2 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-400"
+                  disabled={!client} onClick={() => client && generateMedicalSummaryPDF(summary, client)} data-testid={`export-doctor-pdf-${summary.id}`}>
+                  <FileDown size={14} /> Export for Doctor (PDF)
+                </Button>
+                <Button variant="ghost" size="sm" className="text-muted-foreground" aria-label="Delete summary"
+                  onClick={() => { if (confirm("Delete this summary? This can't be undone.")) deleteMutation.mutate(summary.id); }}>
+                  <Trash2 size={14} />
+                </Button>
+              </div>
             </CardContent>
           </Card>
         );

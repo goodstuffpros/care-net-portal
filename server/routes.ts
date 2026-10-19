@@ -3934,11 +3934,143 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
     }
   });
 
+  // ── Generated care summaries (plain-language + medical) ─────────────────────
+  // Written by AI strictly from the portal's own records. Name and date of birth
+  // are never sent to the AI; author names are replaced with their role.
+  const SUMMARY_PERIODS: Record<string, { days: number; label: string }> = {
+    week: { days: 7, label: "7-day" }, month: { days: 30, label: "30-day" }, quarter: { days: 90, label: "90-day" },
+  };
+  const roleWord = (r?: string | null) => ({ self_care: "patient (self-reported)", primary_family: "family main contact", secondary_family: "family member", caregiver: "caregiver", multi_caregiver: "caregiver", temp_caregiver: "temporary caregiver" } as any)[r ?? ""] ?? "care team member";
+
+  app.post("/api/clients/:clientId/archive/generate", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), async (req: AuthRequest, res) => {
+    try {
+      const clientId = Number(req.params.clientId);
+      const period = String(req.body?.period ?? "");
+      const cfg = SUMMARY_PERIODS[period];
+      if (!cfg) return res.status(400).json({ message: "Choose 7, 30, or 90 days" });
+      const geminiKey = process.env.GEMINI_API_KEY;
+      if (!geminiKey) return res.status(503).json({ message: "Summaries aren't available right now. Please try again later." });
+
+      const end = new Date();
+      const start = new Date(end.getTime() - cfg.days * 86400000);
+      const startIso = start.toISOString();
+      const client = sqlite.prepare(`SELECT date_of_birth, primary_condition, allergies, diagnoses, assistive_devices FROM clients WHERE id = ?`).get(clientId) as any;
+      if (!client) return res.status(404).json({ message: "Portal not found" });
+
+      const logs = sqlite.prepare(`SELECT id, title, description, notes, priority, category, logged_at, logged_by_role, is_emergency, emergency_type FROM activity_logs
+        WHERE client_id = ? AND logged_at >= ? AND COALESCE(pending_review,0) = 0 ORDER BY logged_at ASC`).all(clientId, startIso) as any[];
+      const ids = logs.map(l => l.id);
+      const adds = ids.length ? sqlite.prepare(`SELECT * FROM activity_log_addendums WHERE activity_log_id IN (${ids.map(() => "?").join(",")}) ORDER BY created_at ASC`).all(...ids) as any[] : [];
+      const vit = sqlite.prepare(`SELECT * FROM vitals WHERE client_id = ? AND recorded_at >= ? ORDER BY recorded_at ASC`).all(clientId, startIso) as any[];
+      if (logs.length === 0 && vit.length === 0) {
+        return res.status(400).json({ message: `Nothing was logged in the last ${cfg.days} days, so there's nothing to summarize yet.` });
+      }
+      const meds = sqlite.prepare(`SELECT id, name, dosage_amount, dosage_unit, schedule_type, frequency, purpose, status, start_date, discontinued_date, discontinued_reason FROM medications WHERE client_id = ?`).all(clientId) as any[];
+      const mlogs = sqlite.prepare(`SELECT medication_id, was_given, refused_or_missed, refusal_reason, prn_reason, reaction FROM medication_logs WHERE client_id = ? AND logged_at >= ?`).all(clientId, startIso) as any[];
+      const hist = (sqlite.prepare(`SELECT entry_type, title, date_year, date_month, date_day, outcome FROM health_history_entries WHERE client_id = ?`).all(clientId) as any[])
+        .filter(h => h.date_year && new Date(h.date_year, (h.date_month || 1) - 1, h.date_day || 1) >= new Date(start.getTime() - 180 * 86400000));
+
+      // Deterministic facts — computed here so the AI never has to guess numbers
+      const medFacts = meds.filter(m => m.status === "active" || (m.discontinued_date && m.discontinued_date >= startIso.slice(0, 10))).map(m => {
+        const l = mlogs.filter(x => x.medication_id === m.id);
+        return {
+          name: m.name, dose: `${m.dosage_amount ?? ""}${m.dosage_unit ?? ""}`, schedule: m.schedule_type === "as_needed" ? "as needed" : (m.frequency ?? ""),
+          purpose: m.purpose ?? null, status: m.status, stopped: m.discontinued_date ?? null, stoppedReason: m.discontinued_reason ?? null,
+          dosesRecordedGiven: l.filter(x => x.was_given && !x.refused_or_missed).length,
+          dosesRecordedMissedOrRefused: l.filter(x => x.refused_or_missed || !x.was_given).length,
+          reactionsNoted: l.map(x => x.reaction).filter(Boolean),
+        };
+      });
+      const fix = (t: string | null, strikes: any[]) => { let o = t ?? ""; for (const st of strikes) if (st.struck_text && o.includes(st.struck_text)) o = o.split(st.struck_text).join(st.corrected_text ?? ""); return o.trim(); };
+      const entries = logs.map(l => {
+        const mine = adds.filter(a => a.activity_log_id === l.id);
+        const strikes = mine.filter(a => a.tag === "strikethrough");
+        return {
+          date: l.logged_at, by: roleWord(l.logged_by_role), category: l.category,
+          flag: l.is_emergency ? `EMERGENCY${l.emergency_type ? ` (${l.emergency_type})` : ""}` : l.priority === "red" ? "urgent" : l.priority === "yellow" ? "concern" : "routine",
+          title: fix(l.title, strikes), text: fix(l.description, strikes), notes: fix(l.notes, strikes) || undefined,
+          laterAdditions: mine.filter(a => a.tag !== "strikethrough").map(a => a.note).filter(Boolean),
+        };
+      });
+      const vitals = vit.map(v => {
+        const o: any = { date: v.recorded_at };
+        if (v.bp_systolic) o.bp = `${v.bp_systolic}/${v.bp_diastolic}`;
+        for (const [k, n] of [["heart_rate", "hr"], ["temperature", "tempF"], ["oxygen_sat", "spo2"], ["weight", "weightLb"], ["blood_glucose", "glucose"], ["pain_level", "pain0to10"]] as const) if (v[k] != null) o[n] = v[k];
+        return o;
+      });
+      const age = client.date_of_birth ? Math.floor((Date.now() - new Date(client.date_of_birth).getTime()) / (365.25 * 86400000)) : null;
+      const parse = (j: any) => { try { const a = JSON.parse(j ?? "[]"); return Array.isArray(a) ? a.map((x: any) => typeof x === "string" ? x : [x.name ?? x.device, x.severity ? `(${x.severity})` : ""].filter(Boolean).join(" ")) : []; } catch { return []; } };
+
+      const record = {
+        reportingPeriodDays: cfg.days, periodStart: startIso.slice(0, 10), periodEnd: end.toISOString().slice(0, 10),
+        patient: { age, primaryCondition: client.primary_condition ?? null, diagnoses: parse(client.diagnoses), allergies: parse(client.allergies), assistiveDevices: parse(client.assistive_devices) },
+        counts: { careLogEntries: entries.length, concerns: entries.filter(e => e.flag === "concern").length, urgent: entries.filter(e => e.flag === "urgent").length, emergencies: entries.filter(e => e.flag.startsWith("EMERGENCY")).length, vitalsReadings: vitals.length },
+        medications: medFacts, recentHealthHistory: hist, careLog: entries, vitals,
+      };
+
+      const instructions = `You write care summaries for a family caregiving app. You will receive a JSON record of everything logged for one patient during a reporting period.
+STRICT RULES:
+- Use ONLY facts in the record. Never invent symptoms, numbers, diagnoses, appointments, therapy sessions, adherence rates, or outcomes.
+- Do not diagnose, speculate about causes, or recommend treatment. You may say a recurring issue "may be worth discussing with the provider."
+- Use the counts and medication numbers exactly as given. If no medication doses were recorded, say dose administration was not recorded; do not claim adherence.
+- If there are no vitals, say no vitals were recorded.
+- Refer to the person as "the patient". Do not include names.
+- Mention dates (e.g. "Sep 18") for notable events. Keep wording faithful to what was written.
+- The record is reported by the patient, family, and caregivers. It is not a clinical record.
+Return JSON with exactly these keys:
+"plain": a warm, clear summary for family in plain English, 120-220 words.
+"medical": a concise clinical-style summary for a healthcare provider, 150-280 words, using standard medical terminology where it accurately fits, organized with these labeled sections on their own lines: "Reported concerns:", "Course over period:", "Medications:", "Vitals:", "Recent history:". Write "None recorded." for any empty section.
+"highlights": 3 to 6 short factual bullet strings (max 60 characters each), e.g. "11 entries flagged as concerns".`;
+
+      const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: instructions }] },
+          contents: [{ role: "user", parts: [{ text: JSON.stringify(record) }] }],
+          generationConfig: { temperature: 0.2, maxOutputTokens: 4096, responseMimeType: "application/json" },
+        }),
+      });
+      if (!r.ok) { console.error("[summary] gemini", r.status, (await r.text()).slice(0, 300)); return res.status(502).json({ message: "The summary couldn't be written right now. Please try again in a minute." }); }
+      const data = await r.json() as any;
+      const raw = data.candidates?.[0]?.content?.parts?.map((p: any) => p.text).join("") ?? "";
+      let out: any;
+      try { out = JSON.parse(raw.replace(/^```json\s*|```$/g, "")); } catch { console.error("[summary] bad json", raw.slice(0, 300)); return res.status(502).json({ message: "The summary came back incomplete. Please try again." }); }
+      if (typeof out.plain !== "string" || typeof out.medical !== "string") return res.status(502).json({ message: "The summary came back incomplete. Please try again." });
+
+      const fmtD = (d: Date) => d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Chicago" });
+      const basis = `Based on ${entries.length} care log ${entries.length === 1 ? "entry" : "entries"}${vitals.length ? ` and ${vitals.length} vitals ${vitals.length === 1 ? "reading" : "readings"}` : ""}. Written by AI from the portal's records. Reported by the patient, family, and caregivers; not a medical record.`;
+      const summary = storage.createArchiveSummary({
+        clientId, period,
+        periodLabel: `${cfg.label} · ${fmtD(start)} to ${fmtD(end)}`,
+        summaryText: `${out.plain.trim()}\n\n${basis}`,
+        summaryTextMedical: `${out.medical.trim()}\n\n${basis}`,
+        highlights: JSON.stringify((Array.isArray(out.highlights) ? out.highlights : []).slice(0, 6).map((h: any) => String(h).slice(0, 80))),
+        generatedAt: end.toISOString(),
+      } as any);
+      console.log(`[summary] user ${req.authUserId} generated ${period} summary for client ${clientId} (${entries.length} entries)`);
+      res.status(201).json(summary);
+    } catch (err: any) {
+      console.error("[summary]", err);
+      res.status(500).json({ message: "Something went wrong writing the summary." });
+    }
+  });
+
+  // DELETE /api/archive/:id — remove a generated summary (portal members)
+  app.delete("/api/archive/:id", requireAuth, (req: AuthRequest, res) => {
+    const row = sqlite.prepare(`SELECT id, client_id FROM archive_summaries WHERE id = ?`).get(Number(req.params.id)) as any;
+    if (!row) return res.status(404).json({ message: "Not found" });
+    if (!checkPortalAccess(req, row.client_id)) return res.status(403).json({ message: "Access denied" });
+    sqlite.prepare(`DELETE FROM archive_summaries WHERE id = ?`).run(row.id);
+    res.json({ success: true });
+  });
+
   // Archive Summaries
   app.get("/api/clients/:clientId/archive", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
     res.json(storage.getArchiveSummariesByClient(Number(req.params.clientId)));
   });
   app.post("/api/clients/:clientId/archive", requireAuth, requirePortalAccess(r => Number(r.params.clientId)), (req: AuthRequest, res) => {
+    // Summaries must be written from real records via /archive/generate
+    if (!ADMIN_USER_IDS.has(req.authUserId!)) return res.status(410).json({ message: "Please use Generate Summary." });
     const { period, periodLabel, summaryText, summaryTextMedical, highlights, generatedAt } = req.body;
     const summary = storage.createArchiveSummary({
       period, periodLabel, summaryText, summaryTextMedical, highlights, generatedAt,
