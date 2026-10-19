@@ -2010,7 +2010,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           title: applyCorrections(l.title, strikes),
           description: applyCorrections(l.description, strikes),
           notes: applyCorrections(l.notes, strikes),
-          priority: l.priority,
+          priority: normPriority(l.priority),
           category: l.category,
           loggedAt: l.logged_at,
           loggedByName: author?.name ?? "Unknown",
@@ -3987,7 +3987,7 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
         const strikes = mine.filter(a => a.tag === "strikethrough");
         return {
           date: l.logged_at, by: roleWord(l.logged_by_role), category: l.category,
-          flag: l.is_emergency ? `EMERGENCY${l.emergency_type ? ` (${l.emergency_type})` : ""}` : l.priority === "red" ? "urgent" : l.priority === "yellow" ? "concern" : "routine",
+          flag: l.is_emergency ? `EMERGENCY${l.emergency_type ? ` (${l.emergency_type})` : ""}` : normPriority(l.priority) === "red" ? "urgent" : normPriority(l.priority) === "yellow" ? "concern" : "routine",
           title: fix(l.title, strikes), text: fix(l.description, strikes), notes: fix(l.notes, strikes) || undefined,
           laterAdditions: mine.filter(a => a.tag !== "strikethrough").map(a => a.note).filter(Boolean),
         };
@@ -5334,15 +5334,15 @@ Return JSON with exactly these keys:
 
       // ── Care Log entries ─────────────────────────────────────────────────
       const careLogEntries = [
-        { title: "Morning medications administered", description: "Donnie took all morning medications without resistance. Good mood, ate a full breakfast beforehand.", category: "medication", priority: 'normal', loggedAt: fmt(-1, 8, 15), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Assisted with morning hygiene", description: "Showered, shaved, and dressed independently with minimal prompting. Chose his own clothes — a good sign.", category: "hygiene", priority: 'normal', loggedAt: fmt(-1, 9, 0), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Breakfast — good appetite", description: "Scrambled eggs, toast, and orange juice. Ate everything. Asked for seconds on the eggs.", category: "meal", priority: 'normal', loggedAt: fmt(-1, 9, 30), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Confusion episode — mid-morning", description: "Around 10:30am Donnie became briefly confused about the day and asked about going to work. Redirected with photos and calm conversation. Resolved in about 10 minutes. No distress.", category: "mood", priority: 'important', loggedAt: fmt(-1, 10, 45), isChecked: false, loggedByRole: "caregiver" },
-        { title: "Lunch administered and tolerated well", description: "Chicken soup and crackers. Good fluid intake today — approximately 32 oz.", category: "meal", priority: 'normal', loggedAt: fmt(-1, 12, 15), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Afternoon walk — 20 minutes", description: "Walked the block twice with the walker. Slow but steady. Good weather helped his mood.", category: "general", priority: 'normal', loggedAt: fmt(-1, 14, 30), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Evening medications administered", description: "All evening medications taken. Donnie was tired and ready for bed by 8pm.", category: "medication", priority: 'normal', loggedAt: fmt(-1, 20, 0), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Morning medications", description: "Donnie took all medications with breakfast. Cheerful this morning — recognized a song on the radio.", category: "medication", priority: 'normal', loggedAt: fmt(0, 8, 10), isChecked: true, loggedByRole: "caregiver" },
-        { title: "Refused shower", description: "Donnie was resistant to showering this morning. Did not push it — will try again this afternoon. Washed hands and face instead.", category: "hygiene", priority: 'important', loggedAt: fmt(0, 9, 20), isChecked: false, loggedByRole: "caregiver" },
+        { title: "Morning medications administered", description: "Donnie took all morning medications without resistance. Good mood, ate a full breakfast beforehand.", category: "medication", priority: 'green', loggedAt: fmt(-1, 8, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Assisted with morning hygiene", description: "Showered, shaved, and dressed independently with minimal prompting. Chose his own clothes — a good sign.", category: "hygiene", priority: 'green', loggedAt: fmt(-1, 9, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Breakfast — good appetite", description: "Scrambled eggs, toast, and orange juice. Ate everything. Asked for seconds on the eggs.", category: "meal", priority: 'green', loggedAt: fmt(-1, 9, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Confusion episode — mid-morning", description: "Around 10:30am Donnie became briefly confused about the day and asked about going to work. Redirected with photos and calm conversation. Resolved in about 10 minutes. No distress.", category: "mood", priority: 'yellow', loggedAt: fmt(-1, 10, 45), isChecked: false, loggedByRole: "caregiver" },
+        { title: "Lunch administered and tolerated well", description: "Chicken soup and crackers. Good fluid intake today — approximately 32 oz.", category: "meal", priority: 'green', loggedAt: fmt(-1, 12, 15), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Afternoon walk — 20 minutes", description: "Walked the block twice with the walker. Slow but steady. Good weather helped his mood.", category: "general", priority: 'green', loggedAt: fmt(-1, 14, 30), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Evening medications administered", description: "All evening medications taken. Donnie was tired and ready for bed by 8pm.", category: "medication", priority: 'green', loggedAt: fmt(-1, 20, 0), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Morning medications", description: "Donnie took all medications with breakfast. Cheerful this morning — recognized a song on the radio.", category: "medication", priority: 'green', loggedAt: fmt(0, 8, 10), isChecked: true, loggedByRole: "caregiver" },
+        { title: "Refused shower", description: "Donnie was resistant to showering this morning. Did not push it — will try again this afternoon. Washed hands and face instead.", category: "hygiene", priority: 'yellow', loggedAt: fmt(0, 9, 20), isChecked: false, loggedByRole: "caregiver" },
       ];
       for (const e of careLogEntries) {
         db.insert(activityLogs).values({ clientId: cid, loggedByUserId: demoCG.id, ...e, isEmergency: false, isLateEntry: false, isOffShiftEntry: false, isExcused: false }).run();
@@ -5350,12 +5350,12 @@ Return JSON with exactly these keys:
 
       // ── Schedule events ──────────────────────────────────────────────────
       const scheduleItems = [
-        { title: "Morning medications", type: "medication", scheduledAt: fmt(1, 8, 0), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Metformin, Lisinopril, Donepezil" },
-        { title: "Dr. Martinez — Neurology follow-up", type: "appointment", scheduledAt: fmt(3, 10, 30), recurrence: "none", priority: 'normal', location: "Vanderbilt Neurology Clinic", caregiverResponsible: false, notes: "Family will transport. Bring medication list and the last 30 days of care logs.", responsibilityNote: "Family handling transport and appointment" },
-        { title: "Evening medications", type: "medication", scheduledAt: fmt(1, 20, 0), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Aspirin, Atorvastatin" },
-        { title: "Physical therapy — in-home", type: "therapy", scheduledAt: fmt(2, 11, 0), recurrence: "weekly", priority: 'normal', caregiverResponsible: true, notes: "PT focuses on balance and fall prevention. Donnie responds well to encouragement." },
-        { title: "Blood sugar check", type: "task", scheduledAt: fmt(1, 7, 30), recurrence: "daily", priority: 'normal', caregiverResponsible: true, notes: "Log result in vitals. Target range 80–130 fasting." },
-        { title: "Weekly family check-in call", type: "other", scheduledAt: fmt(5, 18, 0), recurrence: "weekly", priority: 'normal', caregiverResponsible: false, notes: "Video call with the family. Donnie usually enjoys these.", responsibilityNote: "Family will initiate the call" },
+        { title: "Morning medications", type: "medication", scheduledAt: fmt(1, 8, 0), recurrence: "daily", priority: 'green', caregiverResponsible: true, notes: "Metformin, Lisinopril, Donepezil" },
+        { title: "Dr. Martinez — Neurology follow-up", type: "appointment", scheduledAt: fmt(3, 10, 30), recurrence: "none", priority: 'green', location: "Vanderbilt Neurology Clinic", caregiverResponsible: false, notes: "Family will transport. Bring medication list and the last 30 days of care logs.", responsibilityNote: "Family handling transport and appointment" },
+        { title: "Evening medications", type: "medication", scheduledAt: fmt(1, 20, 0), recurrence: "daily", priority: 'green', caregiverResponsible: true, notes: "Aspirin, Atorvastatin" },
+        { title: "Physical therapy — in-home", type: "therapy", scheduledAt: fmt(2, 11, 0), recurrence: "weekly", priority: 'green', caregiverResponsible: true, notes: "PT focuses on balance and fall prevention. Donnie responds well to encouragement." },
+        { title: "Blood sugar check", type: "task", scheduledAt: fmt(1, 7, 30), recurrence: "daily", priority: 'green', caregiverResponsible: true, notes: "Log result in vitals. Target range 80–130 fasting." },
+        { title: "Weekly family check-in call", type: "other", scheduledAt: fmt(5, 18, 0), recurrence: "weekly", priority: 'green', caregiverResponsible: false, notes: "Video call with the family. Donnie usually enjoys these.", responsibilityNote: "Family will initiate the call" },
       ];
       for (const s of scheduleItems) {
         db.insert(scheduleEvents).values({ clientId: cid, isCompleted: false, alarmEnabled: false, reminderMinutes: 30, ...s } as any).run();
@@ -5401,7 +5401,7 @@ Return JSON with exactly these keys:
         { senderId: demoCG.id, content: "Got it — I'll make sure the care log and med list are printed and ready for you the night before. Is the whole family coming?", sentAt: fmt(-1, 8, 22) },
         { senderId: demoUser.id, content: "Just me and my sister. We'll probably grab lunch with Dad after if he's up for it.", sentAt: fmt(-1, 8, 30) },
         { senderId: demoCG.id, content: "He'll love that. He mentioned your names twice yesterday — good days.", sentAt: fmt(-1, 8, 35) },
-        { senderId: demoCG.id, content: "Quick note — he refused the shower this morning. Didn't push it, washed up at the sink instead. Will try again this afternoon.", sentAt: fmt(0, 9, 25), priority: 'important' },
+        { senderId: demoCG.id, content: "Quick note — he refused the shower this morning. Didn't push it, washed up at the sink instead. Will try again this afternoon.", sentAt: fmt(0, 9, 25), priority: 'yellow' },
         { senderId: demoUser.id, content: "Understood. If he's still resistant this afternoon, that's okay — tomorrow morning with music on usually works better.", sentAt: fmt(0, 9, 40) },
       ];
       for (const m of msgData) {
@@ -5882,3 +5882,6 @@ Return JSON with exactly these keys:
   });
 
 }
+
+// Older/seeded entries may store priority as words; the app's own forms use colors.
+function normPriority(p?: string | null) { const v = String(p ?? "").toLowerCase(); return v === "red" || v === "urgent" ? "red" : v === "yellow" || v === "important" ? "yellow" : "green"; }
