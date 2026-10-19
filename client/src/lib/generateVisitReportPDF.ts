@@ -207,7 +207,7 @@ export function buildVisitReportPDF(input: VisitReportInput): jsPDF {
     if (!active.length && !stopped.length) text("No medications recorded.", { size: 10, color: muted });
     for (const m of active) {
       text(medLine(m), { size: 10.5, bold: true, indent: 4 });
-      const sub = [m.purpose && `For: ${m.purpose}`, m.prescribing_physician && `Prescribed by: ${m.prescribing_physician}`, m.start_date && `Started: ${fmtDate(m.start_date + "T12:00:00")}`].filter(Boolean).join("   ");
+      const sub = [m.purpose && `For: ${m.purpose}`, m.prescribing_physician && `Prescribed by: ${m.prescribing_physician}`, m.start_date && `Started: ${fmtDate(m.start_date + "T12:00:00")}`].filter(Boolean).join("  |  ");
       if (sub) text(sub, { size: 9.5, color: muted, indent: 14 });
       y += 3;
     }
