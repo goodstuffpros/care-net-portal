@@ -2786,7 +2786,13 @@ ${needsEdit > 0 ? `<div class="notice">⚠ ${needsEdit} placeholder entries need
   });
 
   // Clients
-  app.get("/api/clients", requireAuth, (_req: AuthRequest, res) => res.json(storage.getClients()));
+  // Only return portals this user can actually open (same rule as every per-portal route).
+  // Billing processor IDs are never sent to the browser.
+  app.get("/api/clients", requireAuth, (req: AuthRequest, res) => {
+    const isAdmin = ADMIN_USER_IDS.has(req.authUserId!);
+    const rows = storage.getClients().filter((c: any) => isAdmin || checkPortalAccess(req, c.id));
+    res.json(rows.map((c: any) => { const { squareCustomerId, squareCardId, squareSubscriptionId, ...rest } = c; return rest; }));
+  });
   app.get("/api/clients/:id", requireAuth, requirePortalAccess(r => Number(r.params.id)), (req: AuthRequest, res) => {
     const client = storage.getClientById(Number(req.params.id));
     if (!client) return res.status(404).json({ message: "Client not found" });
