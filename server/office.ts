@@ -128,15 +128,8 @@ a{color:var(--teal)}
 .toast.on{display:block}
 .sortm{display:none}
 @media(max-width:700px){main{padding:14px}.lib-body{grid-template-columns:1fr}.kv{grid-template-columns:110px 1fr}.hide-sm{display:none}
- #updated{display:none}.top{padding:0 12px}.top .brand span{display:none}.tabs{padding:0 6px}.tab{padding:13px 10px 11px}
- .sortm{display:block}.tools input:not([type]){min-width:0;max-width:none;width:100%;flex-basis:100%}
- .cards thead{display:none}.cards table,.cards tbody{display:block}
- .cards tr{display:flex;flex-wrap:wrap;gap:4px 14px;padding:12px 14px;border-bottom:1px solid #efede7}
- .cards td{display:block;border:0;padding:0;text-align:left!important;font-size:13px}
- .cards td:first-child{flex-basis:100%;font-size:14px}
- .cards td[data-l]::before{content:attr(data-l) ': ';color:var(--muted);font-size:12px}
- .cards td .sub{display:inline;margin-left:4px}
- .cards td:first-child .sub{display:block;margin-left:0}
+ #updated{display:none}.top{padding:0 12px}.top .brand span{display:none}.tabs{padding:0 6px}.tab{padding:13px 10px 11px}.tools input:not([type]){min-width:0;max-width:none;width:100%;flex-basis:100%}
+ .cols td,.cols th{padding:10px 8px}.cols .sub.em{display:none}.cols td:first-child{max-width:130px}
  .xl span{overflow:visible}
 }
 </style>
@@ -177,7 +170,7 @@ a{color:var(--teal)}
         <select id="p-sort" class="sortm"><option value="lastSeenAt">Sort: last visit</option><option value="lastActionAt">Sort: last action</option><option value="actions7">Sort: most active this week</option><option value="actions30">Sort: most active, 30 days</option><option value="joinedAt">Sort: newest</option><option value="name">Sort: name</option></select>
         <label class="chk"><input type="checkbox" id="p-all"> Show team and test accounts</label>
       </div>
-      <div class="card tw cards" id="p-tbl"></div>
+      <div class="card tw cols" id="p-tbl"></div>
       <div class="note" id="p-note"></div>
     </section>
     <section class="view" id="v-portals">
@@ -187,7 +180,7 @@ a{color:var(--teal)}
         <select id="o-sort" class="sortm"><option value="lastActionAt">Sort: last activity</option><option value="actions7">Sort: most active this week</option><option value="actions30">Sort: most active, 30 days</option><option value="nextChargeAt">Sort: next charge</option><option value="name">Sort: name</option></select>
         <label class="chk"><input type="checkbox" id="o-all"> Show team and test portals</label>
       </div>
-      <div class="card tw cards" id="o-tbl"></div>
+      <div class="card tw cols" id="o-tbl"></div>
     </section>
     <section class="view" id="v-features"></section>
     <section class="view" id="v-library">
@@ -330,7 +323,7 @@ function fillFilters(){
   var s=$('p-status'),cur=s.value;s.innerHTML='<option value="">All statuses</option>'+Object.keys(st).sort().map(function(k){return '<option'+(k===cur?' selected':'')+'>'+esc(k)+'</option>'}).join('');
   var r=$('p-role'),c2=r.value;r.innerHTML='<option value="">All roles</option>'+Object.keys(ro).sort().map(function(k){return '<option'+(k===c2?' selected':'')+'>'+esc(k)+'</option>'}).join('');
 }
-var PCOLS=[['name','Person'],['roleLabel','Role'],['portal','Portal'],['status','Status'],['lastSeenAt','Last visit'],['lastActionAt','Last action'],['actions7','7 days','num'],['actions30','30 days','num'],['actionsTotal','All time','num'],['joinedAt','Joined']];
+var PCOLS=[['name','Person'],['roleLabel','Role','hide-sm'],['portal','Portal','hide-sm'],['status','Status'],['lastSeenAt','Last visit'],['lastActionAt','Last action','hide-sm'],['actions7','7 days','num hide-sm'],['actions30','30 days','num'],['actionsTotal','All time','num hide-sm'],['joinedAt','Joined','hide-sm']];
 function renderPeople(){
   if(!D)return;
   var q=$('p-q').value.toLowerCase(),fs=$('p-status').value,fr=$('p-role').value,all=$('p-all').checked;
@@ -348,14 +341,14 @@ function renderPeople(){
   if(!rows.length)h+='<tr><td colspan="10" class="empty">No one matches.</td></tr>';
   rows.forEach(function(p){
     h+='<tr class="row'+(p.counted?'':' dim')+'" data-person="'+p.id+'">';
-    h+='<td><b>'+esc(p.name)+'</b>'+(p.kind!=='real'?' <span class="pill p-grey">'+p.kind+'</span>':'')+'<div class="sub">'+esc(p.email)+'</div></td>';
-    h+='<td data-l="Role">'+esc(p.roleLabel)+'</td>';
-    h+='<td data-l="Portal">'+(p.portals.length?esc(p.portals[0].name)+(p.portals.length>1?' <span class="sub">+'+(p.portals.length-1)+'</span>':''):'<span class="sub">none</span>')+'</td>';
+    h+='<td><b>'+esc(p.name)+'</b>'+(p.kind!=='real'?' <span class="pill p-grey">'+p.kind+'</span>':'')+'<div class="sub em">'+esc(p.email)+'</div></td>';
+    h+='<td class="hide-sm">'+esc(p.roleLabel)+'</td>';
+    h+='<td class="hide-sm">'+(p.portals.length?esc(p.portals[0].name)+(p.portals.length>1?' <span class="sub">+'+(p.portals.length-1)+'</span>':''):'<span class="sub">none</span>')+'</td>';
     h+='<td>'+spill(p.status)+'</td>';
-    h+='<td data-l="Last visit" title="'+esc(fmtDT(p.lastSeenAt))+'">'+ago(p.lastSeenAt)+'</td>';
-    h+='<td data-l="Last action">'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td>';
-    h+='<td class="num" data-l="7 days">'+p.actions7+'</td><td class="num" data-l="30 days">'+p.actions30+'</td><td class="num" data-l="All time">'+p.actionsTotal+'</td>';
-    h+='<td data-l="Joined">'+fmtDate(p.joinedAt)+'</td></tr>';
+    h+='<td title="'+esc(fmtDT(p.lastSeenAt))+'">'+ago(p.lastSeenAt)+'</td>';
+    h+='<td class="hide-sm">'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td>';
+    h+='<td class="num hide-sm">'+p.actions7+'</td><td class="num">'+p.actions30+'</td><td class="num hide-sm">'+p.actionsTotal+'</td>';
+    h+='<td class="hide-sm">'+fmtDate(p.joinedAt)+'</td></tr>';
   });
   h+='</tbody></table>';
   $('p-tbl').innerHTML=h;
@@ -387,7 +380,7 @@ function openPerson(id){
 }
 
 /* ── portals ── */
-var OCOLS=[['name','Portal'],['owner','Owner'],['tier','Plan'],['status','Billing'],['nextChargeAt','Next charge'],['members','Members','num'],['actions7','7 days','num'],['actions30','30 days','num'],['lastActionAt','Last activity']];
+var OCOLS=[['name','Portal'],['owner','Owner','hide-sm'],['tier','Plan'],['status','Billing','hide-sm'],['nextChargeAt','Next charge','hide-sm'],['members','Members','num hide-sm'],['actions7','7 days','num hide-sm'],['actions30','30 days','num'],['lastActionAt','Last activity']];
 function renderPortals(){
   if(!D)return;
   var q=$('o-q').value.toLowerCase(),ft=$('o-tier').value,all=$('o-all').checked;
@@ -403,12 +396,12 @@ function renderPortals(){
   h+='</tr></thead><tbody>';
   if(!rows.length)h+='<tr><td colspan="9" class="empty">No portals match.</td></tr>';
   rows.forEach(function(p){
-    h+='<tr class="row'+(p.counted?'':' dim')+'" data-portal="'+p.id+'"><td><b>'+esc(p.name)+'</b><div class="sub">#'+p.id+'</div></td>';
-    h+='<td data-l="Owner">'+(p.owner?esc(p.owner.name):'<span class="sub">—</span>')+'</td>';
-    h+='<td>'+tpill(p.tier)+'</td><td>'+bpill(p)+'</td>';
-    h+='<td data-l="Next charge">'+(p.tier==='beta'?'<span class="sub">never</span>':fmtDate(p.nextChargeAt))+'</td>';
-    h+='<td class="num" data-l="Members">'+p.members.length+'</td><td class="num" data-l="7 days">'+p.actions7+'</td><td class="num" data-l="30 days">'+p.actions30+'</td>';
-    h+='<td data-l="Last activity">'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td></tr>';
+    h+='<tr class="row'+(p.counted?'':' dim')+'" data-portal="'+p.id+'"><td><b>'+esc(p.name)+'</b><div class="sub em">#'+p.id+'</div></td>';
+    h+='<td class="hide-sm">'+(p.owner?esc(p.owner.name):'<span class="sub">—</span>')+'</td>';
+    h+='<td>'+tpill(p.tier)+'</td><td class="hide-sm">'+bpill(p)+'</td>';
+    h+='<td class="hide-sm">'+(p.tier==='beta'?'<span class="sub">never</span>':fmtDate(p.nextChargeAt))+'</td>';
+    h+='<td class="num hide-sm">'+p.members.length+'</td><td class="num hide-sm">'+p.actions7+'</td><td class="num">'+p.actions30+'</td>';
+    h+='<td>'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td></tr>';
   });
   h+='</tbody></table>';
   $('o-tbl').innerHTML=h;
