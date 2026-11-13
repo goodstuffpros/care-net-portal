@@ -4,826 +4,499 @@ export function getOfficeHtml(): string {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin Office — Care Net Portal</title>
+<meta name="robots" content="noindex, nofollow">
+<title>Office — CareNet Portal</title>
+<link rel="icon" href="/icon-192.png">
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-:root{--bg:#0f1117;--surface:#161b27;--card:#1c2133;--border:#2a3045;--accent:#1a8c83;--accent-light:#20a89d;--text:#e8eaf0;--muted:#8490a8;--danger:#e05050;--warn:#d97706;--success:#22c55e}
-html,body{min-height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px}
-/* LOGIN */
-#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px;background:radial-gradient(ellipse at 30% 40%,#1a3a38 0%,#0f1117 60%)}
-.login-box{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:36px 28px;width:100%;max-width:380px;box-shadow:0 24px 60px rgba(0,0,0,.5)}
-.login-logo{display:flex;align-items:center;gap:10px;margin-bottom:28px}
-.login-logo-icon{width:36px;height:36px;background:var(--accent);border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.login-logo-text{font-size:14px;font-weight:700;color:var(--text);line-height:1.2}
-.login-logo-sub{font-size:11px;color:var(--muted)}
-.login-box h1{font-size:20px;font-weight:700;margin-bottom:5px}
-.login-box p{font-size:13px;color:var(--muted);margin-bottom:22px}
-.field{margin-bottom:13px}
-.field label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-.field input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:15px;padding:11px 12px;outline:none;transition:border-color .15s}
-.field input:focus{border-color:var(--accent)}
-.pw-wrap{position:relative}
-.pw-wrap input{padding-right:52px}
-.pw-toggle{position:absolute;right:12px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:13px;cursor:pointer;padding:4px;user-select:none}
-.btn-primary{width:100%;background:var(--accent);color:white;border:none;border-radius:8px;padding:13px;font-size:14px;font-weight:700;cursor:pointer;margin-top:6px;transition:background .15s}
-.btn-primary:hover{background:var(--accent-light)}
-.btn-primary:disabled{opacity:.6;cursor:default}
-.login-msg{font-size:13px;margin-top:10px;display:none;padding:8px 10px;border-radius:6px}
-.login-msg.error{color:var(--danger);background:rgba(224,80,80,.1);display:block}
-.login-msg.info{color:var(--accent-light);background:rgba(26,140,131,.1);display:block}
-/* APP */
-#app{display:none;flex-direction:column;min-height:100vh}
-#app.on{display:flex}
-.header{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;height:52px;gap:10px;flex-shrink:0}
-.header-logo{display:flex;align-items:center;gap:8px}
-.header-logo-icon{width:28px;height:28px;background:var(--accent);border-radius:7px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.header-logo-text{font-size:13px;font-weight:700;color:var(--text);white-space:nowrap}
-.header-right{margin-left:auto;display:flex;align-items:center;gap:8px}
-.header-user{font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:160px}
-.btn-sm{padding:5px 10px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .15s}
-.btn-sm:hover{border-color:var(--danger);color:var(--danger)}
-/* TABS */
-.tabs{background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 8px;gap:2px;flex-shrink:0;overflow-x:auto;scrollbar-width:none}
-.tabs::-webkit-scrollbar{display:none}
-.tab{display:flex;align-items:center;gap:7px;padding:12px 14px;white-space:nowrap;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s;user-select:none;flex-shrink:0}
-.tab:hover{color:var(--text)}
-.tab.active{color:var(--accent-light);border-bottom-color:var(--accent);font-weight:600}
-.tab svg{width:15px;height:15px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
-.tab-badge{background:var(--accent);color:white;font-size:10px;font-weight:700;padding:1px 5px;border-radius:8px}
-/* TOOLBAR */
-.toolbar{display:flex;align-items:center;gap:8px;padding:12px 16px;flex-shrink:0;flex-wrap:wrap}
-.toolbar-title{font-size:15px;font-weight:700;color:var(--text)}
-.toolbar-sub{font-size:12px;color:var(--muted)}
-.toolbar-right{margin-left:auto}
-.btn-refresh{padding:6px 12px;background:transparent;border:1px solid var(--border);border-radius:6px;color:var(--muted);font-size:12px;cursor:pointer;transition:all .15s}
-.btn-refresh:hover{border-color:var(--accent);color:var(--accent)}
-/* CONTENT */
-.content{flex:1;overflow-y:auto;padding:12px 16px 24px}
-.view{display:none}
-.view.active{display:block}
-/* STATS */
-.stat-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:18px}
-@media(min-width:600px){.stat-grid{grid-template-columns:repeat(4,1fr)}}
-.stat-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:16px 14px}
-.stat-label{font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px}
-.stat-num{font-size:26px;font-weight:700;color:var(--text)}
-.stat-sub{font-size:11px;color:var(--muted);margin-top:3px}
-.c-accent{color:var(--accent-light)}.c-warn{color:var(--warn)}.c-success{color:var(--success)}
-/* SECTION */
-.sec-hdr{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 8px}
-/* TABLE */
-.tbl-wrap{background:var(--card);border:1px solid var(--border);border-radius:12px;overflow-x:auto;margin-bottom:16px}
-table{width:100%;border-collapse:collapse;min-width:480px}
-thead th{padding:9px 12px;text-align:left;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02);white-space:nowrap}
-tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
-tbody tr:last-child{border-bottom:none}
-tbody tr:hover{background:rgba(255,255,255,.025)}
-tbody td{padding:9px 12px;font-size:13px;color:var(--text);vertical-align:middle}
-.td-m{color:var(--muted);font-size:12px}
-.td-e{color:var(--muted);font-size:12px;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* CHIPS */
-.chip{display:inline-block;padding:2px 7px;border-radius:9px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}
-.r-cg{background:rgba(26,140,131,.15);color:var(--accent-light)}
-.r-mc{background:rgba(99,130,210,.15);color:#7b9dde}
-.r-fm{background:rgba(160,100,200,.15);color:#c090e0}
-.r-sc{background:rgba(240,160,50,.15);color:#f0a040}
-.t-active{color:var(--success);font-size:11px;font-weight:600}
-.t-moderate{color:var(--warn);font-size:11px;font-weight:600}
-.t-quiet{color:var(--muted);font-size:11px}
-.s-pending{background:rgba(217,119,6,.15);color:var(--warn)}
-.s-approved{background:rgba(34,197,94,.15);color:var(--success)}
-.s-denied{background:rgba(224,80,80,.15);color:var(--danger)}
-.e-ok{background:rgba(34,197,94,.12);color:var(--success)}
-.e-no{background:rgba(217,119,6,.12);color:var(--warn)}
-/* ACTIONS */
-.acts{display:flex;gap:5px}
-.btn-act{padding:4px 9px;border-radius:5px;font-size:11px;font-weight:600;cursor:pointer;border:1px solid transparent;transition:all .15s;white-space:nowrap}
-.btn-deny-act{border-color:var(--border);color:var(--muted);background:transparent}
-.btn-deny-act:hover{border-color:var(--danger);color:var(--danger)}
-.btn-approve-act{border-color:var(--accent);color:var(--accent);background:transparent}
-.btn-approve-act:hover{background:var(--accent);color:white}
-.btn-link-act{border-color:var(--warn);color:var(--warn);background:transparent}
-.btn-link-act:hover{background:var(--warn);color:white}
-.btn-role-act{border-color:#8b5cf6;color:#8b5cf6;background:transparent}
-.btn-role-act:hover{background:#8b5cf6;color:white}
-.user-cards{display:flex;flex-direction:column;gap:10px}
-.user-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px}
-.uc-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
-.uc-name{font-size:15px;font-weight:700;color:var(--text)}
-.uc-chips{display:flex;gap:5px;flex-shrink:0}
-.uc-email{font-size:12px;color:var(--muted);margin-bottom:8px;word-break:break-all}
-.uc-meta{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted);margin-bottom:10px}
-.uc-acts{display:flex;gap:8px;flex-wrap:wrap}
-/* SEARCH */
-.search-row{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
-.search-input{flex:1;min-width:160px;background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:8px 12px;outline:none;transition:border-color .15s}
-.search-input:focus{border-color:var(--accent)}
-.sort-sel{background:var(--card);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:12px;padding:8px 10px;outline:none;cursor:pointer}
-/* PORTALS */
-.pg{background:var(--card);border:1px solid var(--border);border-radius:12px;margin-bottom:12px;overflow:hidden}
-.pg-hdr{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.02);flex-wrap:wrap}
-.pg-name{font-size:14px;font-weight:700;color:var(--text)}
-.pg-meta{font-size:11px;color:var(--muted);margin-left:auto;white-space:nowrap}
-.dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
-.dot-active{background:var(--success);box-shadow:0 0 5px var(--success)}
-.dot-moderate{background:var(--warn)}
-.dot-quiet{background:var(--muted)}
-/* LIBRARY */
-.lib-ctrl{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;align-items:center}
-.btn-add{padding:7px 14px;background:var(--accent);color:white;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap}
-.btn-add:hover{background:var(--accent-light)}
-.lib-card{background:var(--card);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
-.lib-hdr{padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--border);background:rgba(255,255,255,.02)}
-.lib-theme{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:2px 8px;border-radius:8px;background:rgba(26,140,131,.15);color:var(--accent-light)}
-.lib-ph{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(217,119,6,.15);color:var(--warn)}
-.lib-off{font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;background:rgba(132,144,168,.1);color:var(--muted)}
+:root{--bg:#F4F3EF;--card:#ffffff;--line:#E3E1DA;--ink:#1d2a2c;--muted:#6b7577;--teal:#01696F;--deep:#0C4E54;--mint:#E3F2F0;--good:#15803d;--goodbg:#e7f6ec;--warn:#b45309;--warnbg:#fdf3e2;--bad:#b91c1c;--badbg:#fdeceb;--grey:#5b6466;--greybg:#eeeeea}
+html,body{background:var(--bg);color:var(--ink);font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;font-size:14px;line-height:1.4}
+button{font-family:inherit}
+/* login */
+#login{display:none;min-height:100vh;align-items:center;justify-content:center;padding:16px;background:linear-gradient(160deg,#0C4E54 0%,#01696F 100%)}
+.lbox{background:#fff;border-radius:16px;padding:32px 26px;width:100%;max-width:380px;box-shadow:0 20px 50px rgba(0,0,0,.25)}
+.brand{display:flex;align-items:center;gap:10px}
+.brand img{width:36px;height:36px;border-radius:9px}
+.brand b{display:block;font-size:15px}
+.brand span{font-size:12px;color:var(--muted)}
+.lbox h1{font-size:20px;margin:22px 0 4px}
+.lbox p{color:var(--muted);font-size:13px;margin-bottom:18px}
+.fld{margin-bottom:12px}
+.fld label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.fld input{width:100%;border:1px solid var(--line);border-radius:8px;padding:11px 12px;font-size:15px;outline:none}
+.fld input:focus{border-color:var(--teal)}
+.btn{background:var(--teal);color:#fff;border:0;border-radius:8px;padding:12px 16px;font-size:14px;font-weight:700;cursor:pointer;width:100%}
+.btn:disabled{opacity:.6}
+.lmsg{font-size:13px;margin-top:10px;color:var(--bad);min-height:18px}
+/* shell */
+#app{display:none}
+.top{background:var(--deep);color:#fff;padding:0 20px}
+.top-in{max-width:1280px;margin:0 auto;display:flex;align-items:center;gap:12px;height:56px}
+.top .brand b{color:#fff}.top .brand span{color:#a9dcd8}
+.top .brand img{width:30px;height:30px;border-radius:8px}
+.top-r{margin-left:auto;display:flex;align-items:center;gap:10px;font-size:12px;color:#cfe7e5}
+.ghost{background:transparent;border:1px solid rgba(255,255,255,.35);color:#fff;border-radius:7px;padding:6px 11px;font-size:12px;font-weight:600;cursor:pointer}
+.tabs{background:#fff;border-bottom:1px solid var(--line);padding:0 20px;position:sticky;top:0;z-index:5}
+.tabs-in{max-width:1280px;margin:0 auto;display:flex;gap:4px;overflow-x:auto}
+.tab{padding:14px 14px 12px;font-size:14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;user-select:none}
+.tab.on{color:var(--teal);border-bottom-color:var(--teal)}
+main{max-width:1280px;margin:0 auto;padding:20px}
+.view{display:none}.view.on{display:block}
+.note{font-size:12px;color:var(--muted);margin:6px 0 16px}
+h2{font-size:17px;margin:26px 0 10px}
+h2:first-child{margin-top:4px}
+/* stat cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+.stat .k{font-size:12px;font-weight:600;color:var(--muted)}
+.stat .v{font-size:30px;font-weight:700;margin:4px 0 2px;color:var(--deep)}
+.stat .s{font-size:12px;color:var(--muted)}
+.up{color:var(--good);font-weight:600}.down{color:var(--bad);font-weight:600}
+/* cards & tables */
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.pad{padding:14px 16px}
+table{width:100%;border-collapse:collapse}
+th{font-size:12px;font-weight:600;color:var(--muted);text-align:left;padding:10px 12px;border-bottom:1px solid var(--line);background:#fbfaf7;white-space:nowrap;cursor:pointer;user-select:none}
+th.num,td.num{text-align:right}
+td{padding:10px 12px;border-bottom:1px solid #efede7;vertical-align:top}
+tr.row{cursor:pointer}
+tr.row:hover td{background:#f6faf9}
+tr.dim td{color:#9aa2a3}
+.tw{overflow-x:auto}
+.sub{font-size:12px;color:var(--muted)}
+.pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:99px;white-space:nowrap}
+.p-good{background:var(--goodbg);color:var(--good)}.p-warn{background:var(--warnbg);color:var(--warn)}.p-bad{background:var(--badbg);color:var(--bad)}.p-grey{background:var(--greybg);color:var(--grey)}.p-teal{background:var(--mint);color:var(--deep)}
+.tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px}
+.tools input[type=text],.tools input:not([type]),.tools select{border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;background:#fff}
+.tools input:not([type]){min-width:220px;flex:1;max-width:360px}
+.chk input{width:16px;height:16px;accent-color:#01696F}
+a{color:var(--teal)}
+.chk{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
+.att{list-style:none}
+.att li{padding:10px 16px;border-bottom:1px solid #efede7;display:flex;gap:10px;align-items:flex-start;cursor:pointer}
+.att li:last-child{border-bottom:0}
+.att li:hover{background:#f6faf9}
+.empty{padding:22px;text-align:center;color:var(--muted)}
+/* chart */
+.chart{padding:14px 16px 8px}
+.legend{display:flex;gap:16px;font-size:12px;color:var(--muted);margin-bottom:6px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.bars{display:flex;align-items:flex-end;gap:3px;height:150px;border-bottom:1px solid var(--line)}
+.bar{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;position:relative;height:100%}
+.bar .a{width:100%;background:var(--teal);border-radius:3px 3px 0 0;min-height:0}
+.bar .pp{position:absolute;width:7px;height:7px;border-radius:50%;background:#d97706;left:50%;margin-left:-3.5px}
+.bar:hover{background:rgba(1,105,111,.06)}
+.xl{display:flex;gap:3px;font-size:10px;color:var(--muted);margin-top:4px}
+.xl span{flex:1;text-align:center;white-space:nowrap;overflow:hidden}
+.tip{position:fixed;background:var(--ink);color:#fff;font-size:12px;padding:6px 9px;border-radius:6px;pointer-events:none;display:none;z-index:50}
+/* feature bars */
+.fbar{height:8px;background:#eceae4;border-radius:99px;overflow:hidden;min-width:80px}
+.fbar i{display:block;height:100%;background:var(--teal)}
+/* drawer */
+.shade{position:fixed;inset:0;background:rgba(0,0,0,.35);display:none;z-index:20}
+.shade.on{display:block}
+.drawer{position:fixed;top:0;right:0;bottom:0;width:min(560px,100%);background:#fff;z-index:21;transform:translateX(100%);transition:transform .2s,visibility .2s;overflow-y:auto;visibility:hidden}
+.drawer.on{transform:none;visibility:visible;box-shadow:-10px 0 30px rgba(0,0,0,.15)}
+.dh{padding:18px 20px;border-bottom:1px solid var(--line);display:flex;gap:10px;align-items:flex-start;position:sticky;top:0;background:#fff}
+.dh h3{font-size:18px}
+.x{margin-left:auto;background:none;border:0;font-size:26px;line-height:1;cursor:pointer;color:var(--muted)}
+.db{padding:16px 20px 30px}
+.kv{display:grid;grid-template-columns:140px 1fr;gap:6px 12px;font-size:13px;margin-bottom:16px}
+.kv div:nth-child(odd){color:var(--muted)}
+.db h4{font-size:13px;margin:18px 0 8px;color:var(--deep)}
+.mini td{padding:7px 0;border-bottom:1px solid #f0eee8;font-size:13px}
+.act{display:flex;gap:8px;flex-wrap:wrap;margin-top:18px}
+.b2{border:1px solid var(--line);background:#fff;border-radius:8px;padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+.b2.red{color:var(--bad);border-color:#f0c9c6}
+.b2.teal{color:var(--teal);border-color:#b9dcd9}
+/* library */
+.lib-card{background:#fff;border:1px solid var(--line);border-radius:10px;margin-bottom:10px}
+.lib-hdr{padding:10px 14px;display:flex;align-items:center;gap:8px;border-bottom:1px solid var(--line)}
 .lib-body{padding:12px 14px;display:grid;grid-template-columns:1fr 1fr;gap:12px}
-@media(max-width:600px){.lib-body{grid-template-columns:1fr}}
-.lib-lbl{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-.lib-txt{font-size:13px;color:var(--text);line-height:1.5;white-space:pre-wrap}
-/* MODAL */
-.overlay{position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;display:none;align-items:center;justify-content:center;padding:16px}
+.lib-lbl{font-size:11px;font-weight:700;color:var(--muted);margin-bottom:4px}
+.lib-txt{white-space:pre-wrap;font-size:13px}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:30;display:none;align-items:center;justify-content:center;padding:16px}
 .overlay.on{display:flex}
-.modal{background:var(--card);border:1px solid var(--border);border-radius:14px;width:100%;max-width:560px;padding:24px;box-shadow:0 24px 60px rgba(0,0,0,.6)}
-.modal h2{font-size:16px;font-weight:700;margin-bottom:16px}
-.mf{margin-bottom:13px}
-.mf label{display:block;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px}
-.mf input,.mf select,.mf textarea{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;padding:9px 12px;outline:none;transition:border-color .15s;font-family:inherit;resize:vertical}
-.mf input:focus,.mf select:focus,.mf textarea:focus{border-color:var(--accent)}
+.modal{background:#fff;border-radius:14px;width:100%;max-width:560px;padding:22px}
+.modal h2{margin:0 0 14px}
+.mf{margin-bottom:12px}
+.mf label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px}
+.mf input,.mf select,.mf textarea{width:100%;border:1px solid var(--line);border-radius:8px;padding:9px 11px;font-size:14px;font-family:inherit}
 .mf textarea{min-height:90px}
-.modal-btns{display:flex;gap:8px;justify-content:flex-end;margin-top:16px}
-.btn-cancel{padding:8px 16px;background:transparent;border:1px solid var(--border);border-radius:7px;color:var(--muted);font-size:13px;cursor:pointer}
-.btn-save{padding:8px 18px;background:var(--accent);border:none;border-radius:7px;color:white;font-size:13px;font-weight:700;cursor:pointer}
-.btn-save:hover{background:var(--accent-light)}
-/* UTIL */
-.loading{color:var(--muted);font-size:13px;padding:36px;text-align:center}
-.empty{color:var(--muted);font-size:13px;padding:28px;text-align:center}
-.toast{position:fixed;bottom:20px;right:16px;left:16px;max-width:360px;margin:0 auto;background:var(--card);border:1px solid var(--border);border-radius:10px;padding:11px 14px;font-size:13px;color:var(--text);box-shadow:0 8px 32px rgba(0,0,0,.5);z-index:200;transform:translateY(80px);opacity:0;transition:all .25s;pointer-events:none}
-.toast.on{transform:translateY(0);opacity:1}
-.toast.ok{border-color:var(--success)}.toast.err{border-color:var(--danger)}
+.modal-btns{display:flex;gap:8px;justify-content:flex-end}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;display:none;z-index:60}
+.toast.on{display:block}
+.sortm{display:none}
+@media(max-width:700px){main{padding:14px}.lib-body{grid-template-columns:1fr}.kv{grid-template-columns:110px 1fr}.hide-sm{display:none}
+ #updated{display:none}.top{padding:0 12px}.top .brand span{display:none}.tabs{padding:0 6px}.tab{padding:13px 10px 11px}
+ .sortm{display:block}.tools input:not([type]){min-width:0;max-width:none;width:100%;flex-basis:100%}
+ .cards thead{display:none}.cards table,.cards tbody{display:block}
+ .cards tr{display:flex;flex-wrap:wrap;gap:4px 14px;padding:12px 14px;border-bottom:1px solid #efede7}
+ .cards td{display:block;border:0;padding:0;text-align:left!important;font-size:13px}
+ .cards td:first-child{flex-basis:100%;font-size:14px}
+ .cards td[data-l]::before{content:attr(data-l) ': ';color:var(--muted);font-size:12px}
+ .cards td .sub{display:inline;margin-left:4px}
+ .cards td:first-child .sub{display:block;margin-left:0}
+ .xl span{overflow:visible}
+}
 </style>
 </head>
 <body>
 
-<div id="login-screen">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="login-logo-icon">
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6z"/><circle cx="12" cy="8" r="2" fill="#1a8c83" stroke="none"/></svg>
-      </div>
-      <div>
-        <div class="login-logo-text">Care Net Portal</div>
-        <div class="login-logo-sub">Admin Office</div>
-      </div>
-    </div>
-    <h1>Sign In</h1>
-    <p>Admin access only — separate from the portal.</p>
-    <div class="field">
-      <label>Email</label>
-      <input type="email" id="em" autocomplete="email" placeholder="your@email.com">
-    </div>
-    <div class="field">
-      <label>Password</label>
-      <div class="pw-wrap">
-        <input type="password" id="pw" autocomplete="current-password" placeholder="••••••••">
-        <span class="pw-toggle" id="pw-eye">Show</span>
-      </div>
-    </div>
-    <button class="btn-primary" id="btn-login">Sign In to Admin Office</button>
-    <div class="login-msg" id="login-msg"></div>
+<div id="login">
+  <div class="lbox">
+    <div class="brand"><img src="/icon-192.png" alt=""><div><b>CareNet Portal</b><span>Office</span></div></div>
+    <h1>Sign in</h1>
+    <p>For the CareNet Portal team only.</p>
+    <div class="fld"><label for="em">Email</label><input id="em" type="email" autocomplete="username"></div>
+    <div class="fld"><label for="pw">Password</label><input id="pw" type="password" autocomplete="current-password"></div>
+    <button class="btn" id="btn-login">Sign in</button>
+    <div class="lmsg" id="lmsg"></div>
   </div>
 </div>
 
 <div id="app">
-  <div class="header">
-    <div class="header-logo">
-      <div class="header-logo-icon">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2C8.686 2 6 4.686 6 8c0 5.25 6 12 6 12s6-6.75 6-12c0-3.314-2.686-6-6-6z"/><circle cx="12" cy="8" r="2" fill="#1a8c83" stroke="none"/></svg>
+  <div class="top"><div class="top-in">
+    <div class="brand"><img src="/icon-192.png" alt=""><div><b>CareNet Portal</b><span>Office</span></div></div>
+    <div class="top-r"><span id="updated"></span><button class="ghost" id="btn-refresh">Refresh</button><button class="ghost" id="btn-out">Sign out</button></div>
+  </div></div>
+  <div class="tabs"><div class="tabs-in">
+    <div class="tab on" data-v="overview">Overview</div>
+    <div class="tab" data-v="people">People</div>
+    <div class="tab" data-v="portals">Portals</div>
+    <div class="tab" data-v="features">Features</div>
+    <div class="tab" data-v="library">Library</div>
+  </div></div>
+  <main>
+    <section class="view on" id="v-overview"><div class="empty">Loading…</div></section>
+    <section class="view" id="v-people">
+      <div class="tools">
+        <input id="p-q" placeholder="Search name or email">
+        <select id="p-status"><option value="">All statuses</option></select>
+        <select id="p-role"><option value="">All roles</option></select>
+        <select id="p-sort" class="sortm"><option value="lastSeenAt">Sort: last visit</option><option value="lastActionAt">Sort: last action</option><option value="actions7">Sort: most active this week</option><option value="actions30">Sort: most active, 30 days</option><option value="joinedAt">Sort: newest</option><option value="name">Sort: name</option></select>
+        <label class="chk"><input type="checkbox" id="p-all"> Show team and test accounts</label>
       </div>
-      <span class="header-logo-text">Admin Office</span>
-    </div>
-    <div class="header-right">
-      <span class="header-user" id="hdr-user"></span>
-      <button class="btn-sm" id="btn-out">Sign Out</button>
-    </div>
-  </div>
-
-  <div class="tabs">
-    <div class="tab active" data-v="dashboard">
-      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>Dashboard
-    </div>
-    <div class="tab" data-v="portals">
-      <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Portals
-    </div>
-    <div class="tab" data-v="users">
-      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Users
-    </div>
-    <div class="tab" data-v="queue">
-      <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>Queue
-      <span class="tab-badge" id="q-badge" style="display:none"></span>
-    </div>
-    <div class="tab" data-v="library">
-      <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Library
-    </div>
-    <div class="tab" data-v="billing">
-      <svg viewBox="0 0 24 24"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Billing
-    </div>
-  </div>
-
-  <div class="toolbar">
-    <div>
-      <div class="toolbar-title" id="tb-title">Dashboard</div>
-      <div class="toolbar-sub" id="tb-sub">Overview of all portals and users</div>
-    </div>
-    <div class="toolbar-right">
-      <button class="btn-refresh" id="btn-refresh">Refresh</button>
-    </div>
-  </div>
-
-  <div class="content">
-    <div class="view active" id="view-dashboard">
-      <div class="stat-grid">
-        <div class="stat-card"><div class="stat-label">Total Users</div><div class="stat-num" id="s-total">—</div><div class="stat-sub">non-demo</div></div>
-        <div class="stat-card"><div class="stat-label">Active Portals</div><div class="stat-num c-accent" id="s-portals">—</div><div class="stat-sub">care circles</div></div>
-        <div class="stat-card"><div class="stat-label">Active This Week</div><div class="stat-num c-success" id="s-active">—</div><div class="stat-sub">logged in 7d</div></div>
-        <div class="stat-card"><div class="stat-label">Pending Queue</div><div class="stat-num c-warn" id="s-queue">—</div><div class="stat-sub">awaiting review</div></div>
+      <div class="card tw cards" id="p-tbl"></div>
+      <div class="note" id="p-note"></div>
+    </section>
+    <section class="view" id="v-portals">
+      <div class="tools">
+        <input id="o-q" placeholder="Search portal or member">
+        <select id="o-tier"><option value="">All plans</option><option value="beta">Beta (free for life)</option><option value="founder">Founder</option><option value="standard">Standard</option></select>
+        <select id="o-sort" class="sortm"><option value="lastActionAt">Sort: last activity</option><option value="actions7">Sort: most active this week</option><option value="actions30">Sort: most active, 30 days</option><option value="nextChargeAt">Sort: next charge</option><option value="name">Sort: name</option></select>
+        <label class="chk"><input type="checkbox" id="o-all"> Show team and test portals</label>
       </div>
-      <div class="sec-hdr">Recent Users</div>
-      <div class="tbl-wrap" id="d-recent"><div class="loading">Loading...</div></div>
-      <div class="sec-hdr">Pending Queue</div>
-      <div class="tbl-wrap" id="d-queue"><div class="loading">Loading...</div></div>
-    </div>
-    <div class="view" id="view-portals"><div id="portals-list"><div class="loading">Loading...</div></div></div>
-    <div class="view" id="view-users">
-      <div class="search-row">
-        <input class="search-input" id="u-search" placeholder="Search name or email...">
-        <select class="sort-sel" id="u-sort">
-          <option value="newest">Newest First</option>
-          <option value="login">Last Login</option>
-          <option value="name">Name A–Z</option>
-          <option value="entries">Most Active</option>
-        </select>
+      <div class="card tw cards" id="o-tbl"></div>
+    </section>
+    <section class="view" id="v-features"></section>
+    <section class="view" id="v-library">
+      <div class="tools">
+        <select id="lib-filter"><option value="">All themes</option></select>
+        <button class="b2 teal" id="btn-new-lib">+ New response</button>
       </div>
-      <div class="tbl-wrap" id="users-tbl"><div class="loading">Loading...</div></div>
-    </div>
-    <div class="view" id="view-queue"><div class="tbl-wrap" id="queue-tbl"><div class="loading">Loading...</div></div></div>
-    <div class="view" id="view-library">
-      <div class="lib-ctrl">
-        <select class="sort-sel" id="lib-filter"><option value="">All Themes</option></select>
-        <button class="btn-add" id="btn-new-lib">+ New Response</button>
-      </div>
-      <div id="lib-list"><div class="loading">Loading...</div></div>
-    </div>
-    <div class="view" id="view-billing">
-      <div class="stat-grid" id="billing-stats">
-        <div class="stat-card"><div class="stat-label">Active</div><div class="stat-num c-success" id="b-active">—</div></div>
-        <div class="stat-card"><div class="stat-label">Trial</div><div class="stat-num c-accent" id="b-trial">—</div></div>
-        <div class="stat-card"><div class="stat-label">Past Due</div><div class="stat-num c-warn" id="b-pastdue">—</div></div>
-        <div class="stat-card"><div class="stat-label">Lapsed</div><div class="stat-num" style="color:#f87171" id="b-lapsed">—</div></div>
-      </div>
-      <div class="tbl-wrap" id="billing-tbl"><div class="loading">Loading...</div></div>
-    </div>
-  </div>
+      <div class="note">The response bank the help button draws from.</div>
+      <div id="lib-list"><div class="empty">Loading…</div></div>
+    </section>
+  </main>
 </div>
+
+<div class="shade" id="shade"></div>
+<aside class="drawer" id="drawer"></aside>
+<div class="tip" id="tip"></div>
+<div class="toast" id="toast"></div>
 
 <div class="overlay" id="lib-modal">
   <div class="modal">
-    <h2 id="lib-modal-title">New Response</h2>
+    <h2 id="lib-modal-title">New response</h2>
     <input type="hidden" id="lm-id">
     <div class="mf"><label>Theme</label><input type="text" id="lm-theme" placeholder="e.g. burnout, general"></div>
-    <div class="mf"><label>Example Caregiver Message</label><textarea id="lm-prompt" placeholder="What a caregiver might say..."></textarea></div>
-    <div class="mf"><label>Becky's Response</label><textarea id="lm-response" style="min-height:120px" placeholder="Response text..."></textarea></div>
+    <div class="mf"><label>Example message</label><textarea id="lm-prompt"></textarea></div>
+    <div class="mf"><label>Response</label><textarea id="lm-response" style="min-height:120px"></textarea></div>
     <div class="mf"><label>Status</label><select id="lm-active"><option value="1">Active</option><option value="0">Inactive (draft)</option></select></div>
-    <div class="modal-btns">
-      <button class="btn-cancel" id="lib-cancel">Cancel</button>
-      <button class="btn-save" id="lib-save">Save</button>
-    </div>
+    <div class="modal-btns"><button class="b2" id="lib-cancel">Cancel</button><button class="btn" style="width:auto" id="lib-save">Save</button></div>
   </div>
 </div>
 
-<div class="toast" id="toast"></div>
-
 <script>
-(function() {
-  'use strict';
+(function(){
+'use strict';
+var TOKEN_KEY='office_token', D=null, libData=[], sortP={k:'lastSeenAt',d:-1}, sortO={k:'lastActionAt',d:-1};
+var TZ='America/Chicago', DAY=86400000;
+function $(id){return document.getElementById(id)}
+function tok(){return localStorage.getItem(TOKEN_KEY)}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function api(method,path,body){
+  var o={method:method,headers:{'Content-Type':'application/json','Authorization':'Bearer '+tok()}};
+  if(body)o.body=JSON.stringify(body);
+  return fetch(path,o).then(function(r){return r.json().catch(function(){return{}}).then(function(d){if(r.status===401||r.status===403){signOutLocal();throw new Error('Please sign in again')}if(!r.ok)throw new Error(d.message||r.statusText);return d})});
+}
+var tt;function toast(m){var e=$('toast');e.textContent=m;e.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){e.classList.remove('on')},3000)}
+function ago(iso){
+  if(!iso)return 'never';
+  var ms=Date.now()-new Date(iso).getTime();
+  if(ms<0)ms=0;
+  var m=Math.floor(ms/60000),h=Math.floor(ms/3600000),d=Math.floor(ms/DAY);
+  if(m<60)return m<=1?'just now':m+' min ago';
+  if(h<24)return h+' hr ago';
+  if(d===1)return 'yesterday';
+  if(d<30)return d+' days ago';
+  var mo=Math.floor(d/30);return mo+(mo===1?' month ago':' months ago');
+}
+function fmtDate(iso){if(!iso)return '—';return new Date(iso).toLocaleDateString('en-US',{timeZone:TZ,month:'short',day:'numeric',year:'numeric'})}
+function fmtDT(iso){if(!iso)return '—';return new Date(iso).toLocaleString('en-US',{timeZone:TZ,month:'short',day:'numeric',hour:'numeric',minute:'2-digit'})}
+function n(v){return v==null?'—':Number(v).toLocaleString()}
+var STATUS={'Active':'p-good','Looking only':'p-teal','New':'p-teal','Slowing down':'p-warn','Never started':'p-bad','Gone quiet':'p-grey','No login':'p-grey','Deactivated':'p-grey'};
+var STATUS_HELP={'Active':'Visited and recorded something in the last 7 days','Looking only':'Visited in the last 7 days but recorded nothing','New':'Joined in the last 3 days','Slowing down':'Last visit was 8 to 30 days ago','Never started':'Joined 3+ days ago and has never recorded anything','Gone quiet':'No visit in over 30 days','No login':'Has no sign-in account','Deactivated':'Account turned off'};
+function spill(s){return '<span class="pill '+(STATUS[s]||'p-grey')+'" title="'+esc(STATUS_HELP[s]||'')+'">'+esc(s)+'</span>'}
+var TIER={beta:['Beta · free for life','p-teal'],founder:['Founder · $10','p-good'],standard:['Standard','p-grey']};
+function tpill(t){var x=TIER[t]||[t,'p-grey'];return '<span class="pill '+x[1]+'">'+esc(x[0])+'</span>'}
+var BILL={trial:['Free month','p-teal'],active:['Paying','p-good'],past_due:['Past due','p-bad'],grace:['Grace period','p-warn'],read_only:['Read only','p-bad'],canceled:['Canceled','p-grey']};
+function bpill(p){if(p.tier==='beta')return '<span class="pill p-teal">Free for life</span>';var x=BILL[p.status]||[p.status,'p-grey'];return '<span class="pill '+x[1]+'">'+esc(x[0])+'</span>'}
+function trend(a,b){if(!b&&!a)return '';if(!b)return '<span class="up">new this week</span>';var p=Math.round((a-b)/b*100);if(p===0)return 'same as last week';return '<span class="'+(p>0?'up':'down')+'">'+(p>0?'▲ ':'▼ ')+Math.abs(p)+'%</span> vs last week'}
 
-  // ── State ──────────────────────────────────────────────────────────────
-  var TOKEN_KEY = 'office_token';
-  var engData = [];
-  var appData = [];
-  var libData = [];
-  var currentUser = null;
+/* ── login ── */
+function showLogin(){$('login').style.display='flex';$('app').style.display='none'}
+function signOutLocal(){localStorage.removeItem(TOKEN_KEY);showLogin()}
+function doLogin(){
+  var em=$('em').value.trim(),pw=$('pw').value,b=$('btn-login');
+  if(!em||!pw){$('lmsg').textContent='Enter your email and password.';return}
+  b.disabled=true;b.textContent='Signing in…';$('lmsg').textContent='';
+  fetch('/api/auth/login',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:em,password:pw})})
+  .then(function(r){return r.json().then(function(d){if(!r.ok||!d.token)throw new Error(d.message||'Sign in failed');return d.token})})
+  .then(function(t){return fetch('/api/admin/whoami',{headers:{'Authorization':'Bearer '+t}}).then(function(r){return r.json()}).then(function(w){if(!w.isAdmin)throw new Error('This account does not have office access.');localStorage.setItem(TOKEN_KEY,t)})})
+  .then(start)
+  .catch(function(e){$('lmsg').textContent=e.message;b.disabled=false;b.textContent='Sign in'});
+}
+function start(){$('login').style.display='none';$('app').style.display='block';load();loadLibrary()}
+function load(){
+  $('updated').textContent='Loading…';
+  api('GET','/api/admin/office/data').then(function(d){D=d;renderAll();$('updated').textContent='Updated '+fmtDT(d.generatedAt)}).catch(function(e){$('updated').textContent='';toast(e.message)});
+}
+function renderAll(){renderOverview();fillFilters();renderPeople();renderPortals();renderFeatures()}
+function person(id){for(var i=0;i<D.people.length;i++)if(D.people[i].id===id)return D.people[i];return null}
+function portal(id){for(var i=0;i<D.portals.length;i++)if(D.portals[i].id===id)return D.portals[i];return null}
 
-  // ── Helpers ────────────────────────────────────────────────────────────
-  function tok() { return localStorage.getItem(TOKEN_KEY); }
-  function setTok(t) { localStorage.setItem(TOKEN_KEY, t); }
-  function clearTok() { localStorage.removeItem(TOKEN_KEY); }
-
-  function authHdr() {
-    return { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + tok() };
-  }
-
-  function callApi(method, path, body) {
-    var opts = { method: method, headers: authHdr() };
-    if (body) opts.body = JSON.stringify(body);
-    return fetch(path, opts).then(function(r) {
-      return r.json().then(function(d) {
-        if (!r.ok) throw new Error(d.message || r.statusText);
-        return d;
-      });
-    });
-  }
-
-  var toastTimer;
-  function showToast(msg, type) {
-    var el = document.getElementById('toast');
-    el.textContent = msg;
-    el.className = 'toast on' + (type ? ' ' + type : '');
-    clearTimeout(toastTimer);
-    toastTimer = setTimeout(function() { el.classList.remove('on'); }, 3000);
-  }
-
-  function ago(iso) {
-    if (!iso) return '—';
-    var d = Math.floor((Date.now() - new Date(iso).getTime()) / 86400000);
-    if (d === 0) return 'today';
-    if (d === 1) return 'yesterday';
-    if (d < 7) return d + 'd ago';
-    if (d < 30) return Math.floor(d/7) + 'w ago';
-    return Math.floor(d/30) + 'mo ago';
-  }
-
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    return new Date(iso).toLocaleDateString('en-US', { month:'short', day:'numeric', year:'numeric' });
-  }
-
-  function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-  }
-
-  function roleChip(r) {
-    var labels = { caregiver:'CG', primary_family:'MC', secondary_family:'Family', self_care:'Self' };
-    var cls = { caregiver:'r-cg', primary_family:'r-mc', secondary_family:'r-fm', self_care:'r-sc' };
-    return '<span class="chip ' + (cls[r]||'') + '">' + (labels[r]||r) + '</span>';
-  }
-
-  function tierSpan(t) {
-    return '<span class="t-' + t + '">' + t.charAt(0).toUpperCase() + t.slice(1) + '</span>';
-  }
-
-  function msg(text, type) {
-    var el = document.getElementById('login-msg');
-    el.textContent = text;
-    el.className = 'login-msg ' + (type || 'info');
-  }
-
-  // ── Login ──────────────────────────────────────────────────────────────
-  function doLogin() {
-    var email = document.getElementById('em').value.trim();
-    var password = document.getElementById('pw').value;
-    var btn = document.getElementById('btn-login');
-    if (!email || !password) { msg('Enter your email and password.', 'error'); return; }
-    btn.disabled = true;
-    btn.textContent = 'Signing in...';
-    msg('Contacting server...', 'info');
-
-    fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: email, password: password })
-    })
-    .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, status: r.status, data: d }; }); })
-    .then(function(res) {
-      if (!res.ok || !res.data.token) {
-        throw new Error(res.data.message || 'Login failed (' + res.status + ')');
-      }
-      msg('Checking admin access...', 'info');
-      return fetch('/api/admin/whoami', {
-        headers: { 'Authorization': 'Bearer ' + res.data.token }
-      }).then(function(r2) {
-        return r2.json().then(function(d2) {
-          return { token: res.data.token, user: res.data.user, whoami: d2 };
-        });
-      });
-    })
-    .then(function(res) {
-      if (!res.whoami.isAdmin) {
-        throw new Error('Not an admin account (user ' + res.whoami.authUserId + ')');
-      }
-      setTok(res.token);
-      currentUser = { name: (res.user && res.user.name) || res.whoami.email || 'Admin' };
-      showApp();
-    })
-    .catch(function(e) {
-      msg(e.message || 'Unknown error. Try again.', 'error');
-      btn.disabled = false;
-      btn.textContent = 'Sign In to Admin Office';
-    });
-  }
-
-  // ── Show app ──────────────────────────────────────────────────────────
-  function showApp() {
-    document.getElementById('login-screen').style.display = 'none';
-    document.getElementById('app').classList.add('on');
-    document.getElementById('hdr-user').textContent = currentUser.name;
-    loadAll();
-  }
-
-  // ── Load data ─────────────────────────────────────────────────────────
-  function loadAll() {
-    Promise.all([
-      callApi('GET', '/api/admin/engagement'),
-      callApi('GET', '/api/admin/applications')
-    ]).then(function(results) {
-      engData = results[0];
-      appData = results[1];
-      renderDashboard();
-      renderPortals();
-      renderUsers();
-      renderQueue();
-      updateQueueBadge();
-    }).catch(function(e) { showToast('Load error: ' + e.message, 'err'); });
-  }
-
-  function updateQueueBadge() {
-    var n = appData.filter(function(a) { return a.status === 'pending'; }).length;
-    var b = document.getElementById('q-badge');
-    b.style.display = n > 0 ? '' : 'none';
-    b.textContent = n;
-  }
-
-  // ── Dashboard ─────────────────────────────────────────────────────────
-  function renderDashboard() {
-    document.getElementById('s-total').textContent = engData.length;
-    var portals = {};
-    engData.forEach(function(u) { if (u.clientId) portals[u.clientId] = 1; });
-    document.getElementById('s-portals').textContent = Object.keys(portals).length;
-    document.getElementById('s-active').textContent = engData.filter(function(u) { return u.daysSinceLogin <= 7; }).length;
-    var pend = appData.filter(function(a) { return a.status === 'pending'; });
-    document.getElementById('s-queue').textContent = pend.length;
-    var recent = engData.slice().sort(function(a,b) { return a.daysSinceLogin - b.daysSinceLogin; }).slice(0,10);
-    renderEngTable('d-recent', recent);
-    renderQueueTable('d-queue', pend.slice(0,5), true);
-  }
-
-  // ── Portals ───────────────────────────────────────────────────────────
-  function renderPortals() {
-    var groups = {};
-    engData.forEach(function(u) {
-      if (!u.clientId) return;
-      if (!groups[u.clientId]) groups[u.clientId] = [];
-      groups[u.clientId].push(u);
-    });
-    var keys = Object.keys(groups);
-    var container = document.getElementById('portals-list');
-    if (!keys.length) { container.innerHTML = '<div class="empty">No portals found.</div>'; return; }
-    var html = '';
-    keys.forEach(function(cid) {
-      var members = groups[cid];
-      var mc = members.find(function(u) { return u.role === 'primary_family'; });
-      var cg = members.find(function(u) { return u.role === 'caregiver'; });
-      var label = mc ? (mc.name||'Portal '+cid) : cg ? cg.name : 'Portal '+cid;
-      var tiers = members.map(function(u) { return u.tier; });
-      var health = tiers.indexOf('active') > -1 ? 'active' : tiers.indexOf('moderate') > -1 ? 'moderate' : 'quiet';
-      var logins = members.map(function(u) { return u.lastLoginAt; }).filter(Boolean).sort().reverse();
-      html += '<div class="pg"><div class="pg-hdr"><div class="dot dot-'+health+'"></div>';
-      html += '<div class="pg-name">'+esc(label)+'</div>';
-      html += '<div class="pg-meta">Portal #'+cid+' &middot; '+members.length+' member'+(members.length!==1?'s':'')+' &middot; '+ago(logins[0])+'</div></div>';
-      html += '<table><thead><tr><th>Name</th><th>Role</th><th>Email</th><th>Last Login</th><th>Activity</th></tr></thead><tbody>';
-      members.forEach(function(u) {
-        html += '<tr><td>'+esc(u.name||'—')+'</td><td>'+roleChip(u.role)+'</td><td class="td-e">'+esc(u.email||'—')+'</td><td class="td-m">'+ago(u.lastLoginAt)+'</td><td class="td-m">'+u.totalEntries+' entries</td></tr>';
-      });
-      html += '</tbody></table></div>';
-    });
-    container.innerHTML = html;
-  }
-
-  // ── Users ─────────────────────────────────────────────────────────────
-  function renderUsers() {
-    var data = engData.slice();
-    var q = document.getElementById('u-search').value.toLowerCase();
-    if (q) data = data.filter(function(u) { return (u.name||'').toLowerCase().indexOf(q) > -1 || (u.email||'').toLowerCase().indexOf(q) > -1; });
-    var s = document.getElementById('u-sort').value;
-    if (s === 'newest') data.sort(function(a,b) { return (b.joinedAt||'').localeCompare(a.joinedAt||''); });
-    else if (s === 'login') data.sort(function(a,b) { return a.daysSinceLogin - b.daysSinceLogin; });
-    else if (s === 'name') data.sort(function(a,b) { return (a.name||'').localeCompare(b.name||''); });
-    else if (s === 'entries') data.sort(function(a,b) { return b.totalEntries - a.totalEntries; });
-    var wrap = document.getElementById('users-tbl');
-    if (!data.length) { wrap.innerHTML = '<div class="empty">No users found.</div>'; return; }
-    var html = '<div class="user-cards">';
-    data.forEach(function(u) {
-      var noPortal = u.role === 'primary_family' && !u.clientId;
-      var portalTxt = u.clientId ? '#'+u.clientId : '<span style="color:var(--warn);font-weight:700;">No portal</span>';
-      html += '<div class="user-card">';
-      html += '<div class="uc-top"><div class="uc-name">'+esc(u.name||'—')+'</div><div class="uc-chips">'+roleChip(u.role)+' '+tierSpan(u.tier)+'</div></div>';
-      html += '<div class="uc-email">'+esc(u.email||'—')+'</div>';
-      var isNew = u.joinedAt && (Date.now() - new Date(u.joinedAt).getTime()) < 7 * 24 * 60 * 60 * 1000;
-      var joinedTxt = u.joinedAt ? 'Joined: '+ago(u.joinedAt) : '';
-      html += '<div class="uc-meta"><span>Portal: '+portalTxt+'</span><span>Login: '+ago(u.lastLoginAt)+'</span><span>Activity: '+u.totalEntries+'</span>'+(joinedTxt ? '<span>'+joinedTxt+'</span>' : '')+'</div>';
-      if (isNew) html += '<div style="display:inline-block;margin-bottom:6px;padding:2px 8px;background:var(--accent);color:white;font-size:10px;font-weight:700;border-radius:8px;text-transform:uppercase;letter-spacing:.04em;">New</div>';
-      html += '<div class="uc-acts">';
-      if (noPortal) html += '<button class="btn-act btn-link-act" data-id="'+u.id+'" data-name="'+esc(u.name||'')+'" data-action="link">Link Portal</button>';
-      html += '<button class="btn-act btn-role-act" data-id="'+u.id+'" data-role="'+esc(u.role||'')+'" data-name="'+esc(u.name||'')+'" data-clientid="'+(u.clientId||'')+'" data-action="role">Change Role</button>';
-      html += '<button class="btn-act btn-deny-act" data-email="'+esc(u.email||'')+'" data-action="deactivate">Deactivate</button>';
-      html += '</div></div>';
-    });
-    html += '</div>';
-    wrap.innerHTML = html;
-  }
-
-  // ── Queue ─────────────────────────────────────────────────────────────
-  function renderQueue() {
-    renderQueueTable('queue-tbl', appData.filter(function(a) { return a.status === 'pending'; }), false);
-  }
-
-  function renderQueueTable(id, apps, compact) {
-    var wrap = document.getElementById(id);
-    if (!apps.length) { wrap.innerHTML = '<div class="empty">No pending applications.</div>'; return; }
-    var html = '<table><thead><tr><th>Name</th><th>Email</th><th>Applied</th><th>Verified</th><th>Status</th>'+(compact?'':'<th>Actions</th>')+'</tr></thead><tbody>';
-    apps.forEach(function(a) {
-      html += '<tr><td><strong>'+esc(a.name||'—')+'</strong></td><td class="td-e">'+esc(a.email||'—')+'</td>';
-      html += '<td class="td-m">'+fmtDate(a.createdAt)+'</td>';
-      html += '<td><span class="chip '+(a.emailVerified?'e-ok':'e-no')+'">'+(a.emailVerified?'✓ Yes':'✗ No')+'</span></td>';
-      html += '<td><span class="chip s-'+(a.status||'pending')+'">'+(a.status||'pending')+'</span></td>';
-      if (!compact) html += '<td><div class="acts"><button class="btn-act btn-approve-act" data-id="'+a.id+'" data-action="approve">Approve</button><button class="btn-act btn-deny-act" data-id="'+a.id+'" data-action="deny">Deny</button></div></td>';
-      html += '</tr>';
-    });
-    html += '</tbody></table>';
-    wrap.innerHTML = html;
-  }
-
-  function renderEngTable(id, data) {
-    var wrap = document.getElementById(id);
-    if (!data.length) { wrap.innerHTML = '<div class="empty">No users.</div>'; return; }
-    var html = '<table><thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Last Login</th><th>Activity</th><th>Status</th></tr></thead><tbody>';
-    data.forEach(function(u) {
-      html += '<tr><td><strong>'+esc(u.name||'—')+'</strong></td><td class="td-e">'+esc(u.email||'—')+'</td><td>'+roleChip(u.role)+'</td><td class="td-m">'+ago(u.lastLoginAt)+'</td><td class="td-m">'+u.totalEntries+' entries</td><td>'+tierSpan(u.tier)+'</td></tr>';
-    });
-    html += '</tbody></table>';
-    wrap.innerHTML = html;
-  }
-
-  // ── Library ───────────────────────────────────────────────────────────
-  function loadLibrary() {
-    callApi('GET', '/api/becky-library').then(function(data) {
-      libData = data;
-      renderLibrary();
-    }).catch(function() { document.getElementById('lib-list').innerHTML = '<div class="empty">Error loading library.</div>'; });
-  }
-
-  function renderLibrary() {
-    var filter = document.getElementById('lib-filter').value;
-    var data = filter ? libData.filter(function(r) { return r.theme === filter; }) : libData;
-    var themes = [];
-    libData.forEach(function(r) { if (themes.indexOf(r.theme) === -1) themes.push(r.theme); });
-    themes.sort();
-    var sel = document.getElementById('lib-filter');
-    var cur = sel.value;
-    sel.innerHTML = '<option value="">All Themes</option>' + themes.map(function(t) { return '<option value="'+esc(t)+'"'+(t===cur?' selected':'')+'>'+esc(t)+'</option>'; }).join('');
-    var container = document.getElementById('lib-list');
-    if (!data.length) { container.innerHTML = '<div class="empty">No responses yet.</div>'; return; }
-    var html = '';
-    data.forEach(function(r) {
-      html += '<div class="lib-card"><div class="lib-hdr"><span class="lib-theme">'+esc(r.theme)+'</span>';
-      if (r.isPlaceholder) html += '<span class="lib-ph">Needs editing</span>';
-      if (!r.isActive) html += '<span class="lib-off">Inactive</span>';
-      html += '<div class="acts" style="margin-left:auto"><button class="btn-act btn-approve-act" data-id="'+r.id+'" data-action="lib-edit">Edit</button><button class="btn-act btn-deny-act" data-id="'+r.id+'" data-action="lib-del">Delete</button></div>';
-      html += '</div><div class="lib-body"><div><div class="lib-lbl">Example Message</div><div class="lib-txt">'+esc(r.examplePrompt)+'</div></div><div><div class="lib-lbl">Response</div><div class="lib-txt">'+esc(r.response)+'</div></div></div></div>';
-    });
-    container.innerHTML = html;
-  }
-
-  function openLibModal(entry) {
-    document.getElementById('lib-modal-title').textContent = entry ? 'Edit Response' : 'New Response';
-    document.getElementById('lm-id').value = entry ? entry.id : '';
-    document.getElementById('lm-theme').value = entry ? entry.theme : '';
-    document.getElementById('lm-prompt').value = entry ? entry.examplePrompt : '';
-    document.getElementById('lm-response').value = entry ? entry.response : '';
-    document.getElementById('lm-active').value = entry ? (entry.isActive ? '1' : '0') : '1';
-    document.getElementById('lib-modal').classList.add('on');
-  }
-
-  function closeLibModal() { document.getElementById('lib-modal').classList.remove('on'); }
-
-  function saveLib() {
-    var id = document.getElementById('lm-id').value;
-    var body = {
-      theme: document.getElementById('lm-theme').value.trim(),
-      examplePrompt: document.getElementById('lm-prompt').value.trim(),
-      response: document.getElementById('lm-response').value.trim(),
-      isActive: document.getElementById('lm-active').value === '1' ? 1 : 0,
-      isPlaceholder: 0
-    };
-    if (!body.theme || !body.examplePrompt || !body.response) { showToast('All fields required', 'err'); return; }
-    var p = id ? callApi('PATCH', '/api/becky-library/'+id, body) : callApi('POST', '/api/becky-library', body);
-    p.then(function() { showToast(id ? 'Updated' : 'Added', 'ok'); closeLibModal(); loadLibrary(); })
-     .catch(function(e) { showToast('Error: '+e.message, 'err'); });
-  }
-
-  // ── Event delegation ──────────────────────────────────────────────────
-  var viewMeta = {
-    dashboard: ['Dashboard','Overview of all portals and users'],
-    portals:   ['Portals','All active care circles'],
-    users:     ['Users','All registered accounts'],
-    queue:     ['Queue','Pending signup applications'],
-    library:   ['Library','Response bank'],
-    billing:   ['Billing','Subscription status for all portals'],
-  };
-
-  var billingData = [];
-
-  function loadBilling() {
-    document.getElementById('billing-tbl').innerHTML = '<div class="loading">Loading...</div>';
-    callApi('GET', '/api/admin/billing').then(function(rows) {
-      billingData = rows;
-      renderBilling();
-    }).catch(function(e) { showToast('Billing load error: ' + e.message, 'err'); });
-  }
-
-  function fmtDate(iso) {
-    if (!iso) return '—';
-    var d = new Date(iso);
-    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-  }
-
-  function renderBilling() {
-    var rows = billingData;
-    var active  = rows.filter(function(r) { return r.subscriptionStatus === 'active'; }).length;
-    var trial   = rows.filter(function(r) { return r.subscriptionStatus === 'trial'; }).length;
-    var pastdue = rows.filter(function(r) { return r.subscriptionStatus === 'past_due' || r.subscriptionStatus === 'grace'; }).length;
-    var lapsed  = rows.filter(function(r) { return r.subscriptionStatus === 'read_only'; }).length;
-    document.getElementById('b-active').textContent  = active;
-    document.getElementById('b-trial').textContent   = trial;
-    document.getElementById('b-pastdue').textContent = pastdue;
-    document.getElementById('b-lapsed').textContent  = lapsed;
-
-    var statusBadge = {
-      active:    'background:#166534;color:#86efac',
-      trial:     'background:#1e3a5f;color:#93c5fd',
-      past_due:  'background:#713f12;color:#fde68a',
-      grace:     'background:#713f12;color:#fde68a',
-      read_only: 'background:#450a0a;color:#fca5a5',
-      canceled:  'background:#1f2937;color:#9ca3af',
-    };
-
-    if (rows.length === 0) {
-      document.getElementById('billing-tbl').innerHTML = '<div class="loading">No portals found.</div>';
-      return;
-    }
-
-    var tierBadge = {
-      beta:     'background:#1e1b4b;color:#a5b4fc',
-      founder:  'background:#1a2e1a;color:#86efac',
-      standard: 'background:#1f2937;color:#9ca3af',
-    };
-
-    var html = '<table><thead><tr><th>Portal</th><th>Owner</th><th>Tier</th><th>Status</th><th>Started</th><th>Renews</th><th>Card</th></tr></thead><tbody>';
-    rows.forEach(function(r) {
-      var style = statusBadge[r.subscriptionStatus] || statusBadge.canceled;
-      var badge = '<span style="' + style + ';padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">' + r.subscriptionStatus.replace('_',' ').toUpperCase() + '</span>';
-      var grace = r.gracePeriodEndsAt ? '<br><span style="color:#fde68a;font-size:11px">Grace ends ' + fmtDate(r.gracePeriodEndsAt) + '</span>' : '';
-      var tier = r.founderTier || 'standard';
-      var tStyle = tierBadge[tier] || tierBadge.standard;
-      var tierLabel = '<span style="' + tStyle + ';padding:2px 8px;border-radius:9999px;font-size:11px;font-weight:700">' + tier.toUpperCase() + '</span>';
-      var card = r.hasPaymentMethod ? '<span style="color:#86efac">Yes</span>' : '<span style="color:#6b7280">No</span>';
-      html += '<tr>';
-      html += '<td><strong>' + r.clientName + '</strong></td>';
-      html += '<td>' + r.ownerName + '<br><span style="color:#6b7280;font-size:11px">' + r.ownerEmail + '</span></td>';
-      html += '<td>' + tierLabel + '</td>';
-      html += '<td>' + badge + grace + '</td>';
-      html += '<td>' + fmtDate(r.subscriptionStartedAt) + '</td>';
-      html += '<td>' + fmtDate(r.subscriptionRenewsAt) + '</td>';
-      html += '<td>' + card + '</td>';
-      html += '</tr>';
-    });
-    html += '</tbody></table>';
-    document.getElementById('billing-tbl').innerHTML = html;
-  }
-
-  document.addEventListener('click', function(e) {
-    var t = e.target;
-
-    // Tabs
-    var tab = t.closest ? t.closest('.tab') : null;
-    if (tab && tab.dataset.v) {
-      var v = tab.dataset.v;
-      document.querySelectorAll('.tab').forEach(function(x) { x.classList.remove('active'); });
-      tab.classList.add('active');
-      document.querySelectorAll('.view').forEach(function(x) { x.classList.remove('active'); });
-      document.getElementById('view-'+v).classList.add('active');
-      var meta = viewMeta[v] || [v, ''];
-      document.getElementById('tb-title').textContent = meta[0];
-      document.getElementById('tb-sub').textContent = meta[1];
-      if (v === 'library') loadLibrary();
-      if (v === 'billing') loadBilling();
-      return;
-    }
-
-    // Action buttons
-    var action = t.dataset && t.dataset.action;
-    if (action === 'approve') {
-      callApi('POST', '/api/admin/applications/'+t.dataset.id+'/approve')
-        .then(function() { showToast('Approved','ok'); loadAll(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    } else if (action === 'deny') {
-      if (!confirm('Deny this application?')) return;
-      callApi('POST', '/api/admin/applications/'+t.dataset.id+'/deny')
-        .then(function() { showToast('Denied','ok'); loadAll(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    } else if (action === 'deactivate') {
-      if (!confirm('Deactivate account for '+t.dataset.email+'?')) return;
-      callApi('POST', '/api/admin/users/deactivate', { email: t.dataset.email })
-        .then(function() { showToast('Deactivated','ok'); loadAll(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    } else if (action === 'role') {
-      var roles = ['caregiver','primary_family','secondary_family','self_care'];
-      var current = t.dataset.role || 'unknown';
-      var newRole = prompt('Change role for '+t.dataset.name+'\nCurrent: '+current+'\n\nEnter new role:\n caregiver\n primary_family\n secondary_family\n self_care');
-      if (!newRole || !roles.includes(newRole.trim())) return;
-      var rolePayload = { role: newRole.trim() };
-      if (t.dataset.clientid) rolePayload.clientId = Number(t.dataset.clientid);
-      callApi('POST', '/api/admin/users/'+t.dataset.id+'/role', rolePayload)
-        .then(function(r) { showToast('Role changed to '+newRole.trim()+(r.log&&r.log.length?' ('+r.log.length+' side effects)':""),'ok'); loadAll(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    } else if (action === 'link') {
-      var cid = prompt('Link '+t.dataset.name+' to which portal?\nEnter the clientId number (see Portals tab):');
-      if (!cid || isNaN(Number(cid))) return;
-      callApi('POST', '/api/admin/users/'+t.dataset.id+'/link-portal', { clientId: Number(cid) })
-        .then(function() { showToast('Linked to portal #'+cid,'ok'); loadAll(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    } else if (action === 'lib-edit') {
-      var entry = libData.find(function(r) { return String(r.id) === String(t.dataset.id); });
-      if (entry) openLibModal(entry);
-    } else if (action === 'lib-del') {
-      if (!confirm('Delete this response?')) return;
-      callApi('DELETE', '/api/becky-library/'+t.dataset.id)
-        .then(function() { showToast('Deleted','ok'); loadLibrary(); })
-        .catch(function(e) { showToast('Error: '+e.message,'err'); });
-    }
-
-    // Show/hide password
-    if (t.id === 'pw-eye') {
-      var inp = document.getElementById('pw');
-      if (inp.type === 'password') { inp.type = 'text'; t.textContent = 'Hide'; }
-      else { inp.type = 'password'; t.textContent = 'Show'; }
-    }
-
-    // Login button
-    if (t.id === 'btn-login') { doLogin(); }
-
-    // Sign out
-    if (t.id === 'btn-out') {
-      callApi('POST', '/api/auth/logout').catch(function(){});
-      clearTok();
-      location.reload();
-    }
-
-    // Refresh
-    if (t.id === 'btn-refresh') { loadAll(); }
-
-    // New library entry
-    if (t.id === 'btn-new-lib') { openLibModal(null); }
-
-    // Modal cancel/save
-    if (t.id === 'lib-cancel') { closeLibModal(); }
-    if (t.id === 'lib-save') { saveLib(); }
-
-    // Overlay click to close
-    if (t.id === 'lib-modal') { closeLibModal(); }
+/* ── overview ── */
+function renderOverview(){
+  var s=D.summary,h='';
+  h+='<h2>This week</h2><div class="stats">';
+  h+=stat('People using the app',s.seen7,'visited in the last 7 days · '+s.seenToday+' today');
+  h+=stat('People recording things',s.doers7,'made at least one entry in 7 days');
+  h+=stat('Actions this week',s.actions7,trend(s.actions7,s.actionsPrev7));
+  h+=stat('Portals with activity',s.portalsActive7+' of '+s.portals,'something recorded in 7 days');
+  h+='</div>';
+  h+='<h2>Growth and plans</h2><div class="stats">';
+  h+=stat('People',s.people,s.joined7+' joined this week · '+s.joined30+' in 30 days');
+  h+=stat('Used it in 30 days',s.seen30,s.doers30+' recorded something');
+  h+=stat('Paying portals',s.paying,s.trial+' in free month'+(s.pastDue?' · <span class="down">'+s.pastDue+' payment problem'+(s.pastDue>1?'s':'')+'</span>':''));
+  h+=stat('Plans',s.tiers.beta+' beta',s.tiers.founder+' founder · '+s.tiers.standard+' standard');
+  h+='</div>';
+  h+='<h2>Last 30 days</h2><div class="card chart" id="chart"></div>';
+  h+='<h2>Worth a look</h2><div class="card">';
+  if(!D.attention.length)h+='<div class="empty">Nothing needs attention right now.</div>';
+  else{h+='<ul class="att">';D.attention.forEach(function(a){var k={never:['Never started','p-bad'],quiet:['Gone quiet','p-grey'],drop:['Dropping off','p-warn'],trial:['Free month ending','p-teal'],billing:['Payment','p-bad']}[a.kind]||[a.kind,'p-grey'];h+='<li data-person="'+(a.personId||'')+'" data-portal="'+(a.portalId||'')+'"><span class="pill '+k[1]+'">'+k[0]+'</span><span>'+esc(a.text)+'</span></li>'});h+='</ul>'}
+  h+='</div>';
+  var top=D.people.filter(function(p){return p.counted&&p.actions30>0}).sort(function(a,b){return b.actions30-a.actions30}).slice(0,8);
+  h+='<h2>Most active (30 days)</h2><div class="card tw"><table><thead><tr><th>Person</th><th>Role</th><th class="num">Actions</th><th class="hide-sm">Mostly using</th><th>Last visit</th></tr></thead><tbody>';
+  if(!top.length)h+='<tr><td colspan="5" class="empty">No activity yet.</td></tr>';
+  top.forEach(function(p){h+='<tr class="row" data-person="'+p.id+'"><td><b>'+esc(p.name)+'</b></td><td>'+esc(p.roleLabel)+'</td><td class="num">'+p.actions30+'</td><td class="hide-sm sub">'+esc(topFeatures(p.byFeature))+'</td><td>'+ago(p.lastSeenAt)+'</td></tr>'});
+  h+='</tbody></table></div>';
+  h+='<div class="note">Numbers leave out the demo, test accounts, and the team accounts (David and Becky admin). You can change who counts on any person’s page. "Actions" are things people record in the app: Care Log entries, corrections, messages, medications, vitals, schedule check-offs, photos, documents, health history and more.</div>';
+  $('v-overview').innerHTML=h;
+  drawChart();
+}
+function stat(k,v,s){return '<div class="stat"><div class="k">'+k+'</div><div class="v">'+v+'</div><div class="s">'+(s||'')+'</div></div>'}
+function topFeatures(bf){var a=Object.keys(bf||{}).map(function(k){return[k,bf[k]]}).sort(function(x,y){return y[1]-x[1]}).slice(0,3);return a.map(function(x){return x[0]}).join(', ')}
+function drawChart(){
+  var el=$('chart');if(!el)return;
+  var days=D.days,maxA=1,maxP=1;days.forEach(function(d){if(d.actions>maxA)maxA=d.actions;if(d.people>maxP)maxP=d.people});
+  var h='<div class="legend"><span><i style="background:#01696F"></i>Actions</span><span><i style="background:#d97706;border-radius:50%"></i>People active</span><span style="margin-left:auto">Busiest day: '+maxA+' actions</span></div><div class="bars">';
+  days.forEach(function(d,i){
+    var ah=Math.round(d.actions/maxA*100),ph=Math.round(d.people/maxP*92);
+    var lbl=new Date(d.day+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'});
+    h+='<div class="bar" data-tip="'+esc(lbl+': '+d.actions+' actions, '+d.people+' people')+'"><div class="a" style="height:'+ah+'%"></div>'+(d.people?'<div class="pp" style="bottom:calc('+ph+'% - 3px)"></div>':'')+'</div>';
   });
+  h+='</div><div class="xl">';
+  days.forEach(function(d,i){var dt=new Date(d.day+'T12:00:00Z');h+='<span>'+(i%5===0||i===days.length-1?dt.toLocaleDateString('en-US',{timeZone:'UTC',month:'numeric',day:'numeric'}):'')+'</span>'});
+  h+='</div>';
+  if(D.trackingStartedAt&&Date.now()-new Date(D.trackingStartedAt).getTime()<30*DAY)h+='<div class="note">Daily visits are recorded starting '+fmtDate(D.trackingStartedAt)+'. Before that, "people active" only counts people who recorded something.</div>';
+  el.innerHTML=h;
+}
 
-  // Search/sort listeners
-  document.getElementById('u-search').addEventListener('input', renderUsers);
-  document.getElementById('u-sort').addEventListener('change', renderUsers);
-  document.getElementById('lib-filter').addEventListener('change', renderLibrary);
+/* ── people ── */
+function fillFilters(){
+  var st={},ro={};D.people.forEach(function(p){st[p.status]=1;ro[p.roleLabel]=1});
+  var s=$('p-status'),cur=s.value;s.innerHTML='<option value="">All statuses</option>'+Object.keys(st).sort().map(function(k){return '<option'+(k===cur?' selected':'')+'>'+esc(k)+'</option>'}).join('');
+  var r=$('p-role'),c2=r.value;r.innerHTML='<option value="">All roles</option>'+Object.keys(ro).sort().map(function(k){return '<option'+(k===c2?' selected':'')+'>'+esc(k)+'</option>'}).join('');
+}
+var PCOLS=[['name','Person'],['roleLabel','Role'],['portal','Portal'],['status','Status'],['lastSeenAt','Last visit'],['lastActionAt','Last action'],['actions7','7 days','num'],['actions30','30 days','num'],['actionsTotal','All time','num'],['joinedAt','Joined']];
+function renderPeople(){
+  if(!D)return;
+  var q=$('p-q').value.toLowerCase(),fs=$('p-status').value,fr=$('p-role').value,all=$('p-all').checked;
+  var rows=D.people.filter(function(p){
+    if(!all&&!p.counted)return false;
+    if(fs&&p.status!==fs)return false;
+    if(fr&&p.roleLabel!==fr)return false;
+    if(q&&(p.name+' '+p.email).toLowerCase().indexOf(q)<0)return false;
+    return true;
+  });
+  rows.sort(function(a,b){var k=sortP.k,x=k==='portal'?(a.portals[0]||{}).name:a[k],y=k==='portal'?(b.portals[0]||{}).name:b[k];if(x==null)x='';if(y==null)y='';return (x>y?1:x<y?-1:0)*sortP.d});
+  var h='<table><thead><tr>';
+  PCOLS.forEach(function(c){h+='<th class="'+(c[2]||'')+'" data-sortp="'+c[0]+'">'+c[1]+(sortP.k===c[0]?(sortP.d>0?' ▲':' ▼'):'')+'</th>'});
+  h+='</tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="10" class="empty">No one matches.</td></tr>';
+  rows.forEach(function(p){
+    h+='<tr class="row'+(p.counted?'':' dim')+'" data-person="'+p.id+'">';
+    h+='<td><b>'+esc(p.name)+'</b>'+(p.kind!=='real'?' <span class="pill p-grey">'+p.kind+'</span>':'')+'<div class="sub">'+esc(p.email)+'</div></td>';
+    h+='<td data-l="Role">'+esc(p.roleLabel)+'</td>';
+    h+='<td data-l="Portal">'+(p.portals.length?esc(p.portals[0].name)+(p.portals.length>1?' <span class="sub">+'+(p.portals.length-1)+'</span>':''):'<span class="sub">none</span>')+'</td>';
+    h+='<td>'+spill(p.status)+'</td>';
+    h+='<td data-l="Last visit" title="'+esc(fmtDT(p.lastSeenAt))+'">'+ago(p.lastSeenAt)+'</td>';
+    h+='<td data-l="Last action">'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td>';
+    h+='<td class="num" data-l="7 days">'+p.actions7+'</td><td class="num" data-l="30 days">'+p.actions30+'</td><td class="num" data-l="All time">'+p.actionsTotal+'</td>';
+    h+='<td data-l="Joined">'+fmtDate(p.joinedAt)+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $('p-tbl').innerHTML=h;
+  $('p-note').textContent=rows.length+' '+(rows.length===1?'person':'people')+' shown. Click anyone for details. "Last visit" is updated about once an hour while someone is using the app.';
+}
+function openPerson(id){
+  var p=person(id);if(!p)return;
+  var h='<div class="dh"><div><h3>'+esc(p.name)+'</h3><div class="sub">'+esc(p.email)+'</div><div style="margin-top:6px">'+spill(p.status)+' <span class="pill p-grey">'+esc(p.roleLabel)+'</span>'+(p.counted?'':' <span class="pill p-warn">Not counted in numbers</span>')+'</div></div><button class="x" data-close="1">×</button></div><div class="db">';
+  h+='<div class="kv">';
+  h+='<div>Joined</div><div>'+fmtDate(p.joinedAt)+'</div>';
+  h+='<div>Last visit</div><div>'+ago(p.lastSeenAt)+' <span class="sub">('+fmtDT(p.lastSeenAt)+')</span></div>';
+  h+='<div>Last action</div><div>'+(p.lastActionAt?esc(p.lastActionLabel)+', '+ago(p.lastActionAt):'nothing recorded yet')+'</div>';
+  h+='<div>Days used</div><div>'+p.daysUsed7+' of the last 7 · '+p.daysUsed30+' of the last 30'+(D.trackingStartedAt&&Date.now()-new Date(D.trackingStartedAt).getTime()<30*DAY?' <span class="sub">(counting since '+fmtDate(D.trackingStartedAt)+')</span>':'')+'</div>';
+  h+='<div>Actions</div><div>'+p.actions7+' this week · '+p.actionsPrev7+' last week · '+p.actions30+' in 30 days · '+p.actionsTotal+' all time</div>';
+  if(p.loginCount!=null)h+='<div>Sign-ins</div><div>'+p.loginCount+'</div>';
+  h+='<div>Portals</div><div>'+(p.portals.length?p.portals.map(function(x){return '<a href="#" data-portal="'+x.id+'">'+esc(x.name)+'</a>'}).join(', '):'none')+'</div>';
+  h+='</div>';
+  var bf=Object.keys(p.byFeature).map(function(k){return[k,p.byFeature[k]]}).sort(function(a,b){return b[1]-a[1]});
+  h+='<h4>What they use (all time)</h4>';
+  if(!bf.length)h+='<div class="sub">Nothing recorded yet.</div>';
+  else{var mx=bf[0][1];h+='<table class="mini">';bf.forEach(function(x){h+='<tr><td style="width:40%">'+esc(x[0])+'</td><td><div class="fbar"><i style="width:'+Math.round(x[1]/mx*100)+'%"></i></div></td><td class="num" style="width:50px">'+x[1]+'</td></tr>'});h+='</table>'}
+  h+='<h4>Recent actions</h4>';
+  if(!p.recent.length)h+='<div class="sub">None yet.</div>';
+  else{h+='<table class="mini">';p.recent.forEach(function(r){h+='<tr><td style="width:36%" class="sub">'+fmtDT(r.at)+'</td><td>'+esc(r.label)+(r.portal?' <span class="sub">· '+esc(r.portal)+'</span>':'')+'</td></tr>'});h+='</table><div class="note">Shows what kind of action, never what was written.</div>'}
+  h+='<div class="act"><button class="b2 teal" data-count="'+p.id+'" data-val="'+(p.counted?0:1)+'">'+(p.counted?'Leave out of numbers':'Count in numbers')+'</button>';
+  if(p.isActive&&p.kind!=='team')h+='<button class="b2 red" data-deact="'+esc(p.email)+'">Deactivate account</button>';
+  h+='</div></div>';
+  openDrawer(h);
+}
 
-  // Enter key on login
-  document.getElementById('pw').addEventListener('keydown', function(e) { if (e.key === 'Enter') doLogin(); });
-  document.getElementById('em').addEventListener('keydown', function(e) { if (e.key === 'Enter') document.getElementById('pw').focus(); });
+/* ── portals ── */
+var OCOLS=[['name','Portal'],['owner','Owner'],['tier','Plan'],['status','Billing'],['nextChargeAt','Next charge'],['members','Members','num'],['actions7','7 days','num'],['actions30','30 days','num'],['lastActionAt','Last activity']];
+function renderPortals(){
+  if(!D)return;
+  var q=$('o-q').value.toLowerCase(),ft=$('o-tier').value,all=$('o-all').checked;
+  var rows=D.portals.filter(function(p){
+    if(!all&&!p.counted)return false;
+    if(ft&&p.tier!==ft)return false;
+    if(q){var t=(p.name+' '+p.members.map(function(m){return m.name}).join(' ')).toLowerCase();if(t.indexOf(q)<0)return false}
+    return true;
+  });
+  rows.sort(function(a,b){var k=sortO.k,x=a[k],y=b[k];if(k==='owner'){x=(a.owner||{}).name;y=(b.owner||{}).name}if(k==='members'){x=a.members.length;y=b.members.length}if(x==null)x='';if(y==null)y='';return (x>y?1:x<y?-1:0)*sortO.d});
+  var h='<table><thead><tr>';
+  OCOLS.forEach(function(c){h+='<th class="'+(c[2]||'')+'" data-sorto="'+c[0]+'">'+c[1]+(sortO.k===c[0]?(sortO.d>0?' ▲':' ▼'):'')+'</th>'});
+  h+='</tr></thead><tbody>';
+  if(!rows.length)h+='<tr><td colspan="9" class="empty">No portals match.</td></tr>';
+  rows.forEach(function(p){
+    h+='<tr class="row'+(p.counted?'':' dim')+'" data-portal="'+p.id+'"><td><b>'+esc(p.name)+'</b><div class="sub">#'+p.id+'</div></td>';
+    h+='<td data-l="Owner">'+(p.owner?esc(p.owner.name):'<span class="sub">—</span>')+'</td>';
+    h+='<td>'+tpill(p.tier)+'</td><td>'+bpill(p)+'</td>';
+    h+='<td data-l="Next charge">'+(p.tier==='beta'?'<span class="sub">never</span>':fmtDate(p.nextChargeAt))+'</td>';
+    h+='<td class="num" data-l="Members">'+p.members.length+'</td><td class="num" data-l="7 days">'+p.actions7+'</td><td class="num" data-l="30 days">'+p.actions30+'</td>';
+    h+='<td data-l="Last activity">'+(p.lastActionAt?ago(p.lastActionAt)+'<div class="sub">'+esc(p.lastActionLabel)+'</div>':'<span class="sub">nothing yet</span>')+'</td></tr>';
+  });
+  h+='</tbody></table>';
+  $('o-tbl').innerHTML=h;
+}
+function openPortal(id){
+  var p=portal(id);if(!p)return;
+  var h='<div class="dh"><div><h3>'+esc(p.name)+'</h3><div class="sub">Portal #'+p.id+'</div><div style="margin-top:6px">'+tpill(p.tier)+' '+bpill(p)+'</div></div><button class="x" data-close="1">×</button></div><div class="db"><div class="kv">';
+  h+='<div>Owner</div><div>'+(p.owner?'<a href="#" data-person="'+p.owner.id+'">'+esc(p.owner.name)+'</a>':'—')+'</div>';
+  h+='<div>Started</div><div>'+fmtDate(p.trialStartedAt)+'</div>';
+  h+='<div>Next charge</div><div>'+(p.tier==='beta'?'Never (free for life)':fmtDate(p.nextChargeAt))+'</div>';
+  h+='<div>Card on file</div><div>'+(p.cardOnFile?'Yes':'No')+'</div>';
+  if(p.graceEndsAt)h+='<div>Grace ends</div><div>'+fmtDate(p.graceEndsAt)+'</div>';
+  h+='<div>Activity</div><div>'+p.actions7+' this week · '+p.actions30+' in 30 days · '+p.actionsTotal+' all time</div>';
+  h+='<div>Last activity</div><div>'+(p.lastActionAt?esc(p.lastActionLabel)+', '+ago(p.lastActionAt):'nothing yet')+'</div>';
+  h+='</div><h4>Members</h4><table class="mini">';
+  if(!p.members.length)h+='<tr><td class="sub">No members found.</td></tr>';
+  p.members.forEach(function(m){h+='<tr><td><a href="#" data-person="'+m.id+'">'+esc(m.name)+'</a></td><td class="sub">'+esc(m.roleLabel)+'</td><td class="sub">visited '+ago(m.lastSeenAt)+'</td></tr>'});
+  h+='</table>';
+  var bf=Object.keys(p.byFeature).map(function(k){return[k,p.byFeature[k]]}).sort(function(a,b){return b[1]-a[1]});
+  h+='<h4>What this portal uses (all time)</h4>';
+  if(!bf.length)h+='<div class="sub">Nothing recorded yet.</div>';
+  else{var mx=bf[0][1];h+='<table class="mini">';bf.forEach(function(x){h+='<tr><td style="width:40%">'+esc(x[0])+'</td><td><div class="fbar"><i style="width:'+Math.round(x[1]/mx*100)+'%"></i></div></td><td class="num" style="width:50px">'+x[1]+'</td></tr>'});h+='</table>'}
+  h+='</div>';
+  openDrawer(h);
+}
 
-  // ── Init ──────────────────────────────────────────────────────────────
-  var saved = tok();
-  if (saved) {
-    fetch('/api/admin/whoami', { headers: { 'Authorization': 'Bearer ' + saved } })
-      .then(function(r) { return r.json(); })
-      .then(function(d) {
-        if (d.isAdmin) {
-          currentUser = { name: d.email || 'Admin' };
-          showApp();
-        } else {
-          clearTok();
-          document.getElementById('login-screen').style.display = 'flex';
-        }
-      })
-      .catch(function() {
-        clearTok();
-        document.getElementById('login-screen').style.display = 'flex';
-      });
-  } else {
-    document.getElementById('login-screen').style.display = 'flex';
-  }
+/* ── features ── */
+function renderFeatures(){
+  var f=D.features,mx=1;f.forEach(function(x){if(x.actions30>mx)mx=x.actions30});
+  var h='<div class="note">Which parts of the app people actually use. Counts only include people and portals that count in the numbers.</div><div class="card tw"><table><thead><tr><th>Feature</th><th style="width:30%">Last 30 days</th><th class="num">Actions (30d)</th><th class="num">People (30d)</th><th class="num">Portals (30d)</th><th class="num">All time</th><th>Last used</th></tr></thead><tbody>';
+  f.forEach(function(x){h+='<tr'+(x.actionsAll?'':' class="dim"')+'><td><b>'+esc(x.feature)+'</b></td><td><div class="fbar"><i style="width:'+Math.round(x.actions30/mx*100)+'%"></i></div></td><td class="num">'+x.actions30+'</td><td class="num">'+x.people30+'</td><td class="num">'+x.portals30+'</td><td class="num">'+x.actionsAll+'</td><td>'+(x.lastAt?ago(x.lastAt):'<span class="sub">never</span>')+'</td></tr>'});
+  h+='</tbody></table></div><div class="note">Medications counts both doses logged and medications added. "Summaries" counts Generate Summary uses; the app does not record who pressed the button, so it shows under the portal only. Visit Reports aren’t saved by the app, so they can’t be counted yet.</div>';
+  $('v-features').innerHTML=h;
+}
 
+/* ── drawer ── */
+function openDrawer(h){$('drawer').innerHTML=h;$('drawer').classList.add('on');$('shade').classList.add('on');$('drawer').scrollTop=0}
+function closeDrawer(){$('drawer').classList.remove('on');$('shade').classList.remove('on')}
+
+/* ── library ── */
+function loadLibrary(){api('GET','/api/becky-library').then(function(d){libData=d;renderLibrary()}).catch(function(){$('lib-list').innerHTML='<div class="empty">Could not load the library.</div>'})}
+function renderLibrary(){
+  var f=$('lib-filter').value,data=f?libData.filter(function(r){return r.theme===f}):libData,th=[];
+  libData.forEach(function(r){if(th.indexOf(r.theme)<0)th.push(r.theme)});th.sort();
+  $('lib-filter').innerHTML='<option value="">All themes</option>'+th.map(function(t){return '<option'+(t===f?' selected':'')+'>'+esc(t)+'</option>'}).join('');
+  if(!data.length){$('lib-list').innerHTML='<div class="empty">No responses yet.</div>';return}
+  $('lib-list').innerHTML=data.map(function(r){return '<div class="lib-card"><div class="lib-hdr"><span class="pill p-teal">'+esc(r.theme)+'</span>'+(r.isPlaceholder?'<span class="pill p-warn">Needs editing</span>':'')+(r.isActive?'':'<span class="pill p-grey">Inactive</span>')+'<span style="margin-left:auto"></span><button class="b2" data-libedit="'+r.id+'">Edit</button><button class="b2 red" data-libdel="'+r.id+'">Delete</button></div><div class="lib-body"><div><div class="lib-lbl">Example message</div><div class="lib-txt">'+esc(r.examplePrompt)+'</div></div><div><div class="lib-lbl">Response</div><div class="lib-txt">'+esc(r.response)+'</div></div></div></div>'}).join('');
+}
+function openLib(e){$('lib-modal-title').textContent=e?'Edit response':'New response';$('lm-id').value=e?e.id:'';$('lm-theme').value=e?e.theme:'';$('lm-prompt').value=e?e.examplePrompt:'';$('lm-response').value=e?e.response:'';$('lm-active').value=e?(e.isActive?'1':'0'):'1';$('lib-modal').classList.add('on')}
+function saveLib(){
+  var id=$('lm-id').value,b={theme:$('lm-theme').value.trim(),examplePrompt:$('lm-prompt').value.trim(),response:$('lm-response').value.trim(),isActive:$('lm-active').value==='1'?1:0,isPlaceholder:0};
+  if(!b.theme||!b.examplePrompt||!b.response){toast('Fill in all fields');return}
+  (id?api('PATCH','/api/becky-library/'+id,b):api('POST','/api/becky-library',b)).then(function(){toast(id?'Saved':'Added');$('lib-modal').classList.remove('on');loadLibrary()}).catch(function(e){toast(e.message)});
+}
+
+/* ── events ── */
+document.addEventListener('click',function(e){
+  var t=e.target,el;
+  if((el=t.closest('.tab'))){document.querySelectorAll('.tab').forEach(function(x){x.classList.remove('on')});el.classList.add('on');document.querySelectorAll('.view').forEach(function(x){x.classList.remove('on')});$('v-'+el.dataset.v).classList.add('on');return}
+  if((el=t.closest('[data-sortp]'))){var k=el.dataset.sortp;sortP={k:k,d:sortP.k===k?-sortP.d:(/name|role|portal|status/.test(k)?1:-1)};renderPeople();return}
+  if((el=t.closest('[data-sorto]'))){var k2=el.dataset.sorto;sortO={k:k2,d:sortO.k===k2?-sortO.d:(/name|owner|tier|status/.test(k2)?1:-1)};renderPortals();return}
+  if((el=t.closest('[data-close]'))||t.id==='shade'){closeDrawer();return}
+  if((el=t.closest('[data-count]'))){api('POST','/api/admin/office/counted',{userId:Number(el.dataset.count),counted:el.dataset.val==='1'}).then(function(){toast('Updated');var id=Number(el.dataset.count);api('GET','/api/admin/office/data').then(function(d){D=d;renderAll();openPerson(id)})}).catch(function(x){toast(x.message)});return}
+  if((el=t.closest('[data-deact]'))){if(!confirm('Turn off the account for '+el.dataset.deact+'? They will not be able to sign in.'))return;api('POST','/api/admin/users/deactivate',{email:el.dataset.deact}).then(function(){toast('Account turned off');closeDrawer();load()}).catch(function(x){toast(x.message)});return}
+  if((el=t.closest('[data-person]'))&&el.dataset.person){e.preventDefault();openPerson(Number(el.dataset.person));return}
+  if((el=t.closest('[data-portal]'))&&el.dataset.portal){e.preventDefault();openPortal(Number(el.dataset.portal));return}
+  if((el=t.closest('[data-libedit]'))){var en=libData.filter(function(r){return String(r.id)===el.dataset.libedit})[0];if(en)openLib(en);return}
+  if((el=t.closest('[data-libdel]'))){if(!confirm('Delete this response?'))return;api('DELETE','/api/becky-library/'+el.dataset.libdel).then(function(){toast('Deleted');loadLibrary()}).catch(function(x){toast(x.message)});return}
+  if(t.id==='btn-new-lib')openLib(null);
+  if(t.id==='lib-cancel'||t.id==='lib-modal')$('lib-modal').classList.remove('on');
+  if(t.id==='lib-save')saveLib();
+  if(t.id==='btn-login')doLogin();
+  if(t.id==='btn-refresh')load();
+  if(t.id==='btn-out'){api('POST','/api/auth/logout').catch(function(){});signOutLocal()}
+});
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeDrawer()});
+document.addEventListener('mousemove',function(e){var b=e.target.closest&&e.target.closest('[data-tip]'),tip=$('tip');if(!b){tip.style.display='none';return}tip.textContent=b.dataset.tip;tip.style.display='block';tip.style.left=Math.min(e.clientX+12,window.innerWidth-220)+'px';tip.style.top=(e.clientY-34)+'px'});
+['p-q','p-status','p-role','p-all'].forEach(function(id){$(id).addEventListener(id==='p-q'?'input':'change',renderPeople)});
+['o-q','o-tier','o-all'].forEach(function(id){$(id).addEventListener(id==='o-q'?'input':'change',renderPortals)});
+$('lib-filter').addEventListener('change',renderLibrary);
+$('p-sort').addEventListener('change',function(){var k=this.value;sortP={k:k,d:k==='name'?1:-1};renderPeople()});
+$('o-sort').addEventListener('change',function(){var k=this.value;sortO={k:k,d:k==='name'||k==='nextChargeAt'?1:-1};renderPortals()});
+$('pw').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+$('em').addEventListener('keydown',function(e){if(e.key==='Enter')$('pw').focus()});
+
+/* ── init ── */
+if(tok()){fetch('/api/admin/whoami',{headers:{'Authorization':'Bearer '+tok()}}).then(function(r){return r.json()}).then(function(d){if(d.isAdmin)start();else signOutLocal()}).catch(signOutLocal)}
+else showLogin();
 })();
 </script>
 </body>

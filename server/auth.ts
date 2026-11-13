@@ -1,3 +1,4 @@
+import { recordVisit } from "./officeData";
 /**
  * Care Net Portal — Auth Layer
  * JWT-based sessions, bcrypt passwords, 30-day expiry
@@ -233,6 +234,9 @@ export async function requireAuth(
   req.authJti = payload.jti;
   req.authUserId = user.id;
   req.authUserRole = user.role;
+
+  // Office analytics: one row per user per day they used the app
+  recordVisit(user.id);
 
   // Refresh last_login_at if it hasn't been updated in the last hour
   // This ensures users with long-lived sessions still show as recently active

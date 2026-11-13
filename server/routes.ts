@@ -12,6 +12,7 @@ import { buildSystemPrompt } from "./helpdesk-knowledge";
 import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
 import { getOfficeHtml } from "./office";
+import { buildOfficeData, setCounted, lastActionByUser } from "./officeData";
 import fs from "fs";
 import {
   hashPassword, verifyPassword, createSession, revokeSession,
@@ -2367,6 +2368,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
       // Show all users except demo accounts — includes test accounts. Admins need full visibility.
       const DEMO_EMAILS = ['cnpdemo@carenetportal.com', 'democg@carenetportal.com'];
       const nonDemoUsers = allUsers.filter(u => !DEMO_EMAILS.includes((u.email || '').toLowerCase()));
+      const lastActions = lastActionByUser();
 
       const result = nonDemoUsers.map(u => {
         const clientId = u.clientId;
@@ -2379,7 +2381,9 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           clientId ? sqlite.prepare(`SELECT recorded_at as ts FROM vitals WHERE client_id = ? ORDER BY recorded_at DESC LIMIT 1`).get(clientId) as any : null,
           sqlite.prepare(`SELECT sent_at as ts FROM messages WHERE sender_id = ? ORDER BY sent_at DESC LIMIT 1`).get(u.id) as any,
         ].filter(Boolean).map(r => r?.ts).filter(Boolean);
-        const lastActivityAt = lastActivityRows.length > 0 ? lastActivityRows.sort().reverse()[0] : null;
+        // Real actions only (no future-dated schedule items) — shared with the office
+        const lastActivityAt = lastActions.get(u.id) ?? null;
+        void lastActivityRows;
 
         // Total care data entries
         const totalEntries = [
@@ -2406,6 +2410,7 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
           clientId,
           lastLoginAt: lastLogin,
           lastActivityAt,
+          daysSinceActivity: lastActivityAt ? Math.floor((Date.now() - new Date(lastActivityAt).getTime()) / 86400000) : null,
           totalEntries,
           daysSinceLogin,
           tier,
@@ -2542,6 +2547,35 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
     fs.createReadStream(audioPath).pipe(res);
   });
 
+
+  // GET /api/admin/office/data — everything the standalone office shows (admin only)
+  app.get("/api/admin/office/data", requireAuth, requireAdmin, (_req: AuthRequest, res) => {
+    try {
+      res.setHeader("Cache-Control", "no-store");
+      res.json(buildOfficeData());
+    } catch (e: any) {
+      console.error("[office-data]", e);
+      res.status(500).json({ message: e?.message || "Office data failed" });
+    }
+  });
+
+  // POST /api/admin/office/counted — include or leave out a person from office numbers
+  app.post("/api/admin/office/counted", requireAuth, requireAdmin, (req: AuthRequest, res) => {
+    const userId = Number(req.body?.userId);
+    if (!userId) return res.status(400).json({ message: "userId required" });
+    setCounted(userId, !!req.body?.counted);
+    res.json({ success: true });
+  });
+
+  // office.carenetportal.com — serve the office at the root of its own address
+  app.get('/', (req, res, next) => {
+    if (String(req.hostname || '').toLowerCase().startsWith('office.')) {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      res.setHeader('Cache-Control', 'no-cache');
+      return res.send(getOfficeHtml());
+    }
+    next();
+  });
 
   // GET /office — Standalone admin office (separate login, own token, desktop-first)
   app.get('/office', (_req, res) => {
