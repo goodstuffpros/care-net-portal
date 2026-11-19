@@ -13,6 +13,8 @@ import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
 import { getOfficeHtml } from "./office";
 import { buildOfficeData, setCounted, lastActionByUser } from "./officeData";
+import { recordSiteBeacon, buildSiteData } from "./siteStats";
+import expressMod from "express";
 import fs from "fs";
 import {
   hashPassword, verifyPassword, createSession, revokeSession,
@@ -2560,6 +2562,28 @@ Respond with a JSON object (no markdown, no code fences) with these fields:
   });
 
   // POST /api/admin/office/counted — include or leave out a person from office numbers
+  // Marketing-site visitor beacons (www.carenetportal.com) — public, tiny, no personal data
+  const SITE_ORIGINS = new Set(["https://www.carenetportal.com", "https://carenetportal.com"]);
+  app.options("/api/site/t", (req, res) => {
+    const o = String(req.headers.origin || "");
+    if (SITE_ORIGINS.has(o)) { res.setHeader("Access-Control-Allow-Origin", o); res.setHeader("Access-Control-Allow-Methods", "POST"); res.setHeader("Access-Control-Allow-Headers", "Content-Type"); }
+    res.status(204).end();
+  });
+  app.post("/api/site/t", expressMod.text({ type: () => true, limit: "4kb" }), (req, res) => {
+    const o = String(req.headers.origin || "");
+    if (o && SITE_ORIGINS.has(o)) res.setHeader("Access-Control-Allow-Origin", o);
+    try {
+      if (SITE_ORIGINS.has(o) || process.env.NODE_ENV !== "production" || process.env.SITE_TRACK_ANY_ORIGIN === "1") {
+        recordSiteBeacon(req.body, String(req.headers["user-agent"] || ""), String(req.ip || ""));
+      }
+    } catch (e) { console.error("[site-beacon]", (e as any)?.message); }
+    res.status(204).end();
+  });
+  app.get("/api/admin/office/site", requireAuth, requireAdmin, (_req: AuthRequest, res) => {
+    try { res.setHeader("Cache-Control", "no-store"); res.json(buildSiteData()); }
+    catch (e: any) { console.error("[office-site]", e); res.status(500).json({ message: e?.message || "Website data failed" }); }
+  });
+
   app.post("/api/admin/office/counted", requireAuth, requireAdmin, (req: AuthRequest, res) => {
     const userId = Number(req.body?.userId);
     if (!userId) return res.status(400).json({ message: "userId required" });

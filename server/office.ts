@@ -126,6 +126,13 @@ a{color:var(--teal)}
 .modal-btns{display:flex;gap:8px;justify-content:flex-end}
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:8px;font-size:13px;display:none;z-index:60}
 .toast.on{display:block}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{border:1px solid var(--line);background:#fff;border-radius:99px;padding:7px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer}
+.chip.on{background:var(--teal);border-color:var(--teal);color:#fff}
+.bar.pre{background:repeating-linear-gradient(45deg,#f3f1ec,#f3f1ec 3px,#fff 3px,#fff 6px)}
+.bar .sg{position:absolute;width:7px;height:7px;border-radius:50%;background:#d97706;left:50%;margin-left:-3.5px}
+.reach td{padding:8px 12px}
+@media(max-width:700px){#v-website .stats{grid-template-columns:1fr 1fr;gap:8px}#v-website .stat .v{font-size:24px}#v-website .stat{padding:12px}}
 .sortm{display:none}
 @media(max-width:700px){main{padding:14px}.lib-body{grid-template-columns:1fr}.kv{grid-template-columns:110px 1fr}.hide-sm{display:none}
  #updated{display:none}.top{padding:0 12px}.top .brand span{display:none}.tabs{padding:0 6px}.tab{padding:13px 10px 11px}.tools input:not([type]){min-width:0;max-width:none;width:100%;flex-basis:100%}
@@ -155,6 +162,7 @@ a{color:var(--teal)}
   </div></div>
   <div class="tabs"><div class="tabs-in">
     <div class="tab on" data-v="overview">Overview</div>
+    <div class="tab" data-v="website">Website</div>
     <div class="tab" data-v="people">People</div>
     <div class="tab" data-v="portals">Portals</div>
     <div class="tab" data-v="features">Features</div>
@@ -162,6 +170,7 @@ a{color:var(--teal)}
   </div></div>
   <main>
     <section class="view on" id="v-overview"><div class="empty">Loading…</div></section>
+    <section class="view" id="v-website"><div class="empty">Loading…</div></section>
     <section class="view" id="v-people">
       <div class="tools">
         <input id="p-q" placeholder="Search name or email">
@@ -279,8 +288,11 @@ window.addEventListener('popstate',function(e){
 });
 function load(){
   $('updated').textContent='Loading…';
+  loadSite();
   api('GET','/api/admin/office/data').then(function(d){D=d;renderAll();$('updated').textContent='Updated '+fmtDT(d.generatedAt)}).catch(function(e){$('updated').textContent='';toast(e.message)});
 }
+var W=null,wRange='30';
+function loadSite(){api('GET','/api/admin/office/site').then(function(d){W=d;renderWebsite()}).catch(function(e){$('v-website').innerHTML='<div class="empty">Could not load website numbers.</div>'})}
 function renderAll(){renderOverview();fillFilters();renderPeople();renderPortals();renderFeatures()}
 function person(id){for(var i=0;i<D.people.length;i++)if(D.people[i].id===id)return D.people[i];return null}
 function portal(id){for(var i=0;i<D.portals.length;i++)if(D.portals[i].id===id)return D.portals[i];return null}
@@ -329,6 +341,81 @@ function drawChart(){
   days.forEach(function(d,i){var dt=new Date(d.day+'T12:00:00Z');h+='<span>'+(i%5===0||i===days.length-1?dt.toLocaleDateString('en-US',{timeZone:'UTC',month:'numeric',day:'numeric'}):'')+'</span>'});
   h+='</div>';
   if(D.trackingStartedAt&&Date.now()-new Date(D.trackingStartedAt).getTime()<30*DAY)h+='<div class="note">Daily visits are recorded starting '+fmtDate(D.trackingStartedAt)+'. Before that, "people active" only counts people who recorded something.</div>';
+  el.innerHTML=h;
+}
+
+
+/* ── website ── */
+function dayKey(iso){return new Intl.DateTimeFormat('en-CA',{timeZone:TZ,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso))}
+function fmtSecs(n){if(!n)return '—';if(n<60)return n+' sec';var m=Math.floor(n/60),r=n%60;return m+' min'+(r?' '+r+' sec':'')}
+function pct(a,b){return b?Math.round(a/b*100)+'%':'—'}
+function renderWebsite(){
+  if(!W)return;
+  var startDay=W.trackingStartedAt?dayKey(W.trackingStartedAt):null;
+  var all=W.series,ser=wRange==='all'?all:all.slice(-Number(wRange));
+  var firstDay=ser.length?ser[0].day:'';
+  var vs=W.visits.filter(function(v){return dayKey(v.at)>=firstDay});
+  var visitors={},cta=0,newV=0;vs.forEach(function(v){visitors[v.visitor]=1;if(v.cta)cta++;if(v.isNew)newV++});
+  var nVisitors=Object.keys(visitors).length;
+  var apps=0,owners=0;ser.forEach(function(d){apps+=d.applications;owners+=d.newPortalOwners});
+  var h='<div class="chips">';
+  [['7','Last 7 days'],['30','Last 30 days'],['90','Last 90 days'],['all','Since launch']].forEach(function(r){h+='<button class="chip'+(wRange===r[0]?' on':'')+'" data-wr="'+r[0]+'">'+r[1]+'</button>'});
+  h+='</div>';
+  if(startDay)h+='<div class="note" style="margin-top:-6px">Visitor counting started '+fmtDate(W.trackingStartedAt)+'. Sign-ups go back to launch.</div>';
+  h+='<div class="stats">';
+  h+=stat('Visitors',nVisitors,newV+' first-time · '+vs.length+' visits');
+  h+=stat('Tapped Get Started',cta,pct(cta,vs.length)+' of visits');
+  h+=stat('Applied',apps,'filled out the Get Started form');
+  h+=stat('New portals',owners,'Main Contact or Self Care accounts created');
+  h+='</div>';
+  h+='<h2>Day by day</h2><div class="card chart" id="wchart"></div>';
+  // sources
+  var src={};vs.forEach(function(v){var x=src[v.source]||(src[v.source]={n:0,cta:0,sec:0,ppl:{}});x.n++;if(v.cta)x.cta++;x.sec+=v.seconds;x.ppl[v.visitor]=1});
+  var sk=Object.keys(src).sort(function(a,b){return src[b].n-src[a].n});
+  h+='<h2>Where visitors came from</h2><div class="card tw"><table><thead><tr><th>Source</th><th class="num">Visits</th><th class="num">Tapped Get Started</th><th class="num hide-sm">Avg time</th></tr></thead><tbody>';
+  if(!sk.length)h+='<tr><td colspan="4" class="empty">No visits counted in this range yet.</td></tr>';
+  sk.forEach(function(k){var x=src[k];h+='<tr><td><b>'+esc(k)+'</b></td><td class="num">'+x.n+'</td><td class="num">'+x.cta+' <span class="sub">('+pct(x.cta,x.n)+')</span></td><td class="num hide-sm">'+fmtSecs(Math.round(x.sec/x.n))+'</td></tr>'});
+  h+='</tbody></table></div><div class="note">Facebook is detected from Facebook links and the Facebook app. "Direct" means they typed CareNetPortal.com, scanned the QR code on the business card, or used a saved link. The car magnet and business cards both land here.</div>';
+  // reach
+  h+='<h2>How far down the page they got</h2><div class="card"><table class="reach"><tbody>';
+  if(!vs.length)h+='<tr><td class="empty">No visits counted in this range yet.</td></tr>';
+  else W.sections.forEach(function(sec){var n=vs.filter(function(v){return v.sections.indexOf(sec.key)>=0}).length;var p=Math.round(n/vs.length*100);
+    h+='<tr><td style="width:38%">'+esc(sec.label)+'</td><td><div class="fbar"><i style="width:'+p+'%"></i></div></td><td class="num" style="width:70px">'+p+'%</td></tr>'});
+  h+='</tbody></table></div><div class="note">Share of visits that scrolled to each part of the page. A big drop between two rows shows where people lose interest.</div>';
+  // devices
+  var dev={};vs.forEach(function(v){dev[v.device]=(dev[v.device]||0)+1});
+  h+='<h2>Devices</h2><div class="stats">';
+  ['Phone','Computer','Tablet'].forEach(function(k){h+=stat(k,dev[k]||0,pct(dev[k]||0,vs.length)+' of visits')});
+  h+='</div>';
+  // recent
+  var labels={};W.sections.forEach(function(x){labels[x.key]=x.label});
+  h+='<h2>Recent visits</h2><div class="card tw cols"><table><thead><tr><th>When</th><th>Source</th><th class="hide-sm">Device</th><th>Got to</th><th class="hide-sm num">Time</th><th>Get Started</th></tr></thead><tbody>';
+  var rec=vs.slice(0,40);
+  if(!rec.length)h+='<tr><td colspan="6" class="empty">No visits counted in this range yet.</td></tr>';
+  rec.forEach(function(v){var lastSec=v.sections.length?labels[v.sections[v.sections.length-1]]:'Top of page';
+    h+='<tr><td>'+ago(v.at)+(v.isNew?'':' <span class="sub">· returning</span>')+'</td><td>'+esc(v.source)+'</td><td class="hide-sm">'+esc(v.device)+'</td><td>'+esc(lastSec)+'</td><td class="hide-sm num">'+fmtSecs(v.seconds)+'</td><td>'+(v.cta?'<span class="pill p-good">Tapped</span>':'<span class="sub">no</span>')+'</td></tr>'});
+  h+='</tbody></table></div>';
+  h+='<div class="note">Counts only real browsers that open the page. Search engines and link previews are left out. No names, email addresses or IP addresses are kept. Your own visits to the site are counted too.</div>';
+  $('v-website').innerHTML=h;
+  drawWChart(ser,startDay);
+}
+function drawWChart(ser,startDay){
+  var el=$('wchart');if(!el)return;
+  var gp=ser.length>60?0:ser.length>31?1:3;
+  var maxV=1,maxS=1;ser.forEach(function(d){if(d.visitors>maxV)maxV=d.visitors;var sg=d.applications;if(sg>maxS)maxS=sg});
+  var h='<div class="legend"><span><i style="background:#01696F"></i>Visitors</span><span><i style="background:#d97706;border-radius:50%"></i>Applied</span><span style="margin-left:auto">Busiest day: '+maxV+' visitors</span></div><div class="bars" style="gap:'+gp+'px">';
+  ser.forEach(function(d){
+    var pre=startDay&&d.day<startDay;
+    var vh=Math.round(d.visitors/maxV*100),sh=Math.round(d.applications/maxS*92);
+    var lbl=new Date(d.day+'T12:00:00Z').toLocaleDateString('en-US',{timeZone:'UTC',weekday:'short',month:'short',day:'numeric'});
+    var tip=lbl+': '+(pre?'visitors not counted yet':d.visitors+' visitors, '+d.cta+' tapped Get Started')+', '+d.applications+' applied';
+    h+='<div class="bar'+(pre?' pre':'')+'" data-tip="'+esc(tip)+'"><div class="a" style="height:'+vh+'%"></div>'+(d.applications?'<div class="sg" style="bottom:calc('+sh+'% - 3px)"></div>':'')+'</div>';
+  });
+  h+='</div><div class="xl" style="gap:'+gp+'px">';
+  var step=Math.max(1,Math.ceil(ser.length/(window.innerWidth<700?5:10)));
+  ser.forEach(function(d,i){var dt=new Date(d.day+'T12:00:00Z');h+='<span>'+(i%step===0?dt.toLocaleDateString('en-US',{timeZone:'UTC',month:'numeric',day:'numeric'}):'')+'</span>'});
+  h+='</div>';
+  if(startDay&&ser.length&&ser[0].day<startDay)h+='<div class="note" style="margin:8px 0 0">Striped days are before visitor counting started. Orange dots (applications) go back to launch.</div>';
   el.innerHTML=h;
 }
 
@@ -475,6 +562,7 @@ function saveLib(){
 /* ── events ── */
 document.addEventListener('click',function(e){
   var t=e.target,el;
+  if((el=t.closest('[data-wr]'))){wRange=el.dataset.wr;renderWebsite();return}
   if((el=t.closest('.tab'))){var v=el.dataset.v;if(v===curView)return;if(history.state&&history.state.d){$('drawer').classList.remove('on');$('shade').classList.remove('on');history.replaceState({v:v},'')}else{history.pushState({v:v},'')}showView(v);return}
   if((el=t.closest('[data-sortp]'))){var k=el.dataset.sortp;sortP={k:k,d:sortP.k===k?-sortP.d:(/name|role|portal|status/.test(k)?1:-1)};renderPeople();return}
   if((el=t.closest('[data-sorto]'))){var k2=el.dataset.sorto;sortO={k:k2,d:sortO.k===k2?-sortO.d:(/name|owner|tier|status/.test(k2)?1:-1)};renderPortals();return}
