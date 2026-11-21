@@ -2,6 +2,9 @@ import { createRoot } from "react-dom/client";
 import App from "./App";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import "./index.css";
+import { installDemoViewGuard } from "./lib/demoView";
+
+installDemoViewGuard();
 
 if (!window.location.hash) {
   window.location.hash = "#/";

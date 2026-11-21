@@ -10,6 +10,7 @@
  *   <ModuleIntro moduleKey="schedule" />
  */
 
+import { isDemoView } from "@/lib/demoView";
 import { useState, useEffect, useRef } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient, API_BASE, STATIC_BASE } from "@/lib/queryClient";
@@ -323,7 +324,7 @@ export default function ModuleIntro({ moduleKey }: ModuleIntroProps) {
   }
 
   // Screenshot mode — never show module intro overlays for clean screenshots
-  const screenshotMode = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
+  const screenshotMode = typeof window !== "undefined" && (new URLSearchParams(window.location.search).has("screenshot") || isDemoView());
   if (!visible || screenshotMode) return null;
 
   const lesson = LESSONS[moduleKey];

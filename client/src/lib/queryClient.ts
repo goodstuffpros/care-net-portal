@@ -13,17 +13,22 @@ async function throwIfResNotOk(res: Response) {
   }
 }
 
+import { getDemoViewToken, clearDemoViewToken, isDemoView, notifyDemoReadonly, DEMO_READONLY_MESSAGE } from "@/lib/demoView";
+
 const TOKEN_KEY = "cn_auth_token";
 
 export function setAuthToken(token: string) {
+  clearDemoViewToken(); // a real sign-in always ends the demo in this tab
   try { localStorage.setItem(TOKEN_KEY, token); } catch {}
 }
 export function getAuthToken(): string | null {
   try {
-    return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
+    return getDemoViewToken() || localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY) || null;
   } catch { return null; }
 }
 export function clearAuthToken() {
+  // In the demo, "sign out" only ends the demo — never the person's own sign-in
+  if (isDemoView()) { clearDemoViewToken(); return; }
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
   try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
 }
@@ -45,6 +50,10 @@ export async function apiRequest(
   url: string,
   data?: unknown | undefined,
 ): Promise<Response> {
+  if (isDemoView() && !["GET", "HEAD", "OPTIONS"].includes(method.toUpperCase()) && url !== "/api/auth/logout") {
+    notifyDemoReadonly();
+    throw new Error(DEMO_READONLY_MESSAGE);
+  }
   const headers = authHeaders(data ? { "Content-Type": "application/json" } : {});
   const res = await fetch(`${API_BASE}${url}`, {
     method,

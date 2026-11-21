@@ -31,6 +31,11 @@ export function ensureSiteTables() {
     login_clicks INTEGER DEFAULT 0
   )`);
   sqlite.exec(`CREATE INDEX IF NOT EXISTS idx_site_visits_started ON site_visits(started_at)`);
+  sqlite.exec(`CREATE TABLE IF NOT EXISTS demo_views (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    opened_at TEXT NOT NULL,
+    device TEXT
+  )`);
   sqlite.exec(`CREATE TABLE IF NOT EXISTS office_meta (key TEXT PRIMARY KEY, value TEXT)`);
   sqlite.prepare(`INSERT OR IGNORE INTO office_meta (key, value) VALUES ('site_tracking_started_at', ?)`).run(new Date().toISOString());
   ready = true;
@@ -99,6 +104,24 @@ export function recordSiteBeacon(raw: any, ua: string, ip: string) {
   }
 }
 
+// View-only demo opens (/#/demo). Stored: time and device type only.
+const demoHits = new Map<string, { n: number; t: number }>();
+export function demoViewLimited(ip: string) {
+  const now = Date.now();
+  const h = demoHits.get(ip);
+  if (!h || now - h.t > 10 * 60000) { demoHits.set(ip, { n: 1, t: now }); return false; }
+  h.n++;
+  return h.n > 30;
+}
+export function recordDemoOpen(ua: string) {
+  try {
+    ensureSiteTables();
+    if (BOT_RE.test(ua || "")) return;
+    const device = /iPad|Tablet/i.test(ua) ? "Tablet" : /Mobi|iPhone|Android/i.test(ua) ? "Phone" : "Computer";
+    sqlite.prepare(`INSERT INTO demo_views (opened_at, device) VALUES (?, ?)`).run(new Date().toISOString(), device);
+  } catch {}
+}
+
 function centralDay(d: Date): string {
   return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Chicago", year: "numeric", month: "2-digit", day: "2-digit" }).format(d);
 }
@@ -151,8 +174,12 @@ export function buildSiteData() {
     if (series.length > 800) break;
   }
 
+  let demoOpens: any[] = [];
+  try { demoOpens = sqlite.prepare(`SELECT opened_at, device FROM demo_views WHERE opened_at >= ? ORDER BY opened_at DESC`).all(new Date(now - 400 * DAY).toISOString()) as any[]; } catch {}
+
   return {
     trackingStartedAt: startedAt,
+    demoOpens: demoOpens.map(d => ({ at: d.opened_at, device: d.device })),
     series,
     visits: visits.map(v => ({
       at: v.started_at, visitor: String(v.visitor_id).slice(0, 6), source: v.source, device: v.device, isNew: !!v.is_new,

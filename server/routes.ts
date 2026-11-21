@@ -13,13 +13,13 @@ import { eq, and, lt, desc, sql, isNull } from "drizzle-orm";
 import path from "path";
 import { getOfficeHtml } from "./office";
 import { buildOfficeData, setCounted, lastActionByUser } from "./officeData";
-import { recordSiteBeacon, buildSiteData } from "./siteStats";
+import { recordSiteBeacon, buildSiteData, recordDemoOpen, demoViewLimited } from "./siteStats";
 import expressMod from "express";
 import fs from "fs";
 import {
   hashPassword, verifyPassword, createSession, revokeSession,
   setSessionCookie, clearSessionCookie, getTokenFromRequest,
-  verifyJWT, hashToken, generateToken,
+  verifyJWT, hashToken, generateToken, createDemoViewSession,
   sendEmail, emailApprovalTemplate, emailDenialTemplate,
   emailVerifyTemplate, emailPasswordResetTemplate, emailApprovalWelcomeTemplate, emailWelcomeTemplate,
   emailAdminNewUserTemplate, emailAdminPaymentTemplate,
@@ -197,12 +197,32 @@ export function registerRoutes(httpServer: Server, app: Express) {
     res.json({ success: true, token });
   });
 
+  // POST /api/demo/view — opens the shared demo portal view-only, no sign-in.
+  // Returns a short-lived token the browser keeps only in that tab (sessionStorage).
+  // No cookie is set, so it never replaces anyone's own sign-in.
+  app.post("/api/demo/view", async (req: AuthRequest, res) => {
+    try {
+      const ip = String(req.headers["x-forwarded-for"] || req.ip || "?").split(",")[0].trim();
+      if (demoViewLimited(ip)) return res.status(429).json({ message: "Too many demo opens. Please try again in a few minutes." });
+      const acct = db.select().from(authAccounts).where(eq(authAccounts.email, "cnpdemo@carenetportal.com")).get();
+      if (!acct?.userId) return res.status(404).json({ message: "The demo is not available right now." });
+      const token = await createDemoViewSession(acct.id, req);
+      recordDemoOpen(String(req.headers["user-agent"] || ""));
+      res.json({ token });
+    } catch (err: any) {
+      console.error("demo view error:", err?.message);
+      res.status(500).json({ message: "Could not open the demo." });
+    }
+  });
+
   // POST /api/auth/logout
   app.post("/api/auth/logout", async (req: AuthRequest, res) => {
     const token = getTokenFromRequest(req);
     if (token) {
       const payload = await verifyJWT(token);
       if (payload) revokeSession(payload.jti);
+      // Leaving the view-only demo must never touch the person's own sign-in cookie
+      if (payload?.demoView) return res.json({ success: true });
     }
     clearSessionCookie(res);
     res.json({ success: true });
@@ -253,7 +273,7 @@ export function registerRoutes(httpServer: Server, app: Express) {
 
     const acctExtras = sqlite.prepare(`SELECT login_count FROM auth_accounts WHERE id = ?`).get(account.id) as any;
     const userExtras = sqlite.prepare(`SELECT has_seen_high_five, has_seen_open_hand FROM users WHERE id = ?`).get(user.id) as any;
-    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, mcBannerSnoozedUntil: user.mcBannerSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false, loginCount: acctExtras?.login_count ?? 0, hasSeenHighFive: userExtras?.has_seen_high_five ?? false, hasSeenOpenHand: userExtras?.has_seen_open_hand ?? false });
+    res.json({ id: user.id, name: user.name, role: user.role, email: account.email, onboardingCompletedAt: user.onboardingCompletedAt, mcSetupCompletedAt: user.mcSetupCompletedAt, carePathChoice: user.carePathChoice, clientId: user.clientId, sampleClientId: user.sampleClientId ?? null, permissionLevel: user.permissionLevel ?? null, contributorWelcomeSeen: user.contributorWelcomeSeen ?? false, phone: user.phone, avatarInitials: user.avatarInitials, multiPortalNudgeSnoozedUntil: user.multiPortalNudgeSnoozedUntil ?? null, mcBannerSnoozedUntil: user.mcBannerSnoozedUntil ?? null, elevatedUntil: user.elevatedUntil ?? null, hasSeenMcInvitePrompt: user.hasSeenMcInvitePrompt ?? false, loginCount: acctExtras?.login_count ?? 0, hasSeenHighFive: userExtras?.has_seen_high_five ?? false, hasSeenOpenHand: userExtras?.has_seen_open_hand ?? false, demoView: !!payload.demoView });
   });
 
   // POST /api/auth/complete-signup — called with invite token to set password

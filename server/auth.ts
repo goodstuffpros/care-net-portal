@@ -69,16 +69,49 @@ export async function createJWT(authAccountId: number): Promise<{ token: string;
   return { token, jti };
 }
 
-export async function verifyJWT(token: string): Promise<{ authAccountId: number; jti: string } | null> {
+export async function verifyJWT(token: string): Promise<{ authAccountId: number; jti: string; demoView?: boolean } | null> {
   try {
     const { payload } = await jwtVerify(token, JWT_SECRET);
     return {
       authAccountId: payload.authAccountId as number,
       jti: payload.jti as string,
+      demoView: payload.dv === 1,
     };
   } catch {
     return null;
   }
+}
+
+// ── View-only demo pass ───────────────────────────────────────────────────
+// A short-lived session for the shared demo portal, opened from /#/demo with no
+// sign-in. The token carries dv=1, and requireAuth refuses every request that is
+// not a read (GET/HEAD/OPTIONS), so nothing can be changed through it.
+const DEMO_VIEW_HOURS = 3;
+export async function createDemoViewSession(authAccountId: number, req: Request): Promise<string> {
+  const jti = crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + DEMO_VIEW_HOURS * 60 * 60 * 1000);
+  const token = await new SignJWT({ authAccountId, dv: 1 })
+    .setProtectedHeader({ alg: "HS256" })
+    .setJti(jti)
+    .setIssuedAt()
+    .setExpirationTime(expiresAt)
+    .sign(JWT_SECRET);
+  db.insert(authSessions).values({
+    authAccountId,
+    tokenHash: hashToken(jti),
+    expiresAt: expiresAt.toISOString(),
+    createdAt: new Date().toISOString(),
+    userAgent: ("demo-view " + (req.headers["user-agent"] || "")).slice(0, 300),
+    ipAddress: null,
+  }).run();
+  return token;
+}
+
+const READ_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+function blockDemoViewWrite(req: Request, res: Response): boolean {
+  if (READ_METHODS.has(req.method)) return false;
+  res.status(403).json({ message: "This is a view-only demo. Nothing was saved.", demoView: true });
+  return true;
 }
 
 // ── Session persistence ───────────────────────────────────────────────────
@@ -153,6 +186,7 @@ export interface AuthRequest extends Request {
   authUserRole?: string;
   authJti?: string;
   isDemoMode?: boolean;
+  isDemoView?: boolean;
 }
 
 /**
@@ -234,6 +268,13 @@ export async function requireAuth(
   req.authJti = payload.jti;
   req.authUserId = user.id;
   req.authUserRole = user.role;
+
+  // View-only demo: reads only, and no visit/last-login tracking
+  if (payload.demoView) {
+    req.isDemoView = true;
+    if (blockDemoViewWrite(req, res)) return;
+    return next();
+  }
 
   // Office analytics: one row per user per day they used the app
   recordVisit(user.id);
@@ -400,6 +441,10 @@ export async function requireAuthAccount(
     return;
   }
 
+  if (payload.demoView) {
+    req.isDemoView = true;
+    if (blockDemoViewWrite(req, res)) return;
+  }
   req.authAccountId = payload.authAccountId;
   req.authJti = payload.jti;
   // authUserId may be undefined here — that's fine for onboarding

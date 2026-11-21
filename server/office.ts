@@ -367,6 +367,9 @@ function renderWebsite(){
   h+=stat('Tapped Get Started',cta,pct(cta,vs.length)+' of visits');
   h+=stat('Applied',apps,'filled out the Get Started form');
   h+=stat('New portals',owners,'Main Contact or Self Care accounts created');
+  var dOpen=(W.demoOpens||[]).filter(function(d){return dayKey(d.at)>=firstDay});
+  var dPhone=dOpen.filter(function(d){return d.device==='Phone'}).length;
+  h+=stat('Demo opened',dOpen.length,'view-only demo · '+dPhone+' on a phone');
   h+='</div>';
   h+='<h2>Day by day</h2><div class="card chart" id="wchart"></div>';
   // sources

@@ -20,6 +20,7 @@ import {
 import { cn } from "@/lib/utils";
 import { speakBecky } from "@/lib/ttsUtils";
 import { SampleClientModal } from "@/components/SampleClientModal";
+import { isDemoView, leaveDemoView } from "@/lib/demoView";
 
 function formatTime(isoString: string) {
   return new Date(isoString).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
@@ -196,6 +197,7 @@ export default function DashboardPage() {
     !nudgeSnoozed &&
     !multiPortalNudgeDismissedLocal &&
     isRealSession &&
+    !isDemoView() &&
     activeUser.id > 0;
 
   const snoozeMutation = useMutation({
@@ -538,6 +540,21 @@ export default function DashboardPage() {
         </Card>
       )}
 
+      {/* View-only demo — sign-up card at the bottom of the Dashboard */}
+      {isDemoView() && (
+        <div className="rounded-2xl bg-[#0C4E54] text-white p-5 text-center" data-testid="demo-signup-card">
+          <p className="text-lg font-semibold" style={{ fontFamily: "'Cabinet Grotesk', sans-serif" }}>Could this help your family?</p>
+          <p className="text-sm opacity-85 mt-1">Your first month is free.</p>
+          <button
+            onClick={() => leaveDemoView("/apply")}
+            className="mt-4 w-full rounded-xl bg-white text-[#0C4E54] font-semibold py-3"
+            data-testid="demo-signup-card-start"
+          >
+            Start my free month
+          </button>
+        </div>
+      )}
+
       {/* Sample Client creation modal — triggered from the dashboard nudge */}
       <SampleClientModal
         open={sampleModalOpen}
@@ -550,7 +567,7 @@ export default function DashboardPage() {
       />
 
       {/* ── Feedback cards: high-five + open-hand — one-time, personal ── */}
-      <Dialog open={feedbackCardOpen === "high-five"} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
+      <Dialog open={feedbackCardOpen === "high-five" && !isDemoView()} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
         <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" data-testid="dialog-feedback-highfive">
           {/* Header */}
           <div className="bg-teal-600 px-6 pt-6 pb-5 text-white">
@@ -605,7 +622,7 @@ export default function DashboardPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={feedbackCardOpen === "open-hand"} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
+      <Dialog open={feedbackCardOpen === "open-hand" && !isDemoView()} onOpenChange={(open) => { if (!open) dismissFeedbackCard(); }}>
         <DialogContent className="max-w-sm rounded-2xl p-0 overflow-hidden" data-testid="dialog-feedback-openhand">
           {/* Header */}
           <div className="bg-slate-700 px-6 pt-6 pb-5 text-white">

@@ -43,6 +43,8 @@ import NavOverlay, { NAV_COLORS } from "@/components/NavOverlay";
 import { WellbeingModal, ProactiveNudgeBanner } from "@/components/WellbeingModal";
 import { NeedAMomentModal } from "@/components/NeedAMomentModal";
 import DemoBanner from "@/components/DemoBanner";
+import DemoViewBar from "@/components/DemoViewBar";
+import { isDemoView } from "@/lib/demoView";
 import DemoApplyCTA from "@/components/DemoApplyCTA";
 import McInviteBanner from "@/components/McInviteBanner";
 
@@ -195,7 +197,8 @@ const TIMEZONES = [
 
 // Screenshot mode — suppresses all banners, popups, and overlays for clean CNU screenshots.
 // Activated by appending ?screenshot=1 to any URL.
-const SCREENSHOT_MODE = typeof window !== "undefined" && new URLSearchParams(window.location.search).has("screenshot");
+// The view-only demo (/#/demo) uses the same clean mode: no banners, popups, or nudges.
+const SCREENSHOT_MODE = typeof window !== "undefined" && (new URLSearchParams(window.location.search).has("screenshot") || isDemoView());
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { activeUser, setActiveUser, selectedClientId, setSelectedClientId, theme, toggleTheme, appMode, colorTheme, setColorTheme, triggerOnboarding, portalMode, isRealSession, isPreConnection, isPracticeClient, sampleClientId, isClientPortal, clientPermissionLevel, contributorWelcomeSeen, setContributorWelcomeSeen, navOverlayOpen, setNavOverlayOpen, realUserEmail, onLogout, hasMultiplePortals, activeClientName, isTemporarilyElevated, elevationExpiresAt, returnToCareHome } = useApp();
@@ -1120,6 +1123,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         {/* Demo Banner — only visible when logged in as demo account */}
         {isDemo && !SCREENSHOT_MODE && <DemoBanner userEmail={realUserEmail} onLogout={onLogout} />}
+        {isDemoView() && <DemoViewBar />}
 
         {/* Sample Client Banner — shown whenever a CG is in practice/sample mode */}
         {isPracticeClient && !SCREENSHOT_MODE && (

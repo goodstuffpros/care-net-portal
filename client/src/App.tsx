@@ -47,6 +47,8 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 // Auth pages (public — no AppLayout)
 import LoginPage from "@/pages/Login";
+import DemoEntry from "@/pages/DemoEntry";
+import { isDemoView } from "@/lib/demoView";
 import ApplyPage from "@/pages/Apply";
 import CompleteSignupPage from "@/pages/CompleteSignup";
 import InviteLanding from "@/pages/InviteLanding";
@@ -427,6 +429,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
   }, [activeUser.id, activeUser.role]);
 
   const showOnboarding =
+    !isDemoView() &&
     isCaregiverRole(activeUser.role) &&
     !onboardingDismissed[activeUser.id] &&
     onboardingUserFetched[activeUser.id] === true &&
@@ -514,7 +517,7 @@ function MainApp({ realUser, onReturnToCareHome, onSwitchPortal, hasMultiplePort
       }}>
         <LangProvider>
         <AlarmEngine />
-        <InstallPrompt ready={true} />
+        <InstallPrompt ready={!isDemoView()} />
         <Router hook={useHashLocation}>
           <AppLayout>
             <Switch>
@@ -670,6 +673,11 @@ export default function App() {
     effectivePath === "/becky-admin" ||
     effectivePath.startsWith("/becky-admin") ||
     qp.get("admin") === "becky";
+
+  // View-only demo — /#/demo (public, no sign-in)
+  if (effectivePath === "/demo") {
+    return <DemoEntry />;
+  }
 
   if (isAdminPath) {
     const adminToken = getAdminToken();

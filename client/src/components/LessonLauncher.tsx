@@ -11,6 +11,7 @@
  *   - CG role → CG lesson, family role → family lesson for same section
  */
 
+import { isDemoView } from "@/lib/demoView";
 import { useState, useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { GraduationCap, Play, CheckCircle2, Pause, Square, Volume2, ChevronRight, Award, X } from "lucide-react";
@@ -334,7 +335,7 @@ export function LessonLauncher({ pageKey, className: extraClass }: { pageKey: st
     setVisible(false);
   }
 
-  if (!visible) return null;
+  if (!visible || isDemoView()) return null;
 
   return (
     <>
