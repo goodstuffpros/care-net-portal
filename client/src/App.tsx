@@ -863,15 +863,17 @@ function RealAuthGate() {
 
   if (checking) return null;
 
-  // No session — if running as installed PWA (standalone), redirect to login
-  // instead of falling into demo mode which creates a confusing loop
+  // No session — always send signed-out visitors to the sign-in page
+  // (never the empty guest mode). The view-only demo has its own door at /#/demo.
   if (!realUser) {
-    const isStandalone = window.matchMedia("(display-mode: standalone)").matches ||
-      (window.navigator as any).standalone === true;
-    if (isStandalone && !window.location.hash.includes("/login")) {
-      window.location.hash = "/login";
-      return null;
+    if (window.location.hash.includes("/login")) {
+      // Already on the sign-in address (e.g. sign-in check failed right after
+      // logging in) — reload so the sign-in page itself shows, not a blank screen.
+      window.location.reload();
+    } else {
+      window.location.replace("/#/login");
     }
+    return null;
   }
 
   // Real user who hasn't completed onboarding wizard yet
